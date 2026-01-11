@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import type { FC } from 'react'
 
 interface FaviconProps {
   url: string
@@ -6,7 +7,7 @@ interface FaviconProps {
 }
 
 // Favicon 组件用于加载并显示网站图标
-export const Favicon = ({ url, className }: FaviconProps) => {
+const Favicon: FC<FaviconProps> = ({ url, className }) => {
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
 
@@ -15,7 +16,7 @@ export const Favicon = ({ url, className }: FaviconProps) => {
     try {
       const parsedUrl = new URL(url)
       return `${parsedUrl.hostname}${parsedUrl.pathname}`.toLowerCase()
-    } catch (e) {
+    } catch {
       // 如果URL格式不正确，使用整个URL的小写形式
       return url.toLowerCase()
     }
@@ -42,7 +43,7 @@ export const Favicon = ({ url, className }: FaviconProps) => {
     return null
   }
 
-  const setFaviconToCache = (url: string, faviconUrl: string | null) => {
+  const setFaviconToCache = (url: string, faviconUrl: string | null): void => {
     const cacheKey = getCacheKey(url)
     const memoryCache = getMemoryCache()
 
@@ -55,18 +56,32 @@ export const Favicon = ({ url, className }: FaviconProps) => {
   }
 
   // 将内存缓存同步到 localStorage
-  const saveCacheToLocalStorage = () => {
+  const saveCacheToLocalStorage = (): void => {
     try {
       const serializedCache: Record<string, { faviconUrl: string | null; timestamp: number }> = {}
 
-      memoryCache!.forEach((value, key) => {
+      const memoryCache = getMemoryCache();
+      memoryCache.forEach((value, key) => {
         serializedCache[key] = value
       })
 
       localStorage.setItem('favicon-cache', JSON.stringify(serializedCache))
-    } catch (e) {
-      console.error('Error saving favicon cache to localStorage:', e)
+    } catch (error) {
+      console.error('Error saving favicon cache to localStorage:', error)
     }
+  }
+
+  // 获取内存缓存实例
+  const getMemoryCache = (): Map<string, { faviconUrl: string | null; timestamp: number }> => {
+    if (typeof window !== 'undefined' && window.faviconCache) {
+      return window.faviconCache
+    }
+
+    const cache = new Map<string, { faviconUrl: string | null; timestamp: number }>()
+    if (typeof window !== 'undefined') {
+      window.faviconCache = cache
+    }
+    return cache
   }
 
   useEffect(() => {
@@ -79,7 +94,7 @@ export const Favicon = ({ url, className }: FaviconProps) => {
     }
 
     // 如果缓存中没有，则获取图标
-    const fetchFavicon = async () => {
+    const fetchFavicon = async (): Promise<void> => {
       try {
         // 使用后端 API 获取 favicon URL
         if (window.api && typeof window.api.getFavicon === 'function') {
@@ -136,7 +151,15 @@ export const Favicon = ({ url, className }: FaviconProps) => {
     return (
       <img
         src={faviconUrl}
-        alt={`${new URL(url).hostname} favicon`}
+        alt={`${(() => {
+          try {
+            const parsedUrl = new URL(url);
+            return parsedUrl.hostname;
+          } catch {
+            // 如果URL格式不正确，直接使用原始URL作为alt文本的一部分
+            return url;
+          }
+        })()} favicon`}
         className={className || 'h-4 w-4'}
         onError={() => {
           // 如果图片加载失败，清除缓存并重新尝试
@@ -145,8 +168,8 @@ export const Favicon = ({ url, className }: FaviconProps) => {
             const memoryCache = getMemoryCache()
             memoryCache.delete(cacheKey)
             saveCacheToLocalStorage()
-          } catch (e) {
-            console.error('Error clearing favicon cache on image error:', e)
+          } catch (error) {
+            console.error('Error clearing favicon cache on image error:', error)
           }
           setFaviconUrl(null)
         }}
@@ -160,7 +183,7 @@ export const Favicon = ({ url, className }: FaviconProps) => {
     )
   }
 
-  // 如果无法获取 favicon，则回退到 globe 图标
+  // 默认图标
   return (
     <div className="flex h-4 w-4 items-center justify-center rounded bg-primary/10">
       <svg
@@ -174,33 +197,21 @@ export const Favicon = ({ url, className }: FaviconProps) => {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="2" y1="12" x2="22" y2="12"></line>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        <g>
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </g>
       </svg>
     </div>
   )
 }
 
-// 内存缓存，避免频繁读取 localStorage
-let memoryCache: Map<string, { faviconUrl: string | null; timestamp: number }> | null = null
+export { Favicon }
 
-const getMemoryCache = (): Map<string, { faviconUrl: string | null; timestamp: number }> => {
-  if (memoryCache === null) {
-    memoryCache = new Map()
-
-    // 从 localStorage 初始化内存缓存
-    try {
-      const cache = localStorage.getItem('favicon-cache')
-      if (cache) {
-        const parsed = JSON.parse(cache)
-        Object.entries(parsed).forEach(([key, value]) => {
-          memoryCache!.set(key, value as { faviconUrl: string | null; timestamp: number })
-        })
-      }
-    } catch (e) {
-      console.error('Error initializing memory cache:', e)
-    }
+// 添加全局类型声明，扩展Window接口
+declare global {
+  interface Window {
+    faviconCache: Map<string, { faviconUrl: string | null; timestamp: number }>
   }
-  return memoryCache
 }
