@@ -60,7 +60,7 @@ const Favicon: FC<FaviconProps> = ({ url, className }) => {
     try {
       const serializedCache: Record<string, { faviconUrl: string | null; timestamp: number }> = {}
 
-      const memoryCache = getMemoryCache();
+      const memoryCache = getMemoryCache()
       memoryCache.forEach((value, key) => {
         serializedCache[key] = value
       })
@@ -153,11 +153,11 @@ const Favicon: FC<FaviconProps> = ({ url, className }) => {
         src={faviconUrl}
         alt={`${(() => {
           try {
-            const parsedUrl = new URL(url);
-            return parsedUrl.hostname;
+            const parsedUrl = new URL(url)
+            return parsedUrl.hostname
           } catch {
             // 如果URL格式不正确，直接使用原始URL作为alt文本的一部分
-            return url;
+            return url
           }
         })()} favicon`}
         className={className || 'h-4 w-4'}

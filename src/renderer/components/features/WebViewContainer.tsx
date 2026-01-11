@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, forwardRef } from 'react'
+import { useRef, useEffect, useMemo, forwardRef, useCallback } from 'react'
 import { ArrowLeft, ArrowRight, RefreshCw, Globe, ExternalLink } from 'lucide-react'
 import { Button } from '@/ui/button'
 import { cn } from '@/lib/utils'
@@ -12,16 +12,41 @@ interface WebViewContainerProps {
   onOpenExternal?: () => void
 }
 
+// 定义 Electron WebView 元素的类型
+interface WebViewElement extends HTMLWebViewElement {
+  executeJavaScript: (code: string) => Promise<unknown>
+}
+
+// 扩展 HTMLWebViewElement 接口以包含 Electron 特定属性
+declare global {
+  interface HTMLWebViewElement {
+    allowpopups: boolean
+    partition: string
+  }
+}
+
 export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps>(
   ({ url, isLoading, onRefresh, onGoBack, onGoForward, onOpenExternal }, ref) => {
-    const webviewRef = useRef<HTMLWebViewElement>(null)
+    const webviewRef = useRef<WebViewElement>(null)
     const partition = useMemo(() => `persist:webview-${new URL(url).hostname}`, [url])
+
+    const webviewCallbackRef = useCallback(
+      (element: WebViewElement | null) => {
+        if (element) {
+          // 设置 webview 属性
+          element.allowpopups = true
+          element.partition = partition
+          webviewRef.current = element
+        }
+      },
+      [partition]
+    )
 
     useEffect(() => {
       const webview = webviewRef.current
       if (!webview) return
 
-      const handleDomReady = () => {
+      const handleDomReady = (): void => {
         console.log('Webview DOM ready:', url)
 
         // 注入自定义滚动条样式到webview - 真正的悬浮效果
@@ -118,7 +143,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
           `
 
           // 创建style元素并注入到webview的document中
-          ;(webview as any)
+          webview
             .executeJavaScript(
               `
             (function() {
@@ -195,11 +220,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         {/* 内容区域 - 修复顶部溢出问题 */}
         <div className="flex-1 relative overflow-hidden">
           <webview
-            ref={webviewRef}
+            ref={webviewCallbackRef}
             src={url}
             style={{ width: '100%', height: '100%', border: 'none' }}
-            allowpopups={true}
-            partition={partition}
           />
         </div>
       </div>
