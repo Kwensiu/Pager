@@ -98,7 +98,7 @@
     "resetToDefaults": "重置为默认数据",
     "clearCache": "清除所有缓存",
     "about": "关于",
-    "version": "版本: 1.0.0",
+    "version": "版本: 0.0.2",
     "electronVersion": "Electron: v39.2.7",
     "chromiumVersion": "Chromium: v142.0.7444.235",
     "nodeVersion": "Node.js: v22.21.1"

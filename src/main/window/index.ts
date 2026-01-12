@@ -5,13 +5,13 @@ import { existsSync } from 'fs'
 
 function getIconPath(): string | undefined {
   const appPath = app.getAppPath()
-  const iconPath = join(appPath, 'resources', 'icon.png')
+  const iconPath = join(appPath, 'resources', 'icon.ico')
   if (existsSync(iconPath)) {
     console.log('Icon found at', iconPath)
     return iconPath
   }
   // 回退到开发资源路径
-  const devPath = join(__dirname, '../../resources/icon.png')
+  const devPath = join(__dirname, '../../resources/icon.ico')
   if (existsSync(devPath)) {
     console.log('Icon found at dev path', devPath)
     return devPath

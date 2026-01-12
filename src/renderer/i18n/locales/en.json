@@ -98,7 +98,7 @@
     "resetToDefaults": "Reset to default data",
     "clearCache": "Clear all cache",
     "about": "About",
-    "version": "Version: 1.0.0",
+    "version": "Version: 0.0.2",
     "electronVersion": "Electron: v39.2.7",
     "chromiumVersion": "Chromium: v142.0.7444.235",
     "nodeVersion": "Node.js: v22.21.1"
