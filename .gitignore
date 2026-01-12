@@ -8,3 +8,4 @@ plans/*
 .codebuddy
 .vscode
 ProjectNote/*
+*.tsbuildinfo 
