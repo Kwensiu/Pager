@@ -1,20 +1,16 @@
 import { useRef, useEffect, useMemo, forwardRef, useCallback } from 'react'
-import { ArrowLeft, ArrowRight, RefreshCw, Globe, ExternalLink } from 'lucide-react'
-import { Button } from '@/ui/button'
-import { cn } from '@/lib/utils'
-
-interface WebViewContainerProps {
-  url: string
-  isLoading: boolean
-  onRefresh?: () => void
-  onGoBack?: () => void
-  onGoForward?: () => void
-  onOpenExternal?: () => void
-}
+import { NavigationToolbar } from './NavigationToolbar'
 
 // 定义 Electron WebView 元素的类型
 interface WebViewElement extends HTMLWebViewElement {
   executeJavaScript: (code: string) => Promise<unknown>
+  getURL?: () => string
+  canGoBack?: () => boolean
+  canGoForward?: () => boolean
+  goBack?: () => void
+  goForward?: () => void
+  reload?: () => void
+  loadURL?: (url: string) => void
 }
 
 // 扩展 HTMLWebViewElement 接口以包含 Electron 特定属性
@@ -25,8 +21,18 @@ declare global {
   }
 }
 
+interface WebViewContainerProps {
+  url: string
+  isLoading: boolean
+  onRefresh?: () => void
+  onGoBack?: () => void
+  onGoForward?: () => void
+  onOpenExternal?: () => void
+  onNavigate?: (url: string) => void
+}
+
 export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps>(
-  ({ url, isLoading, onRefresh, onGoBack, onGoForward, onOpenExternal }, ref) => {
+  ({ url, isLoading, onRefresh, onGoBack, onGoForward, onOpenExternal, onNavigate }, ref) => {
     const webviewRef = useRef<WebViewElement>(null)
 
     // 创建唯一标识符，基于 URL 的主机名
@@ -41,6 +47,35 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
       const handleDomReady = (): void => {
         console.log('Webview DOM ready:', url)
+
+        // 注入鼠标侧键处理脚本到 webview
+        try {
+          webview.executeJavaScript(`
+            (function() {
+              // 监听鼠标侧键事件
+              document.addEventListener('mousedown', function(e) {
+                // 检查是否在输入框中
+                const target = e.target;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                  return;
+                }
+                
+                // 鼠标侧键：button 3 = 后退，button 4 = 前进
+                if (e.button === 3) {
+                  e.preventDefault();
+                  window.history.back();
+                } else if (e.button === 4) {
+                  e.preventDefault();
+                  window.history.forward();
+                }
+              });
+              
+              return true;
+            })();
+          `).catch((err) => console.log('注入鼠标侧键脚本失败:', err))
+        } catch (error) {
+          console.error('注入鼠标侧键脚本时出错:', error)
+        }
 
         // 注入自定义滚动条样式到webview - 真正的悬浮效果
         try {
@@ -172,50 +207,64 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
     }, [])
 
+    // 处理后退 - 直接使用 webview API
+    const handleGoBack = useCallback(() => {
+      const webview = webviewRef.current
+      if (webview && webview.goBack) {
+        webview.goBack()
+      } else if (onGoBack) {
+        onGoBack()
+      }
+    }, [onGoBack])
+
+    // 处理前进 - 直接使用 webview API
+    const handleGoForward = useCallback(() => {
+      const webview = webviewRef.current
+      if (webview && webview.goForward) {
+        webview.goForward()
+      } else if (onGoForward) {
+        onGoForward()
+      }
+    }, [onGoForward])
+
+    // 处理刷新 - 直接使用 webview API
+    const handleRefresh = useCallback(() => {
+      const webview = webviewRef.current
+      if (webview && webview.reload) {
+        webview.reload()
+      } else if (onRefresh) {
+        onRefresh()
+      }
+    }, [onRefresh])
+
+    // 处理导航到新 URL
+    const handleNavigate = useCallback(
+      (newUrl: string) => {
+        const webview = webviewRef.current
+        if (webview && webview.loadURL) {
+          webview.loadURL(newUrl)
+        } else if (onNavigate) {
+          onNavigate(newUrl)
+        } else {
+          window.api.webview.loadUrl(newUrl)
+        }
+      },
+      [onNavigate]
+    )
+
     return (
       <div ref={ref} className="flex h-full w-full flex-col">
-        {/* 工具栏 - 调整高度以匹配SidebarHeader */}
-        <div className="flex items-center gap-2 border-b bg-background px-4 py-2 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            disabled={!url}
-            onClick={onGoBack}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            disabled={!url}
-            onClick={onGoForward}
-          >
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            disabled={!url}
-            onClick={onRefresh}
-          >
-            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-          </Button>
-
-          {/* URL 显示 */}
-          <div className="flex flex-1 items-center gap-2 overflow-hidden rounded-md bg-muted px-3 py-1">
-            <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="truncate text-sm text-muted-foreground">{url || '未选择网站'}</span>
-          </div>
-
-          {url && (
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onOpenExternal}>
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        <NavigationToolbar
+          url={url}
+          isLoading={isLoading}
+          onRefresh={handleRefresh}
+          onGoBack={handleGoBack}
+          onGoForward={handleGoForward}
+          onOpenExternal={onOpenExternal}
+          onNavigate={handleNavigate}
+          canGoBack={true}
+          canGoForward={true}
+        />
 
         {/* 内容区域 - 修复顶部溢出问题 */}
         <div className="flex-1 relative overflow-hidden">
