@@ -168,7 +168,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): JSX
                   <SelectItem value="light">{t('settings.light')}</SelectItem>
                   <SelectItem value="dark">{t('settings.dark')}</SelectItem>
                   <SelectItem value="system">{t('settings.followSystem')}</SelectItem>
-                  <SelectItem value="follow-light-dark">{t('settings.followLightDark')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

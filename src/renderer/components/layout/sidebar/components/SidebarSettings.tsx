@@ -192,12 +192,6 @@ export default function SidebarSettings({
                   >
                     {t('settings.followSystem')}
                   </SelectItem>
-                  <SelectItem
-                    value="follow-light-dark"
-                    className="dark:text-foreground dark:focus:bg-gray-700"
-                  >
-                    {t('settings.followLightDark')}
-                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -283,6 +277,14 @@ export default function SidebarSettings({
               {t('settings.resetToDefault')}
             </Button>
 
+            <Button variant="outline" className="w-full" onClick={onResetToDefaults}>
+              {t('settings.resetToDefaults')}
+            </Button>
+
+            <Button variant="outline" className="w-full" onClick={onClearCache}>
+              {t('settings.clearCache')}
+            </Button>
+
             <Button variant="destructive" className="w-full" onClick={onClearData}>
               {t('settings.clearAllData')}
             </Button>
@@ -303,16 +305,12 @@ export default function SidebarSettings({
                   {t('settings.clearSoftwareData')}
                 </Button>
 
-                <Button variant="secondary" className="w-full" onClick={onResetToDefaults}>
-                  {t('settings.resetToDefaults')}
-                </Button>
-
-                <Button variant="destructive" className="w-full" onClick={onClearCache}>
-                  {t('settings.clearCache')}
-                </Button>
-
-                <Button variant="destructive" className="w-full" onClick={onClearData}>
-                  {t('settings.clearAllData')}
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => window.api?.window?.openDevTools?.()}
+                >
+                  {t('settings.openDevTools')}
                 </Button>
               </div>
             </div>

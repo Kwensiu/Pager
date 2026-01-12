@@ -13,7 +13,8 @@ export const api = {
 
   // 窗口管理
   window: {
-    resize: () => ipcRenderer.send('window:resize')
+    resize: () => ipcRenderer.send('window:resize'),
+    openDevTools: () => ipcRenderer.send('window:open-dev-tools')
   },
 
   // 获取网站图标

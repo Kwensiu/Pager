@@ -14,6 +14,7 @@ declare global {
       }
       window: {
         resize: () => void
+        openDevTools: () => void
       }
       getFavicon: (url: string) => Promise<string | null>
       store: {

@@ -4,9 +4,16 @@ import { get as httpRequest } from 'https'
 import { get as httpRequestHttp } from 'http'
 import { storeService } from '../services'
 
-export function registerIpcHandlers(): void {
+export function registerIpcHandlers(mainWindow: Electron.BrowserWindow): void {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  // 窗口管理相关 IPC
+  ipcMain.on('window:open-dev-tools', () => {
+    if (mainWindow) {
+      mainWindow.webContents.openDevTools()
+    }
+  })
 
   // ===== Store 相关 IPC 处理器 =====
 
