@@ -12,6 +12,7 @@ import {
   DialogTitle
 } from '@/ui/dialog'
 import { WebsiteGroup } from '@/types/website'
+import { useI18n } from '@/i18n/useI18n'
 
 interface AddGroupDialogProps {
   open: boolean
@@ -25,11 +26,12 @@ export function AddGroupDialog({
   onOpenChange,
   onAddGroup,
   groupType = 'secondary'
-}: AddGroupDialogProps) {
+}: AddGroupDialogProps): JSX.Element {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [error, setError] = useState<string | undefined>()
 
-  const resetForm = () => {
+  const resetForm = (): void => {
     setName('')
     setError(undefined)
   }
@@ -40,9 +42,9 @@ export function AddGroupDialog({
     }
   }, [open])
 
-  const handleSubmit = () => {
+  const handleSubmit = (): void => {
     if (!name.trim()) {
-      setError('分组名称不能为空')
+      setError(t('groupNameRequired'))
       return
     }
 
@@ -61,21 +63,25 @@ export function AddGroupDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Folder className="h-5 w-5" />
-            {groupType === 'primary' ? '添加分类' : '添加分组'}
+            {groupType === 'primary' ? t('addGroup.primary') : t('addGroup.secondary')}
           </DialogTitle>
           <DialogDescription>
-            {groupType === 'primary' ? '创建一个新的分类' : '创建一个新的网站分组'}
+            {groupType === 'primary' ? t('addGroup.primaryDesc') : t('addGroup.secondaryDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="group-name">
-              分组名称 <span className="text-destructive">*</span>
+              {t('groupName')} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="group-name"
-              placeholder={groupType === 'primary' ? '例如：工作' : '例如：AI 工具'}
+              placeholder={
+                groupType === 'primary'
+                  ? t('groupNamePlaceholder.primary')
+                  : t('groupNamePlaceholder.secondary')
+              }
               value={name}
               onChange={(e) => {
                 setName(e.target.value)
@@ -89,9 +95,9 @@ export function AddGroupDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t('cancel')}
           </Button>
-          <Button onClick={handleSubmit}>添加</Button>
+          <Button onClick={handleSubmit}>{t('add')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

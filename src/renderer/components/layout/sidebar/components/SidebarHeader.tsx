@@ -4,6 +4,7 @@ import { Button } from '@/ui/button'
 import { SidebarHeader as UISidebarHeader } from '@/ui/sidebar'
 import { Folder, Plus } from 'lucide-react'
 import { PrimaryGroup } from '@/types/website'
+import { useI18n } from '@/i18n/useI18n'
 
 export interface SidebarHeaderProps {
   primaryGroups: PrimaryGroup[]
@@ -20,13 +21,17 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   onAddPrimaryGroup,
   onAddSecondaryGroup
 }) => {
+  const { t } = useI18n()
+
   return (
     <UISidebarHeader className="border-b px-3 py-2">
       <div className="flex items-center justify-between">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <Button variant="ghost" className="w-full justify-between px-2 py-1.5">
-              <span className="font-semibold">{activePrimaryGroup?.name || '选择分类'}</span>
+              <span className="font-semibold">
+                {activePrimaryGroup?.name || t('selectCategory')}
+              </span>
               <svg
                 className="h-4 w-4"
                 xmlns="http://www.w3.org/2000/svg"
@@ -68,7 +73,7 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
               onSelect={() => onAddPrimaryGroup()}
             >
               <Plus className="mr-2 h-4 w-4" />
-              添加分类
+              {t('addCategory')}
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>

@@ -12,6 +12,7 @@ import { Input } from '@/ui/input'
 import { Label } from '@/ui/label'
 import { Website } from '@/types/website'
 import { Favicon } from './Favicon'
+import { useI18n } from '@/i18n/useI18n'
 
 interface EditWebsiteDialogProps {
   open: boolean
@@ -20,7 +21,13 @@ interface EditWebsiteDialogProps {
   onSave: (updatedWebsite: Website) => void
 }
 
-export function EditWebsiteDialog({ open, onOpenChange, website, onSave }: EditWebsiteDialogProps) {
+export function EditWebsiteDialog({
+  open,
+  onOpenChange,
+  website,
+  onSave
+}: EditWebsiteDialogProps): JSX.Element {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -39,7 +46,7 @@ export function EditWebsiteDialog({ open, onOpenChange, website, onSave }: EditW
     }
   }, [website])
 
-  const handleSave = () => {
+  const handleSave = (): void => {
     if (!website) return
 
     const updatedWebsite = {
@@ -53,7 +60,7 @@ export function EditWebsiteDialog({ open, onOpenChange, website, onSave }: EditW
     onOpenChange(false)
   }
 
-  const handleRefreshFavicon = async () => {
+  const handleRefreshFavicon = async (): Promise<void> => {
     if (!url) return
 
     setIsRefreshing(true)
@@ -62,11 +69,11 @@ export function EditWebsiteDialog({ open, onOpenChange, website, onSave }: EditW
       if (response) {
         setFaviconUrl(response)
       } else {
-        alert('未能获取到网站图标，请检查网址是否正确')
+        alert(t('failedToGetFavicon'))
       }
     } catch (error) {
       console.error('Error refreshing favicon:', error)
-      alert('刷新图标时发生错误')
+      alert(t('errorRefreshingFavicon'))
     } finally {
       setIsRefreshing(false)
     }
@@ -76,69 +83,75 @@ export function EditWebsiteDialog({ open, onOpenChange, website, onSave }: EditW
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>编辑网站</DialogTitle>
-          <DialogDescription>修改网站名称、URL 或刷新网站图标</DialogDescription>
+          <DialogTitle>{t('editWebsite.title')}</DialogTitle>
+          <DialogDescription>{t('editWebsite.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="name">网站名称</Label>
+            <Label htmlFor="name">{t('websiteName')}</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="输入网站名称"
+              placeholder={t('websiteNamePlaceholder')}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="url">网站地址</Label>
+            <Label htmlFor="url">{t('websiteUrl')}</Label>
             <Input
               id="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com"
+              placeholder={t('urlPlaceholder')}
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>网站图标</Label>
+              <Label>{t('websiteIcon')}</Label>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleRefreshFavicon}
                 disabled={isRefreshing || !url}
-                aria-label={
-                  isRefreshing ? '正在从网站获取图标' : '点击刷新网站图标，重新从网站地址获取图标'
-                }
+                aria-label={isRefreshing ? t('refreshingFavicon') : t('clickToRefreshFavicon')}
               >
-                {isRefreshing ? '刷新中...' : '刷新图标'}
+                {isRefreshing ? t('refreshing') : t('refreshIcon')}
               </Button>
             </div>
 
             <div
               className="flex items-center gap-3 p-2 border rounded-md min-h-[40px]"
               role="img"
-              aria-label={faviconUrl ? `网站图标，来源：${faviconUrl}` : '暂无网站图标'}
+              aria-label={
+                faviconUrl ? `${t('websiteFaviconFrom')}${faviconUrl}` : t('noWebsiteFavicon')
+              }
             >
               <Favicon url={faviconUrl} className="h-5 w-5" />
-              <span className="text-sm truncate max-w-[200px]">{faviconUrl || '暂无图标'}</span>
+              <span className="text-sm truncate max-w-[200px]">{faviconUrl || t('noFavicon')}</span>
             </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} aria-label="取消编辑网站">
-            取消
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            aria-label={t('cancelEditWebsite')}
+          >
+            {t('cancel')}
           </Button>
           <Button
             onClick={handleSave}
             disabled={!name.trim() || !url.trim()}
-            aria-label={!name.trim() || !url.trim() ? '请输入网站名称和地址以保存' : '保存网站更改'}
+            aria-label={
+              !name.trim() || !url.trim() ? t('enterNameAndUrlToSave') : t('saveWebsiteChanges')
+            }
           >
-            保存
+            {t('save')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import SidebarLayout from '@/components/layout/SidebarLayout'
 import Dashboard from '@/pages/Dashboard'
 import { Website } from '@/types/website'
+import { I18nProviderWrapper } from './i18n/I18nProvider'
 
-function App() {
+function App(): JSX.Element {
   const [activeWebsiteId, setActiveWebsiteId] = useState<string | null>(null)
 
   // 初始化主题
@@ -29,7 +30,7 @@ function App() {
 
       // 监听系统主题变化
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleChange = (e: MediaQueryListEvent) => {
+      const handleChange = (e: MediaQueryListEvent): void => {
         root.classList.toggle('dark', e.matches)
       }
 
@@ -43,14 +44,16 @@ function App() {
     return undefined
   }, [])
 
-  const handleWebsiteClick = (website: Website) => {
+  const handleWebsiteClick = (website: Website): void => {
     setActiveWebsiteId(website.id)
   }
 
   return (
-    <SidebarLayout activeWebsiteId={activeWebsiteId} onWebsiteClick={handleWebsiteClick}>
-      {(currentWebsite) => <Dashboard currentWebsite={currentWebsite} />}
-    </SidebarLayout>
+    <I18nProviderWrapper>
+      <SidebarLayout activeWebsiteId={activeWebsiteId} onWebsiteClick={handleWebsiteClick}>
+        {(currentWebsite) => <Dashboard currentWebsite={currentWebsite} />}
+      </SidebarLayout>
+    </I18nProviderWrapper>
   )
 }
 

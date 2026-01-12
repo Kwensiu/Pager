@@ -13,32 +13,59 @@ import {
 } from '@/ui/dialog'
 import { ConfirmDialog } from '@/components/features/ConfirmDialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select'
+import { useI18n } from '@/i18n/useI18n'
 
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const [clearCacheOnExit, setClearCacheOnExit] = useState(false)
-  const [saveSession, setSaveSession] = useState(true)
-  const [enableJavaScript, setEnableJavaScript] = useState(true)
-  const [allowPopups, setAllowPopups] = useState(true)
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): JSX.Element {
+  const { t, changeLanguage, getCurrentLanguage } = useI18n()
 
-  // 加载设置
-  useEffect(() => {
+  // 从 localStorage 加载初始设置
+  const loadInitialSettings = (): {
+    clearCacheOnExit: boolean
+    saveSession: boolean
+    enableJavaScript: boolean
+    allowPopups: boolean
+    theme: 'light' | 'dark' | 'system'
+    language: string
+  } => {
     const savedSettings = localStorage.getItem('settings')
     if (savedSettings) {
-      const parsed = JSON.parse(savedSettings)
-      setClearCacheOnExit(parsed.clearCacheOnExit || false)
-      setSaveSession(parsed.saveSession || true)
-      setEnableJavaScript(parsed.enableJavaScript || true)
-      setAllowPopups(parsed.allowPopups || true)
-      setTheme(parsed.theme || 'system')
+      try {
+        const parsed = JSON.parse(savedSettings)
+        return {
+          clearCacheOnExit: parsed.clearCacheOnExit || false,
+          saveSession: parsed.saveSession || true,
+          enableJavaScript: parsed.enableJavaScript || true,
+          allowPopups: parsed.allowPopups || true,
+          theme: parsed.theme || 'system',
+          language: parsed.language || 'zh'
+        }
+      } catch {
+        // 如果解析失败，返回默认值
+      }
     }
-  }, [])
+    return {
+      clearCacheOnExit: false,
+      saveSession: true,
+      enableJavaScript: true,
+      allowPopups: true,
+      theme: 'system',
+      language: 'zh'
+    }
+  }
+
+  const initialSettings = loadInitialSettings()
+  const [clearCacheOnExit, setClearCacheOnExit] = useState(initialSettings.clearCacheOnExit)
+  const [saveSession, setSaveSession] = useState(initialSettings.saveSession)
+  const [enableJavaScript, setEnableJavaScript] = useState(initialSettings.enableJavaScript)
+  const [allowPopups, setAllowPopups] = useState(initialSettings.allowPopups)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(initialSettings.theme)
+  const [language, setLanguage] = useState<string>(initialSettings.language)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   // 应用主题
   useEffect(() => {
@@ -52,7 +79,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     }
 
     // 确保文字可读性
-    const updateTextColors = () => {
+    const updateTextColors = (): void => {
       const isDarkMode = root.classList.contains('dark')
       const textElements = document.querySelectorAll('.text-muted-foreground')
 
@@ -64,7 +91,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     updateTextColors()
   }, [theme])
 
-  const handleSave = () => {
+  const handleSave = async (): Promise<void> => {
     // 保存设置到本地存储
     localStorage.setItem(
       'settings',
@@ -73,31 +100,39 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         saveSession,
         enableJavaScript,
         allowPopups,
-        theme
+        theme,
+        language
       })
     )
+
+    // 切换语言
+    if (language !== getCurrentLanguage()) {
+      await changeLanguage(language)
+    }
+
     onOpenChange(false)
   }
 
-  const handleReset = () => {
+  const handleReset = (): void => {
     setClearCacheOnExit(false)
     setSaveSession(true)
     setEnableJavaScript(true)
     setAllowPopups(true)
     setTheme('system')
+    setLanguage('zh')
   }
 
-  const handleClearAllData = () => {
+  const handleClearAllData = (): void => {
     setShowConfirmDialog(true)
   }
 
-  const handleConfirmClearData = () => {
+  const handleConfirmClearData = (): void => {
     localStorage.clear()
     location.reload()
     setShowConfirmDialog(false)
   }
 
-  const handleCancelClearData = () => {
+  const handleCancelClearData = (): void => {
     setShowConfirmDialog(false)
   }
 
@@ -107,33 +142,54 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            设置
+            {t('settings.title')}
           </DialogTitle>
-          <DialogDescription>配置应用偏好设置</DialogDescription>
+          <DialogDescription>{t('settings.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-6 py-4">
           {/* 外观设置 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">外观</h3>
+            <h3 className="text-sm font-semibold">{t('settings.appearance')}</h3>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>主题模式</Label>
-                <p className="text-xs text-muted-foreground">选择应用的主题外观</p>
+                <Label>{t('settings.themeMode')}</Label>
+                <p className="text-xs text-muted-foreground">{t('settings.themeDescription')}</p>
               </div>
               <Select
                 value={theme}
                 onValueChange={(value: 'light' | 'dark' | 'system') => setTheme(value)}
               >
                 <SelectTrigger className="w-32">
-                  <SelectValue placeholder="选择主题" />
+                  <SelectValue placeholder={t('settings.selectTheme')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="light">明亮</SelectItem>
-                  <SelectItem value="dark">暗黑</SelectItem>
-                  <SelectItem value="system">跟随系统</SelectItem>
-                  <SelectItem value="follow-light-dark">亮暗跟随</SelectItem> // 添加亮暗跟随选项
+                  <SelectItem value="light">{t('settings.light')}</SelectItem>
+                  <SelectItem value="dark">{t('settings.dark')}</SelectItem>
+                  <SelectItem value="system">{t('settings.followSystem')}</SelectItem>
+                  <SelectItem value="follow-light-dark">{t('settings.followLightDark')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* 语言设置 */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold">{t('settings.language')}</h3>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>{t('settings.languageMode')}</Label>
+                <p className="text-xs text-muted-foreground">{t('settings.languageDescription')}</p>
+              </div>
+              <Select value={language} onValueChange={(value: string) => setLanguage(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder={t('settings.selectLanguage')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="zh">{t('settings.chinese')}</SelectItem>
+                  <SelectItem value="en">{t('settings.english')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -141,20 +197,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           {/* 浏览器设置 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">浏览器</h3>
+            <h3 className="text-sm font-semibold">{t('settings.browser')}</h3>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>启用 JavaScript</Label>
-                <p className="text-xs text-muted-foreground">允许网页执行 JavaScript 代码</p>
+                <Label>{t('settings.enableJs')}</Label>
+                <p className="text-xs text-muted-foreground">{t('settings.jsDescription')}</p>
               </div>
               <Switch checked={enableJavaScript} onCheckedChange={setEnableJavaScript} />
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>允许弹出窗口</Label>
-                <p className="text-xs text-muted-foreground">允许网页打开新窗口</p>
+                <Label>{t('settings.allowPopups')}</Label>
+                <p className="text-xs text-muted-foreground">{t('settings.popupDescription')}</p>
               </div>
               <Switch checked={allowPopups} onCheckedChange={setAllowPopups} />
             </div>
@@ -162,20 +218,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           {/* 隐私与数据 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">隐私与数据</h3>
+            <h3 className="text-sm font-semibold">{t('settings.privacyData')}</h3>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>保存会话数据</Label>
-                <p className="text-xs text-muted-foreground">保存登录信息和浏览历史</p>
+                <Label>{t('settings.saveSession')}</Label>
+                <p className="text-xs text-muted-foreground">{t('settings.sessionDescription')}</p>
               </div>
               <Switch checked={saveSession} onCheckedChange={setSaveSession} />
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>退出时清除缓存</Label>
-                <p className="text-xs text-muted-foreground">关闭应用时清除临时文件</p>
+                <Label>{t('settings.clearCacheOnExit')}</Label>
+                <p className="text-xs text-muted-foreground">{t('settings.cacheDescription')}</p>
               </div>
               <Switch checked={clearCacheOnExit} onCheckedChange={setClearCacheOnExit} />
             </div>
@@ -183,11 +239,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           {/* 数据管理 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">数据管理</h3>
+            <h3 className="text-sm font-semibold">{t('settings.dataManagement')}</h3>
 
             <Button variant="outline" className="w-full justify-start gap-2" onClick={handleReset}>
               <RotateCcw className="h-4 w-4" />
-              重置为默认设置
+              {t('settings.resetToDefault')}
             </Button>
 
             <Button
@@ -196,18 +252,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               onClick={handleClearAllData}
             >
               <Trash2 className="h-4 w-4" />
-              清除所有数据
+              {t('settings.clearAllData')}
             </Button>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t('cancel')}
           </Button>
           <Button onClick={handleSave} className="gap-2">
             <Save className="h-4 w-4" />
-            保存设置
+            {t('settings.saveSettings')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -215,8 +271,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       <ConfirmDialog
         open={showConfirmDialog}
         onOpenChange={setShowConfirmDialog}
-        title="确认清除数据"
-        description="确定要清除所有数据吗？这将删除所有保存的网站和分组。此操作不可撤销。"
+        title={t('confirmDialog.clearDataTitle')}
+        description={t(
+          'confirmDialog.clearDataDescription',
+          '确定要清除所有数据吗？这将删除所有保存的网站和分组。此操作不可撤销。'
+        )}
         onConfirm={handleConfirmClearData}
         onCancel={handleCancelClearData}
       />

@@ -12,6 +12,7 @@ import {
   DialogTitle
 } from '@/ui/dialog'
 import { Website } from '@/types/website'
+import { useI18n } from '@/i18n/useI18n'
 
 interface AddWebsiteDialogProps {
   open: boolean
@@ -20,7 +21,12 @@ interface AddWebsiteDialogProps {
   groupId: string
 }
 
-export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsiteDialogProps) {
+export function AddWebsiteDialog({
+  open,
+  onOpenChange,
+  onAddWebsite
+}: AddWebsiteDialogProps): JSX.Element {
+  const { t } = useI18n()
   const [formData, setFormData] = useState(() => {
     // 初始化表单数据
     return {
@@ -35,17 +41,17 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
 
   const { name, url, description, errors } = formData
 
-  const validate = () => {
+  const validate = (): boolean => {
     const newErrors: { name?: string; url?: string } = {}
 
     if (!name.trim()) {
-      newErrors.name = '网站名称不能为空'
+      newErrors.name = t('websiteNameRequired')
     }
 
     if (!url.trim()) {
-      newErrors.url = '网站地址不能为空'
+      newErrors.url = t('websiteUrlRequired')
     } else if (!isValidUrl(url.trim())) {
-      newErrors.url = '请输入有效的网站地址'
+      newErrors.url = t('invalidUrl')
     }
 
     const hasErrors = Object.keys(newErrors).length > 0
@@ -58,7 +64,7 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
     return !hasErrors
   }
 
-  const isValidUrl = (urlString: string) => {
+  const isValidUrl = (urlString: string): boolean => {
     try {
       const url = new URL(urlString)
       return url.protocol === 'http:' || url.protocol === 'https:'
@@ -67,7 +73,7 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = (): void => {
     if (validate()) {
       onAddWebsite({
         name: name.trim(),
@@ -85,19 +91,19 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            添加网站
+            {t('addWebsite.title')}
           </DialogTitle>
-          <DialogDescription>添加一个新的网站到当前分组中</DialogDescription>
+          <DialogDescription>{t('addWebsite.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="website-name">
-              网站名称 <span className="text-destructive">*</span>
+              {t('websiteName')} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="website-name"
-              placeholder="例如：ChatGPT"
+              placeholder={t('websiteNamePlaceholder')}
               value={name}
               onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               className={errors.name ? 'border-destructive' : ''}
@@ -107,11 +113,11 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
 
           <div className="grid gap-2">
             <Label htmlFor="website-url">
-              网站地址 <span className="text-destructive">*</span>
+              {t('websiteUrl')} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="website-url"
-              placeholder="https://example.com"
+              placeholder={t('urlPlaceholder')}
               value={url}
               onChange={(e) => setFormData((prev) => ({ ...prev, url: e.target.value }))}
               className={errors.url ? 'border-destructive' : ''}
@@ -120,10 +126,10 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="website-description">网站描述（可选）</Label>
+            <Label htmlFor="website-description">{t('websiteDescription')}</Label>
             <Input
               id="website-description"
-              placeholder="简短描述这个网站的用途"
+              placeholder={t('websiteDescriptionPlaceholder')}
               value={description}
               onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             />
@@ -132,9 +138,9 @@ export function AddWebsiteDialog({ open, onOpenChange, onAddWebsite }: AddWebsit
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t('cancel')}
           </Button>
-          <Button onClick={handleSubmit}>添加</Button>
+          <Button onClick={handleSubmit}>{t('add')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
