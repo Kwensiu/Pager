@@ -50,7 +50,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
         // 注入鼠标侧键处理脚本到 webview
         try {
-          webview.executeJavaScript(`
+          webview
+            .executeJavaScript(
+              `
             (function() {
               // 监听鼠标侧键事件
               document.addEventListener('mousedown', function(e) {
@@ -72,7 +74,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
               
               return true;
             })();
-          `).catch((err) => console.log('注入鼠标侧键脚本失败:', err))
+          `
+            )
+            .catch((err) => console.log('注入鼠标侧键脚本失败:', err))
         } catch (error) {
           console.error('注入鼠标侧键脚本时出错:', error)
         }
@@ -273,7 +277,6 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
             ref={webviewCallbackRef}
             src={url}
             style={{ width: '100%', height: '100%', border: 'none' }}
-            // eslint-disable-next-line react/no-unknown-property
             // @ts-ignore - allowpopups is a boolean attribute but DOM expects string
             allowpopups={true.toString()}
             // eslint-disable-next-line react/no-unknown-property

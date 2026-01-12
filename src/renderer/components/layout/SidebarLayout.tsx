@@ -7,10 +7,10 @@ import {
   SidebarRail
 } from '@/ui/sidebar'
 import { useSidebarLogic } from './sidebar/hooks/useSidebarLogic'
-import SidebarHeader from './sidebar/components/SidebarHeader'
-import SidebarContentWithDragDrop from './sidebar/components/SidebarContentWithDragDrop'
-import SidebarSettings from './sidebar/components/SidebarSettings'
-import EditSecondaryGroupDialog from './sidebar/components/EditSecondaryGroupDialog'
+import SidebarHeader from './sidebar/core/SidebarHeader'
+import SidebarContentWithDragDrop from './sidebar/dialogs/SidebarContentWithDragDrop'
+import SidebarSettings from './sidebar/core/SidebarSettings'
+import EditSecondaryGroupDialog from './sidebar/dialogs/EditSecondaryGroupDialog'
 import { AddGroupDialog } from '@/components/features/AddGroupDialog'
 import { AddWebsiteDialog } from '@/components/features/AddWebsiteDialog'
 import { EditWebsiteDialog } from '@/components/features/EditWebsiteDialog'
@@ -33,9 +33,7 @@ export default function SidebarLayout({
     primaryGroups,
     activePrimaryGroup,
     currentWebsite,
-    contextMenuWebsite,
     contextMenuSecondaryGroup,
-    contextMenuPosition,
     showSettings,
     showDebugOptions,
 
@@ -69,9 +67,6 @@ export default function SidebarLayout({
     confirmDeleteWebsite,
     cancelDeleteWebsite,
     switchPrimaryGroup,
-    handleContextMenu,
-    handleWebsiteContextMenu,
-    handleCloseContextMenu,
     handleClearData,
     confirmClearData,
     cancelClearData,
@@ -115,16 +110,11 @@ export default function SidebarLayout({
               toggleSecondaryGroup={toggleSecondaryGroup}
               handleWebsiteClick={handleWebsiteClick}
               handleAddWebsite={handleAddWebsite}
-              handleContextMenu={handleContextMenu}
-              handleWebsiteContextMenu={handleWebsiteContextMenu}
               handleWebsiteUpdate={handleWebsiteUpdate}
               handleDeleteWebsite={handleDeleteWebsite}
               handleEditSecondaryGroup={handleEditSecondaryGroup}
               handleDeleteSecondaryGroup={handleDeleteSecondaryGroup}
-              handleCloseContextMenu={handleCloseContextMenu}
-              contextMenuWebsite={contextMenuWebsite}
               contextMenuSecondaryGroup={contextMenuSecondaryGroup}
-              contextMenuPosition={contextMenuPosition}
               activeWebsiteId={activeWebsiteId}
               primaryGroups={primaryGroups}
               onGroupsUpdate={(updatedGroups) => {

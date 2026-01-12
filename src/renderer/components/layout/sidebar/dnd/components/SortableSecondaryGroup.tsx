@@ -19,8 +19,10 @@ interface SortableSecondaryGroupProps {
   onContextMenu?: (e: React.MouseEvent) => void
   /** 网站点击事件处理器 */
   onWebsiteClick?: (website: Website) => void
-  /** 网站右键菜单事件处理器 */
-  onWebsiteContextMenu?: (e: React.MouseEvent, websiteId: string) => void
+  /** 网站编辑事件处理器 */
+  onWebsiteEdit?: (website: Website) => void
+  /** 网站删除事件处理器 */
+  onWebsiteDelete?: (websiteId: string) => void
   /** 添加网站事件处理器 */
   onAddWebsite?: () => void
   /** 当前激活的网站ID */
@@ -36,7 +38,8 @@ export const SortableSecondaryGroup: React.FC<SortableSecondaryGroupProps> = ({
   onClick,
   onContextMenu,
   onWebsiteClick,
-  onWebsiteContextMenu,
+  onWebsiteEdit,
+  onWebsiteDelete,
   onAddWebsite,
   activeWebsiteId = null,
   className = ''
@@ -146,7 +149,8 @@ export const SortableSecondaryGroup: React.FC<SortableSecondaryGroupProps> = ({
               secondaryGroupId={secondaryGroup.id}
               activeWebsiteId={activeWebsiteId}
               onWebsiteClick={onWebsiteClick}
-              onWebsiteContextMenu={onWebsiteContextMenu}
+              onWebsiteEdit={onWebsiteEdit}
+              onWebsiteDelete={onWebsiteDelete}
               className="space-y-1"
             />
           )}

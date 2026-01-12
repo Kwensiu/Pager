@@ -4,13 +4,13 @@ import { cn } from '@/lib/utils'
 import { WebsiteGroup as WebsiteGroupType, Website } from '@/types/website'
 import { Button } from '@/ui/button'
 import { Favicon } from '@/components/features/Favicon'
-import * as ContextMenuPrimitive from '@radix-ui/react-context-menu'
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem
+} from '@/ui/context-menu'
 import { ConfirmDialog } from '@/components/features/ConfirmDialog'
-
-const ContextMenu = ContextMenuPrimitive.Root
-const ContextMenuTrigger = ContextMenuPrimitive.Trigger
-const ContextMenuContent = ContextMenuPrimitive.Content
-const ContextMenuItem = ContextMenuPrimitive.Item
 
 interface WebsiteGroupProps {
   group: WebsiteGroupType
@@ -28,32 +28,32 @@ export function WebsiteGroup({
   onAddWebsite,
   onWebsiteUpdate,
   onWebsiteDelete
-}: WebsiteGroupProps) {
+}: WebsiteGroupProps): React.JSX.Element {
   const [expanded, setExpanded] = useState(group.expanded ?? true)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [websiteToDelete, setWebsiteToDelete] = useState<string | null>(null)
 
-  const handleToggle = () => {
+  const handleToggle = (): void => {
     setExpanded(!expanded)
   }
 
-  const handleWebsiteItemClick = (website: Website) => {
+  const handleWebsiteItemClick = (website: Website): void => {
     console.log('WebsiteGroup handleWebsiteItemClick:', website.name, website.url)
     if (onWebsiteClick) {
       onWebsiteClick(website)
     }
   }
 
-  const handleEditWebsite = (website: Website) => {
+  const handleEditWebsite = (website: Website): void => {
     onWebsiteUpdate?.(website)
   }
 
-  const handleDeleteWebsite = (websiteId: string) => {
+  const handleDeleteWebsite = (websiteId: string): void => {
     setWebsiteToDelete(websiteId)
     setConfirmDialogOpen(true)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = (): void => {
     if (websiteToDelete) {
       onWebsiteDelete?.(websiteToDelete)
     }
@@ -61,13 +61,13 @@ export function WebsiteGroup({
     setConfirmDialogOpen(false)
   }
 
-  const handleCancelDelete = () => {
+  const handleCancelDelete = (): void => {
     setWebsiteToDelete(null)
     setConfirmDialogOpen(false)
   }
 
   return (
-    <div className="py-2">
+    <div className="group py-2">
       <div
         onClick={handleToggle}
         className="flex w-full items-center justify-between px-3 py-1.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md transition-colors cursor-pointer"
@@ -97,7 +97,6 @@ export function WebsiteGroup({
             <ContextMenu key={website.id}>
               <ContextMenuTrigger asChild>
                 <button
-                  key={website.id}
                   onClick={() => handleWebsiteItemClick(website)}
                   className={cn(
                     'flex w-full items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors',

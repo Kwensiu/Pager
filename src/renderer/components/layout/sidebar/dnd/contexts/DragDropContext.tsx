@@ -1,8 +1,10 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import {
   DndContext,
   DragEndEvent,
   DragStartEvent,
+  DragOverEvent,
   DragOverlay,
   PointerSensor,
   KeyboardSensor,
@@ -15,7 +17,8 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy
+  verticalListSortingStrategy,
+  SortingStrategy
 } from '@dnd-kit/sortable'
 
 import {
@@ -52,12 +55,13 @@ export function DragDropProvider({
   onDragEnd,
   onDragStart,
   config = {}
-}: DragDropProviderProps) {
+}: DragDropProviderProps): React.JSX.Element {
   const [state, setState] = useState<DragDropState>({
     activeId: null,
     overId: null,
     isDragging: false,
-    dragType: null
+    dragType: null,
+    insertPosition: undefined
   })
 
   const mergedConfig = { ...defaultDragDropConfig, ...config }
@@ -102,7 +106,8 @@ export function DragDropProvider({
         ...prev,
         activeId,
         isDragging: true,
-        dragType
+        dragType,
+        insertPosition: undefined
       }))
 
       if (onDragStart) {
@@ -112,41 +117,66 @@ export function DragDropProvider({
     [onDragStart]
   )
 
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event
+
+    if (!over) {
+      setState((prev) => ({ ...prev, overId: null, insertPosition: undefined }))
+      return
+    }
+
+    const overId = over.id.toString()
+
+    // 计算插入位置：根据鼠标在目标元素上的位置判断
+    // 如果鼠标在元素的上半部分，插入到上方；否则插入到下方
+    let insertPosition: 'above' | 'below' | undefined = undefined
+
+    // 使用 @dnd-kit 的 rect 属性
+    const overRect = over.rect
+    const activeRect = active.rect.current?.translated || active.rect.current?.initial
+
+    if (overRect && activeRect) {
+      // 获取目标元素的中心点
+      const overCenterY = overRect.top + overRect.height / 2
+
+      // 获取拖拽元素的中心点
+      const activeCenterY = activeRect.top + activeRect.height / 2
+
+      // 如果拖拽元素的中心点在目标元素中心点上方，则插入到上方
+      insertPosition = activeCenterY < overCenterY ? 'above' : 'below'
+    }
+
+    setState((prev) => ({
+      ...prev,
+      overId,
+      insertPosition
+    }))
+  }, [])
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
-
-      // 获取插入位置信息（上方或下方）
-      let insertPosition: 'above' | 'below' | null = null
-      if (over) {
-        // 从over事件的数据中获取插入位置
-        const overData = over.data.current
-        if (overData && overData.sortable) {
-          // @dnd-kit的sortable数据可能包含插入位置信息
-          // 这里我们根据鼠标位置判断：如果鼠标在元素的上半部分，插入到上方；否则插入到下方
-          // 但我们需要在DragOver事件中获取这个信息，而不是在DragEnd事件中
-        }
-      }
 
       const result: DragEndResult = {
         activeId: active.id.toString(),
         overId: over?.id?.toString() || null,
         type: state.dragType || 'secondaryGroup',
-        insertPosition: insertPosition || 'below' // 默认插入到下方
+        insertPosition: state.insertPosition || 'below'
       }
 
       setState({
         activeId: null,
         overId: null,
         isDragging: false,
-        dragType: null
+        dragType: null,
+        insertPosition: undefined
       })
 
       if (onDragEnd) {
         onDragEnd(result)
       }
     },
-    [onDragEnd, state.dragType]
+    [onDragEnd, state.dragType, state.insertPosition]
   )
 
   const handleDragCancel = useCallback(() => {
@@ -154,17 +184,30 @@ export function DragDropProvider({
       activeId: null,
       overId: null,
       isDragging: false,
-      dragType: null
+      dragType: null,
+      insertPosition: undefined
     })
   }, [])
 
   const contextValue: DragDropContextType = {
     state,
     startDrag: (id, type) => {
-      setState((prev) => ({ ...prev, activeId: id, isDragging: true, dragType: type }))
+      setState((prev) => ({
+        ...prev,
+        activeId: id,
+        isDragging: true,
+        dragType: type,
+        insertPosition: undefined
+      }))
     },
     endDrag: (result) => {
-      setState({ activeId: null, overId: null, isDragging: false, dragType: null })
+      setState({
+        activeId: null,
+        overId: null,
+        isDragging: false,
+        dragType: null,
+        insertPosition: undefined
+      })
       if (onDragEnd) {
         onDragEnd(result)
       }
@@ -179,6 +222,7 @@ export function DragDropProvider({
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
         measuring={{
@@ -196,7 +240,7 @@ export function DragDropProvider({
   )
 }
 
-export function useDragDrop() {
+export function useDragDrop(): DragDropContextType {
   const context = useContext(DragDropContext)
   if (context === undefined) {
     throw new Error('useDragDrop must be used within a DragDropProvider')
@@ -210,9 +254,9 @@ export function SortableContainer({
   children
 }: {
   items: string[]
-  strategy?: any
+  strategy?: SortingStrategy
   children: ReactNode
-}) {
+}): React.JSX.Element {
   return (
     <SortableContext items={items} strategy={strategy}>
       {children}
@@ -220,7 +264,10 @@ export function SortableContainer({
   )
 }
 
-export function useSortableContainer(items: string[], strategy = verticalListSortingStrategy) {
+export function useSortableContainer(
+  items: string[],
+  strategy: SortingStrategy = verticalListSortingStrategy
+): { sortableProps: { items: string[]; strategy: SortingStrategy } } {
   return {
     sortableProps: {
       items,

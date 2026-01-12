@@ -4,6 +4,12 @@ import { DragHandle } from './DragHandle'
 import { DropIndicator } from './DropIndicator'
 import { useWebsiteDnd } from '../hooks/useWebsiteDnd'
 import { Favicon } from '@/components/features/Favicon'
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem
+} from '@/ui/context-menu'
 
 interface SortableWebsiteItemProps {
   /** 网站数据 */
@@ -18,8 +24,10 @@ interface SortableWebsiteItemProps {
   disabled?: boolean
   /** 点击事件处理器 */
   onClick?: (website: Website) => void
-  /** 右键菜单事件处理器 */
-  onContextMenu?: (e: React.MouseEvent, websiteId: string) => void
+  /** 编辑事件处理器 */
+  onEdit?: (website: Website) => void
+  /** 删除事件处理器 */
+  onDelete?: (websiteId: string) => void
   /** 自定义类名 */
   className?: string
   /** 是否显示拖拽手柄 */
@@ -33,7 +41,8 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
   active = false,
   disabled = false,
   onClick,
-  onContextMenu,
+  onEdit,
+  onDelete,
   className = '',
   showDragHandle = true
 }) => {
@@ -61,18 +70,6 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
     }
   }, [onClick, isDragging, website])
 
-  // 处理右键菜单 - 使用useCallback
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent): void => {
-      e.preventDefault()
-      e.stopPropagation()
-      if (onContextMenu) {
-        onContextMenu(e, website.id)
-      }
-    },
-    [onContextMenu, website.id]
-  )
-
   // 处理键盘事件 - 使用useCallback
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent): void => {
@@ -85,90 +82,107 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
   )
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`
-        sortable-website-item
-        relative
-        flex
-        items-center
-        px-2
-        py-1.5
-        rounded-md
-        transition-all
-        duration-200
-        ${active ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'}
-        ${isDragging ? 'shadow opacity-50' : ''}
-        ${isOver && !isDragging ? 'bg-accent/30' : ''}
-        ${className}
-      `}
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      aria-label={`访问 ${website.name}`}
-      aria-current={active ? 'page' : undefined}
-      data-testid={`website-${website.id}`}
-      data-dragging={isDragging}
-      data-website-id={website.id}
-      {...attributes}
-    >
-      {/* 放置指示器 - 根据insertPosition显示在顶部或底部 */}
-      {isOver && !isDragging && (
-        <DropIndicator
-          isActive={isOver}
-          position={insertPosition === 'above' ? 'top' : 'bottom'}
-          type="over"
-          animated
-          showArrow={false}
-        />
-      )}
-
-      {/* 拖拽手柄 */}
-      {showDragHandle && !disabled && (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
         <div
-          className="mr-1.5"
-          style={dragHandleStyle}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
+          ref={setNodeRef}
+          style={style}
+          className={`
+            sortable-website-item
+            relative
+            flex
+            items-center
+            px-2
+            py-1.5
+            rounded-md
+            transition-all
+            duration-200
+            ${active ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'}
+            ${isDragging ? 'shadow opacity-50' : ''}
+            ${isOver && !isDragging ? 'bg-accent/30' : ''}
+            ${className}
+          `}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
           role="button"
-          aria-label="拖拽网站"
           tabIndex={0}
+          aria-label={`访问 ${website.name}`}
+          aria-current={active ? 'page' : undefined}
+          data-testid={`website-${website.id}`}
+          data-dragging={isDragging}
+          data-website-id={website.id}
+          {...attributes}
         >
-          <DragHandle isDragging={isDragging} disabled={disabled} size="sm" showTooltip={false} />
-        </div>
-      )}
+          {/* 放置指示器 - 根据insertPosition显示在顶部或底部 */}
+          {isOver && !isDragging && (
+            <DropIndicator
+              isActive={isOver}
+              position={insertPosition === 'above' ? 'top' : 'bottom'}
+              type="over"
+              animated
+              showArrow={false}
+            />
+          )}
 
-      {/* 网站图标 */}
-      <div className="mr-2 flex-shrink-0">
-        <Favicon url={website.url} className="h-6 w-6" />
-      </div>
+          {/* 拖拽手柄 */}
+          {showDragHandle && !disabled && (
+            <div
+              className="mr-1.5"
+              style={dragHandleStyle}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+              role="button"
+              aria-label="拖拽网站"
+              tabIndex={0}
+            >
+              <DragHandle
+                isDragging={isDragging}
+                disabled={disabled}
+                size="sm"
+                showTooltip={false}
+              />
+            </div>
+          )}
 
-      {/* 网站名称 */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm truncate block">{website.name}</span>
-        {website.description && (
-          <span className="text-xs text-muted-foreground truncate block">
-            {website.description}
-          </span>
-        )}
-      </div>
+          {/* 网站图标 */}
+          <div className="mr-2 flex-shrink-0">
+            <Favicon url={website.url} className="h-6 w-6" />
+          </div>
 
-      {/* 拖拽时的覆盖层效果 */}
-      {isDragging && (
-        <div
-          className="
+          {/* 网站名称 */}
+          <div className="flex-1 min-w-0">
+            <span className="text-sm truncate block">{website.name}</span>
+            {website.description && (
+              <span className="text-xs text-muted-foreground truncate block">
+                {website.description}
+              </span>
+            )}
+          </div>
+
+          {/* 拖拽时的覆盖层效果 */}
+          {isDragging && (
+            <div
+              className="
             absolute
             inset-0
             bg-primary/5
             rounded-md
             pointer-events-none
           "
-        />
-      )}
-    </div>
+            />
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => onEdit?.(website)}>修改</ContextMenuItem>
+        <ContextMenuItem
+          className="text-red-600 focus:bg-red-100 dark:focus:bg-red-900"
+          onClick={() => onDelete?.(website.id)}
+        >
+          删除
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -220,8 +234,10 @@ interface SortableWebsiteListProps {
   disabled?: boolean
   /** 网站点击事件处理器 */
   onWebsiteClick?: (website: Website) => void
-  /** 网站右键菜单事件处理器 */
-  onWebsiteContextMenu?: (e: React.MouseEvent, websiteId: string) => void
+  /** 网站编辑事件处理器 */
+  onWebsiteEdit?: (website: Website) => void
+  /** 网站删除事件处理器 */
+  onWebsiteDelete?: (websiteId: string) => void
   /** 自定义类名 */
   className?: string
 }
@@ -233,7 +249,8 @@ export const SortableWebsiteList: React.FC<SortableWebsiteListProps> = ({
   activeWebsiteId = null,
   disabled = false,
   onWebsiteClick,
-  onWebsiteContextMenu,
+  onWebsiteEdit,
+  onWebsiteDelete,
   className = ''
 }) => {
   // 按order字段排序
@@ -250,7 +267,8 @@ export const SortableWebsiteList: React.FC<SortableWebsiteListProps> = ({
           active={activeWebsiteId === website.id}
           disabled={disabled}
           onClick={onWebsiteClick}
-          onContextMenu={onWebsiteContextMenu}
+          onEdit={onWebsiteEdit}
+          onDelete={onWebsiteDelete}
           showDragHandle={true} // 修复：二级分组内的网站按钮应该显示拖拽手柄
         />
       ))}

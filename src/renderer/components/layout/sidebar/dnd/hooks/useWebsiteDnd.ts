@@ -24,7 +24,7 @@ interface UseWebsiteDndReturn {
   isDragging: boolean
   isOver: boolean
   isSorting: boolean
-  insertPosition: 'above' | 'below' | null // 插入位置：上方或下方
+  insertPosition: 'above' | 'below' | undefined // 插入位置：上方或下方
 
   // 样式
   style: React.CSSProperties
@@ -99,8 +99,10 @@ export function useWebsiteDnd({
     // 可以在这里添加自定义逻辑
   }, [id])
 
-  // 暂时返回null作为insertPosition，稍后实现
-  const insertPosition: 'above' | 'below' | null = shouldShowDropIndicator ? 'below' : null
+  // 从拖拽上下文中获取插入位置
+  const insertPosition: 'above' | 'below' | undefined = shouldShowDropIndicator
+    ? dragState.insertPosition
+    : undefined
 
   return {
     // 拖拽相关属性

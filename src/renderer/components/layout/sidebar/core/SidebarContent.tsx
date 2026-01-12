@@ -11,21 +11,22 @@ import {
 import { Folder, Plus } from 'lucide-react'
 import { Favicon } from '@/components/features/Favicon'
 import { PrimaryGroup, Website, SecondaryGroup } from '@/types/website'
-import ContextMenu from './ContextMenu'
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem
+} from '@/ui/context-menu'
 
 export interface SidebarContentProps {
   activePrimaryGroup: PrimaryGroup | null
   toggleSecondaryGroup: (secondaryGroupId: string) => void
   handleWebsiteClick: (website: Website) => void
   handleAddWebsite: (groupId: string, isSecondaryGroup: boolean) => void
-  handleContextMenu: (e: React.MouseEvent, secondaryGroupId: string) => void
-  handleWebsiteContextMenu: (e: React.MouseEvent, websiteId: string) => void
   handleWebsiteUpdate: (website: Website) => void
   handleDeleteWebsite: (websiteId: string) => void
   handleEditSecondaryGroup: (secondaryGroup: SecondaryGroup) => void
   handleDeleteSecondaryGroup: (secondaryGroupId: string) => void
-  handleCloseContextMenu: () => void
-  contextMenuWebsite: string | null
   contextMenuSecondaryGroup: string | null
   activeWebsiteId?: string | null
 }
@@ -35,14 +36,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   toggleSecondaryGroup,
   handleWebsiteClick,
   handleAddWebsite,
-  handleContextMenu,
-  handleWebsiteContextMenu,
   handleWebsiteUpdate,
   handleDeleteWebsite,
   handleEditSecondaryGroup,
   handleDeleteSecondaryGroup,
-  handleCloseContextMenu,
-  contextMenuWebsite,
   contextMenuSecondaryGroup,
   activeWebsiteId = null
 }) => {
@@ -55,61 +52,65 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       <SidebarMenu>
         {activePrimaryGroup.secondaryGroups.map((secondaryGroup) => (
           <div key={`menu-item-${secondaryGroup.id}`} className="relative">
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                data-secondary-group-id={secondaryGroup.id}
-                onClick={() => {
-                  toggleSecondaryGroup(secondaryGroup.id)
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  handleContextMenu(e, secondaryGroup.id)
-                }}
-                className={`${contextMenuSecondaryGroup === secondaryGroup.id ? 'bg-sidebar-accent' : ''}`}
-              >
-                <Folder className="mr-2 h-4 w-4" />
-                <span>{secondaryGroup.name}</span>
-              </SidebarMenuButton>
-
-              {/* 渲染二级分组右键菜单 */}
-              {contextMenuSecondaryGroup === secondaryGroup.id && (
-                <ContextMenu
-                  type="secondaryGroup"
-                  targetSelector={`[data-secondary-group-id="${secondaryGroup.id}"]`}
-                  onEdit={() => handleEditSecondaryGroup(secondaryGroup)}
-                  onDelete={() => handleDeleteSecondaryGroup(secondaryGroup.id)}
-                  onClose={handleCloseContextMenu}
-                />
-              )}
-            </SidebarMenuItem>
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    data-secondary-group-id={secondaryGroup.id}
+                    onClick={() => {
+                      toggleSecondaryGroup(secondaryGroup.id)
+                    }}
+                    className={`${contextMenuSecondaryGroup === secondaryGroup.id ? 'bg-sidebar-accent' : ''}`}
+                  >
+                    <Folder className="mr-2 h-4 w-4" />
+                    <span>{secondaryGroup.name}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => handleEditSecondaryGroup(secondaryGroup)}>
+                  修改
+                </ContextMenuItem>
+                <ContextMenuItem
+                  className="text-red-600 focus:bg-red-100 dark:focus:bg-red-900"
+                  onClick={() => handleDeleteSecondaryGroup(secondaryGroup.id)}
+                >
+                  删除
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
 
             {secondaryGroup.expanded !== false && (
               <SidebarMenuSub key={`menu-sub-${secondaryGroup.id}-${secondaryGroup.expanded}`}>
                 {(secondaryGroup.websites || []).map((website) => (
                   <div key={website.id} className="relative">
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton
-                        data-website-id={website.id}
-                        onClick={() => handleWebsiteClick(website)}
-                        onContextMenu={(e) => handleWebsiteContextMenu(e, website.id)}
-                        className={`${activeWebsiteId === website.id ? 'bg-sidebar-accent' : ''}
-                          hover:bg-secondary cursor-pointer`}
-                        style={{ userSelect: 'none' }}
-                      >
-                        <Favicon url={website.url} className="mr-2 h-6 w-6" />
-                        <span>{website.name}</span>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-
-                    {contextMenuWebsite === website.id && (
-                      <ContextMenu
-                        type="website"
-                        targetSelector={`[data-website-id="${website.id}"]`}
-                        onEdit={() => handleWebsiteUpdate(website)}
-                        onDelete={() => handleDeleteWebsite(website.id)}
-                        onClose={handleCloseContextMenu}
-                      />
-                    )}
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            data-website-id={website.id}
+                            onClick={() => handleWebsiteClick(website)}
+                            className={`${activeWebsiteId === website.id ? 'bg-sidebar-accent' : ''}
+                              hover:bg-secondary cursor-pointer`}
+                            style={{ userSelect: 'none' }}
+                          >
+                            <Favicon url={website.url} className="mr-2 h-6 w-6" />
+                            <span>{website.name}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onClick={() => handleWebsiteUpdate(website)}>
+                          修改
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          className="text-red-600 focus:bg-red-100 dark:focus:bg-red-900"
+                          onClick={() => handleDeleteWebsite(website.id)}
+                        >
+                          删除
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </div>
                 ))}
 

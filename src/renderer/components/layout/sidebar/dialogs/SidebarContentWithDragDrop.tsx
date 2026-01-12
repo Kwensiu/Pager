@@ -2,7 +2,12 @@ import React from 'react'
 import { SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/ui/sidebar'
 import { Plus } from 'lucide-react'
 import { PrimaryGroup, Website, SecondaryGroup } from '@/types/website'
-import ContextMenu from './ContextMenu'
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem
+} from '@/ui/context-menu'
 
 // 拖拽相关导入
 import { DragDropProvider, SortableContainer } from '../dnd/contexts/DragDropContext'
@@ -17,16 +22,11 @@ export interface SidebarContentWithDragDropProps {
   toggleSecondaryGroup: (secondaryGroupId: string) => void
   handleWebsiteClick: (website: Website) => void
   handleAddWebsite: (groupId: string, isSecondaryGroup: boolean) => void
-  handleContextMenu: (e: React.MouseEvent, secondaryGroupId: string) => void
-  handleWebsiteContextMenu: (e: React.MouseEvent, websiteId: string) => void
   handleWebsiteUpdate: (website: Website) => void
   handleDeleteWebsite: (websiteId: string) => void
   handleEditSecondaryGroup: (secondaryGroup: SecondaryGroup) => void
   handleDeleteSecondaryGroup: (secondaryGroupId: string) => void
-  handleCloseContextMenu: () => void
-  contextMenuWebsite: string | null
   contextMenuSecondaryGroup: string | null
-  contextMenuPosition: { x: number; y: number }
   activeWebsiteId?: string | null
   // 新增的拖拽相关props
   primaryGroups: PrimaryGroup[]
@@ -41,17 +41,12 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
   toggleSecondaryGroup,
   handleWebsiteClick,
   handleAddWebsite,
-  handleContextMenu,
   handleEditSecondaryGroup,
   handleDeleteSecondaryGroup,
-  handleCloseContextMenu,
   contextMenuSecondaryGroup,
   activeWebsiteId = null,
-  handleWebsiteContextMenu,
   handleWebsiteUpdate,
-  handleDeleteWebsite,
-  contextMenuWebsite,
-  contextMenuPosition
+  handleDeleteWebsite
 }) => {
   if (!activePrimaryGroup) {
     return null
@@ -83,7 +78,8 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
                     primaryGroupId={activePrimaryGroup.id}
                     active={activeWebsiteId === website.id}
                     onClick={() => handleWebsiteClick(website)}
-                    onContextMenu={(e) => handleWebsiteContextMenu(e, website.id)}
+                    onEdit={() => handleWebsiteUpdate(website)}
+                    onDelete={() => handleDeleteWebsite(website.id)}
                     className="ml-0"
                   />
                 </div>
@@ -105,28 +101,34 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
         <SortableContainer items={secondaryGroupIds}>
           {sortedSecondaryGroups.map((secondaryGroup) => (
             <div key={`menu-item-${secondaryGroup.id}`} className="relative mb-2">
-              {/* 使用可排序的二级分组组件 */}
-              <SortableSecondaryGroup
-                secondaryGroup={secondaryGroup}
-                active={contextMenuSecondaryGroup === secondaryGroup.id}
-                onClick={() => toggleSecondaryGroup(secondaryGroup.id)}
-                onContextMenu={(e) => handleContextMenu(e, secondaryGroup.id)}
-                onWebsiteClick={handleWebsiteClick}
-                onWebsiteContextMenu={handleWebsiteContextMenu}
-                onAddWebsite={() => handleAddWebsite(secondaryGroup.id, true)}
-                activeWebsiteId={activeWebsiteId}
-              />
-
-              {/* 渲染二级分组右键菜单 */}
-              {contextMenuSecondaryGroup === secondaryGroup.id && (
-                <ContextMenu
-                  type="secondaryGroup"
-                  targetSelector={`[data-secondary-group-id="${secondaryGroup.id}"]`}
-                  onEdit={() => handleEditSecondaryGroup(secondaryGroup)}
-                  onDelete={() => handleDeleteSecondaryGroup(secondaryGroup.id)}
-                  onClose={handleCloseContextMenu}
-                />
-              )}
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div>
+                    {/* 使用可排序的二级分组组件 */}
+                    <SortableSecondaryGroup
+                      secondaryGroup={secondaryGroup}
+                      active={contextMenuSecondaryGroup === secondaryGroup.id}
+                      onClick={() => toggleSecondaryGroup(secondaryGroup.id)}
+                      onWebsiteClick={handleWebsiteClick}
+                      onWebsiteEdit={handleWebsiteUpdate}
+                      onWebsiteDelete={handleDeleteWebsite}
+                      onAddWebsite={() => handleAddWebsite(secondaryGroup.id, true)}
+                      activeWebsiteId={activeWebsiteId}
+                    />
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => handleEditSecondaryGroup(secondaryGroup)}>
+                    修改
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    className="text-red-600 focus:bg-red-100 dark:focus:bg-red-900"
+                    onClick={() => handleDeleteSecondaryGroup(secondaryGroup.id)}
+                  >
+                    删除
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             </div>
           ))}
         </SortableContainer>
@@ -144,26 +146,6 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
-
-      {/* 渲染网站右键菜单 */}
-      {contextMenuWebsite && (
-        <ContextMenu
-          type="website"
-          targetSelector={`[data-website-id="${contextMenuWebsite}"]`}
-          position={contextMenuPosition}
-          onEdit={() => {
-            const website = [
-              ...primaryGroupWebsites,
-              ...sortedSecondaryGroups.flatMap((g) => g.websites)
-            ].find((w) => w.id === contextMenuWebsite)
-            if (website) {
-              handleWebsiteUpdate(website)
-            }
-          }}
-          onDelete={() => handleDeleteWebsite(contextMenuWebsite)}
-          onClose={handleCloseContextMenu}
-        />
-      )}
     </SidebarGroup>
   )
 }
