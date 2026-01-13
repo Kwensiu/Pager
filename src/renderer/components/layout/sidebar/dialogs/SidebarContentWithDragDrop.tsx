@@ -74,7 +74,10 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
     primaryGroupWebsiteIds.length > 0 ? primaryGroupWebsiteIds : ['primary-group-empty']
 
   return (
-    <SidebarGroup key={`primary-group-${activePrimaryGroup.id}`} className="pb-0">
+    <SidebarGroup
+      key={`primary-group-${activePrimaryGroup.id}-${collapsedSidebarMode}-${isCollapsed}`}
+      className="pb-0"
+    >
       <SidebarMenu>
         {/* 折叠状态下的简化显示 */}
         {isCollapsed ? (
@@ -97,8 +100,10 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
             {/* 二级分组下的网站 */}
             {sortedSecondaryGroups.map((secondaryGroup) => {
               // 根据模式决定是否显示该分组的网站
-              const shouldShowWebsites =
-                collapsedSidebarMode === 'all' || secondaryGroup.expanded !== false
+              // 如果 expanded 是 undefined，默认视为 true（展开状态）
+              const isExpanded = secondaryGroup.expanded !== false
+              const shouldShowWebsites = collapsedSidebarMode === 'all' || isExpanded
+
               return (
                 <div key={`collapsed-group-${secondaryGroup.id}`}>
                   {shouldShowWebsites &&

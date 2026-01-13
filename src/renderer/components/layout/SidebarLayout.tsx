@@ -20,6 +20,7 @@ import { ConfirmDialog } from '@/components/features/ConfirmDialog'
 import SettingsDialog from '@/components/features/SettingsDialog'
 import { Website } from '@/types/website'
 import { useState } from 'react'
+import { useSettings } from '@/hooks/useSettings'
 
 interface SidebarLayoutProps {
   children: (currentWebsite: Website | null) => React.ReactNode
@@ -32,27 +33,18 @@ interface SidebarLayoutInnerProps {
   children: (currentWebsite: Website | null) => React.ReactNode
   activeWebsiteId?: string | null
   onWebsiteClick?: (website: Website) => void
+  collapsedSidebarMode: 'all' | 'expanded'
 }
 
 const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
   children,
   activeWebsiteId,
-  onWebsiteClick
+  onWebsiteClick,
+  collapsedSidebarMode
 }) => {
   // AddOptionsDialog 状态
   const [isAddOptionsDialogOpen, setIsAddOptionsDialogOpen] = useState(false)
   const [addOptionsPrimaryGroupId, setAddOptionsPrimaryGroupId] = useState<string | null>(null)
-
-  // 折叠态显示模式 - 从 localStorage 读取
-  const getCollapsedSidebarMode = (): 'all' | 'expanded' => {
-    const savedSettings = localStorage.getItem('settings')
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings)
-      return parsed.collapsedSidebarMode || 'all'
-    }
-    return 'all'
-  }
-  const collapsedSidebarMode = getCollapsedSidebarMode()
 
   // 获取sidebar状态
   const { state } = useSidebar()
@@ -120,7 +112,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
   } = useSidebarLogic({ activeWebsiteId, onWebsiteClick })
 
   return (
-    <SidebarProvider>
+    <>
       <div className="flex h-screen w-full">
         <Sidebar
           collapsible="icon"
@@ -186,7 +178,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
                     order: 0,
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
-                    expanded: true
+                    expanded: false // 默认折叠，用户需要手动展开
                   }
 
                   // 更新primaryGroups
@@ -226,14 +218,21 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
         </Sidebar>
         <SidebarInset className="h-screen w-full">
           <div className="flex flex-1 flex-col overflow-hidden relative h-full">
-            {/* 网站内容或设置页面 */}
-            {showSettings ? (
+            {/* 网站内容 - 始终渲染，避免 WebView 重载 */}
+            <div className="flex-1 overflow-hidden">
+              {typeof children === 'function' ? children(currentWebsite) : children}
+            </div>
+
+            {/* 设置页面覆盖层 */}
+            <div
+              className={`absolute inset-0 bg-background transition-all duration-300 ease-in-out ${
+                showSettings
+                  ? 'opacity-100 pointer-events-auto z-10'
+                  : 'opacity-0 pointer-events-none -z-10'
+              }`}
+            >
               <SettingsDialog />
-            ) : typeof children === 'function' ? (
-              children(currentWebsite)
-            ) : (
-              children
-            )}
+            </div>
           </div>
         </SidebarInset>
       </div>
@@ -376,7 +375,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
         }}
         onCancel={() => setClearCacheDialogOpen(false)}
       />
-    </SidebarProvider>
+    </>
   )
 }
 
@@ -385,9 +384,17 @@ export default function SidebarLayout({
   activeWebsiteId = null,
   onWebsiteClick
 }: SidebarLayoutProps): React.ReactElement {
+  // 使用 useSettings hook 管理设置
+  const { settings } = useSettings()
+  const collapsedSidebarMode = settings.collapsedSidebarMode
+
   return (
     <SidebarProvider>
-      <SidebarLayoutInner activeWebsiteId={activeWebsiteId} onWebsiteClick={onWebsiteClick}>
+      <SidebarLayoutInner
+        activeWebsiteId={activeWebsiteId}
+        onWebsiteClick={onWebsiteClick}
+        collapsedSidebarMode={collapsedSidebarMode}
+      >
         {children}
       </SidebarLayoutInner>
     </SidebarProvider>

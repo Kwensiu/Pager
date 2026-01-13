@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Button } from '../../ui/button'
 import { Switch } from '../../ui/switch'
 import { Label } from '../../ui/label'
@@ -8,10 +8,10 @@ import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { Slider } from '../../ui/slider'
 import { useI18n } from '@/core/i18n/useI18n'
+import { useSettings } from '@/hooks/useSettings'
 
 interface SettingsDialogProps {
   open?: boolean
-  onOpenChange?: (open: boolean) => void
   mode?: 'dialog' | 'page'
 }
 
@@ -19,110 +19,17 @@ interface SettingsDialogProps {
  * 设置页面组件
  * 管理应用的所有设置，包括新功能
  */
-const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
+const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const { t } = useI18n()
   const [activeTab, setActiveTab] = useState('general')
-  const [settings, setSettings] = useState({
-    // 通用设置
-    theme: 'system' as 'light' | 'dark' | 'system',
-    language: 'zh',
-    autoUpdate: true,
-    minimizeToTray: true,
-    collapsedSidebarMode: 'all' as 'all' | 'expanded',
-
-    // 浏览器指纹伪装
-    fingerprintEnabled: false,
-    fingerprintMode: 'balanced' as 'basic' | 'balanced' | 'advanced',
-
-    // 全局快捷键
-    shortcutsEnabled: true,
-    shortcutAlwaysOnTop: 'Ctrl+Shift+T',
-    shortcutMiniMode: 'Ctrl+Shift+M',
-
-    // 系统托盘
-    trayEnabled: true,
-    trayShowNotifications: true,
-
-    // 窗口管理
-    windowAlwaysOnTop: false,
-    windowMiniMode: false,
-    windowAdsorptionEnabled: true,
-    windowAdsorptionSensitivity: 50,
-
-    // 内存优化
-    memoryOptimizerEnabled: true,
-    memoryCleanInterval: 30, // 分钟
-    maxInactiveTime: 60, // 分钟
-
-    // 数据同步
-    autoSyncEnabled: false,
-    syncInterval: 24, // 小时
-
-    // 自动启动
-    autoLaunchEnabled: false,
-
-    // 代理支持
-    proxyEnabled: false,
-    proxyRules: '',
-
-    // 版本检查
-    autoCheckUpdates: true,
-    updateCheckInterval: 24, // 小时
-
-    // Session 隔离
-    sessionIsolationEnabled: true,
-
-    // 进程崩溃处理
-    crashReportingEnabled: true,
-    autoRestartOnCrash: false,
-
-    // 浏览器设置
-    enableJavaScript: true,
-    allowPopups: true,
-
-    // 隐私与数据
-    saveSession: true,
-    clearCacheOnExit: false,
-
-    // 扩展设置
-    enableExtensions: true,
-    autoLoadExtensions: true,
-
-    // 调试模式
-    showDebugOptions: false
-  })
-
-  const loadSettings = async (): Promise<void> => {
-    try {
-      // 这里可以从存储中加载设置
-      // 暂时使用默认值
-      console.log('Loading settings...')
-    } catch (error) {
-      console.error('Failed to load settings:', error)
-    }
-  }
-
-  // 加载设置
-  useEffect(() => {
-    loadSettings()
-  }, [])
+  const { settings, updateSettings } = useSettings()
 
   const saveSettings = async (): Promise<void> => {
     try {
-      // 这里可以保存设置到存储
-      console.log('Saving settings:', settings)
-
       // 应用设置到各个服务
       await applySettings()
-
-      // 页面模式下不需要关闭对话框，可以显示保存成功的提示
-      alert('设置已保存')
-
-      if (onOpenChange) {
-        onOpenChange(false)
-      }
     } catch (error) {
-      console.error('Failed to save settings:', error)
+      console.error('Failed to apply settings:', error)
     }
   }
 
@@ -171,15 +78,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
     }
   }
 
-  const handleSettingChange = (key: keyof typeof settings, value: unknown): void => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value
-    }))
+  const handleSettingChange = async (key: keyof typeof settings, value: unknown): Promise<void> => {
+    updateSettings({ [key]: value } as Partial<typeof settings>)
+    // 自动应用设置
+    await saveSettings()
   }
 
-  const handleResetToDefaults = (): void => {
-    setSettings({
+  const handleResetToDefaults = async (): Promise<void> => {
+    updateSettings({
       theme: 'system',
       language: 'zh',
       autoUpdate: true,
@@ -217,6 +123,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
       autoLoadExtensions: true,
       showDebugOptions: false
     })
+    // 自动应用设置
+    await saveSettings()
   }
 
   const testProxyConnection = async (): Promise<void> => {
@@ -236,26 +144,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
       }
     } catch (error) {
       alert(`测试失败: ${error instanceof Error ? error.message : '未知错误'}`)
-    }
-  }
-
-  const checkForUpdates = async (): Promise<void> => {
-    try {
-      const { api } = window
-      if (!api?.enhanced?.versionChecker) {
-        alert('版本检查功能不可用')
-        return
-      }
-
-      const result = await api.enhanced.versionChecker.checkUpdate(true)
-
-      if (result.available) {
-        alert(`发现新版本: ${result.latestVersion}\n${result.releaseNotes || ''}`)
-      } else {
-        alert('当前已是最新版本')
-      }
-    } catch (error) {
-      alert(`检查更新失败: ${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
 
@@ -360,8 +248,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部折叠</SelectItem>
-                  <SelectItem value="expanded">展开模式</SelectItem>
+                  <SelectItem value="all">显示所有网站</SelectItem>
+                  <SelectItem value="expanded">仅显示展开的分组</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -752,23 +640,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
         <TabsContent value="advanced" className="space-y-4">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>版本检查</Label>
-              <div className="flex items-center space-x-2">
-                <Button onClick={checkForUpdates} variant="outline" size="sm">
-                  立即检查更新
-                </Button>
-                <div className="flex-1" />
-                <Switch
-                  checked={settings.autoCheckUpdates}
-                  onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
-                />
-                <Label>自动检查</Label>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
               <Label>扩展设置</Label>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -906,13 +777,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({ onOpenChange }) => {
           </div>
         </TabsContent>
       </Tabs>
-
-      <div className="mt-6 flex justify-end space-x-2">
-        <Button variant="outline" onClick={handleResetToDefaults}>
-          恢复默认
-        </Button>
-        <Button onClick={saveSettings}>保存设置</Button>
-      </div>
     </div>
   )
 }
