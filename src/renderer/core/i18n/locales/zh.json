@@ -159,7 +159,7 @@
     "installFromZip": "ZIP",
     "installFromCrx": "CRX",
     "permissions": "权限",
-    "description": "描述",
+    "permissionsDescription": "描述",
     "validation": {
       "pathNotExist": "扩展路径不存在",
       "manifestNotFound": "未找到 manifest.json 文件",
