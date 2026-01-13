@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, Power, PowerOff, Loader2, Package } from 'lucide-react'
 import { Button } from '@/ui/button'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 import { AddExtensionDialog } from './AddExtensionDialog'
 import { ConfirmDialog } from './ConfirmDialog'
 

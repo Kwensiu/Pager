@@ -3,7 +3,7 @@ import {
   createWindow,
   registerCertificateErrorHandler,
   registerRenderProcessGoneHandler
-} from './window'
+} from './core/window'
 import { registerIpcHandlers } from './ipc'
 import { registerSimpleExtensionHandlers } from './ipc/simpleExtensionHandlers'
 import { SimpleExtensionManager } from './extensions/simpleManager'

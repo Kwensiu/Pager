@@ -12,7 +12,7 @@ import { Input } from '@/ui/input'
 import { Label } from '@/ui/label'
 import { Website } from '@/types/website'
 import { Favicon } from './Favicon'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface EditWebsiteDialogProps {
   open: boolean

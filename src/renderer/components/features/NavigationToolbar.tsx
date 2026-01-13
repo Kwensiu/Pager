@@ -4,7 +4,7 @@ import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
 import { cn } from '@/lib/utils'
 import { useMouseSideButtons } from '@/hooks/useMouseSideButtons'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface NavigationToolbarProps {
   /** 当前显示的 URL */

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import SidebarLayout from '@/components/layout/SidebarLayout'
 import Dashboard from '@/pages/Dashboard'
 import { Website } from '@/types/website'
-import { I18nProviderWrapper } from './i18n/I18nProvider'
+import { I18nProviderWrapper } from './core/i18n/I18nProvider'
 
 function App(): JSX.Element {
   const [activeWebsiteId, setActiveWebsiteId] = useState<string | null>(null)

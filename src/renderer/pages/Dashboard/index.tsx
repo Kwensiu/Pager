@@ -3,7 +3,7 @@ import { WebViewContainer } from '@/components/features/WebViewContainer'
 import { Website } from '@/types/website'
 import { ExtensionManager } from '@/components/features/ExtensionManager'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/ui/dialog'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface DashboardProps {
   currentWebsite: Website | null

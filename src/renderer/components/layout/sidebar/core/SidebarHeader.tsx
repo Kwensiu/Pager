@@ -5,7 +5,7 @@ import { SidebarHeader as UISidebarHeader, SidebarTrigger } from '@/ui/sidebar'
 import { useSidebar } from '@/ui/sidebar.types'
 import { Folder, Plus, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { PrimaryGroup } from '@/types/website'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 export interface SidebarHeaderProps {
   primaryGroups: PrimaryGroup[]

@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/ui/dialog'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface AddExtensionDialogProps {
   open: boolean

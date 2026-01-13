@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { Slider } from '../../ui/slider'
-import { useI18n } from '../../i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface SettingsDialogProps {
   open?: boolean

@@ -71,7 +71,7 @@ function getIconPath(): string | undefined {
     return iconPath
   }
   // 回退到开发资源路径
-  const devPath = join(__dirname, '../../resources/icon.ico')
+  const devPath = join(__dirname, '../../../resources/icon.ico')
   if (existsSync(devPath)) {
     console.log('Icon found at dev path', devPath)
     return devPath
@@ -87,6 +87,15 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   // 获取保存的窗口状态
   const savedState = getSavedWindowState()
 
+  // 使用 app.getAppPath() 获取更可靠的 preload 路径
+  const appPath = app.getAppPath()
+  const preloadPath =
+    process.env.NODE_ENV === 'development'
+      ? join(appPath, 'out/preload/index.js')
+      : join(appPath, 'out/preload/index.js')
+
+  console.log('Preload path:', preloadPath)
+
   const mainWindow = new BrowserWindow({
     width: savedState?.width || 900,
     height: savedState?.height || 670,
@@ -96,7 +105,7 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       sandbox: false,
       nodeIntegration: false,
       contextIsolation: true,

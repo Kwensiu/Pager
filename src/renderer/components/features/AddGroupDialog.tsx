@@ -12,7 +12,7 @@ import {
   DialogTitle
 } from '@/ui/dialog'
 import { WebsiteGroup } from '@/types/website'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface AddGroupDialogProps {
   open: boolean

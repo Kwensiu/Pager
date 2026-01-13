@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { PrimaryGroup, SecondaryGroup, Website } from '@/types/website'
-import { storageService } from '@/services/storage'
+import { storageService } from '@/core/storage'
 import { getDefaultGroups } from '@/utils/defaultGroupsHelper'
 import { useDialogManagement } from './useDialogManagement'
 
