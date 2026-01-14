@@ -80,6 +80,7 @@
   },
   "resolutions": {
     "jiti": "2.6.1",
-    "type-fest": "0.13.1"
+    "type-fest": "0.13.1",
+    "env-paths": "^3.0.0"
   }
 }
