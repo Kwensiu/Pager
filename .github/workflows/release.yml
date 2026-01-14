@@ -50,17 +50,17 @@ jobs:
         if: github.event_name == 'push'
         id: extract_version
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG_NAME#v}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          $TAG_NAME = "${{ github.ref }}".Replace("refs/tags/", "")
+          $VERSION = $TAG_NAME.Replace("v", "")
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          echo "tag=$TAG_NAME" >> $env:GITHUB_OUTPUT
 
       - name: Set version for manual trigger
         if: github.event_name == 'workflow_dispatch'
         id: set_version
         run: |
-          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          echo "version=${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
+          echo "tag=v${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
 
       - name: Update package.json version
         run: |
