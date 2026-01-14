@@ -9,6 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Slider } from '../../ui/slider'
 import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '../../ui/dialog'
+import { ExtensionManager } from './ExtensionManager'
 
 interface SettingsDialogProps {
   open?: boolean
@@ -23,6 +31,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const { t } = useI18n()
   const [activeTab, setActiveTab] = useState('general')
   const { settings, updateSettings } = useSettings()
+  const [showExtensionManager, setShowExtensionManager] = useState(false)
 
   const saveSettings = async (): Promise<void> => {
     try {
@@ -669,10 +678,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2"
-                  onClick={() => {
-                    // 这里需要打开扩展管理器
-                    console.log('打开扩展管理器')
-                  }}
+                  onClick={() => setShowExtensionManager(true)}
                 >
                   <span>管理扩展</span>
                 </Button>
@@ -777,6 +783,19 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* 扩展管理器对话框 */}
+      <Dialog open={showExtensionManager} onOpenChange={setShowExtensionManager}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{t('extensions.title') || '扩展管理'}</DialogTitle>
+            <DialogDescription>
+              {t('extensions.description') || '管理您的浏览器扩展'}
+            </DialogDescription>
+          </DialogHeader>
+          <ExtensionManager open={showExtensionManager} onOpenChange={setShowExtensionManager} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

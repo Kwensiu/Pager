@@ -65,6 +65,15 @@ export interface Settings {
   isOpenContextMenu?: boolean // 右键菜单
   leftMenuPosition?: 'left' | 'right' // 侧边栏位置
   howLinkOpenMethod?: 'tuboshu' | 'external' // 链接打开方式
+  // 扩展管理设置
+  extensionSettings?: ExtensionSettings
+}
+
+export interface ExtensionSettings {
+  enableExtensions: boolean
+  autoLoadExtensions: boolean
+  defaultIsolationLevel: ExtensionIsolationLevel
+  defaultRiskTolerance: ExtensionRiskLevel
 }
 
 export interface WebsiteOrderUpdate {
@@ -96,4 +105,94 @@ export interface FingerprintConfig {
   languages?: string[]
   screenResolution?: string
   timezone?: string
+}
+
+// 扩展管理类型
+export interface ExtensionManifest {
+  name: string
+  version: string
+  manifest_version?: number
+  description?: string
+  permissions?: string[]
+  host_permissions?: string[]
+  content_scripts?: ContentScript[]
+  background?: BackgroundConfig
+  icons?: Record<string, string>
+}
+
+export interface ExtensionInfo {
+  /** 扩展 ID（由 Electron 分配） */
+  id: string
+  /** 扩展名称 */
+  name: string
+  /** 扩展版本 */
+  version: string
+  /** 扩展路径 */
+  path: string
+  /** 是否启用 */
+  enabled: boolean
+  /** 扩展 manifest 内容 */
+  manifest?: ExtensionManifest
+}
+
+export interface ContentScript {
+  matches?: string[]
+  js?: string[]
+  css?: string[]
+}
+
+export interface BackgroundConfig {
+  service_worker?: string
+  scripts?: string[]
+  persistent?: boolean
+}
+
+export interface ExtensionConfig {
+  extensions: ExtensionInfo[]
+}
+
+// 扩展隔离配置
+export interface ExtensionIsolationConfig {
+  level: 'strict' | 'standard' | 'relaxed' | 'none'
+  sessionPoolSize: number
+  sessionIdleTimeout: number
+  memoryLimit: number
+  cpuLimit: number
+  networkRestrictions: boolean
+  fileAccessRestrictions: boolean
+  scriptInjectionDetection: boolean
+}
+
+// 扩展权限配置
+export interface ExtensionPermissionInfo {
+  permission: string
+  category: 'sensitive' | 'network' | 'system' | 'file' | 'ui' | 'storage' | 'unknown'
+  riskLevel: 'none' | 'low' | 'medium' | 'high' | 'critical'
+  description: string
+  required: boolean
+}
+
+export enum ExtensionPermissionCategory {
+  SENSITIVE = 'sensitive',
+  NETWORK = 'network',
+  SYSTEM = 'system',
+  FILE = 'file',
+  UI = 'ui',
+  STORAGE = 'storage',
+  UNKNOWN = 'unknown'
+}
+
+export enum ExtensionRiskLevel {
+  NONE = 'none',
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+export enum ExtensionIsolationLevel {
+  STRICT = 'strict',
+  STANDARD = 'standard',
+  RELAXED = 'relaxed',
+  NONE = 'none'
 }

@@ -106,7 +106,18 @@ export const api = {
     getLoaded: () => ipcRenderer.invoke('extension:getLoaded'),
     getSettings: () => ipcRenderer.invoke('extension:getSettings'),
     updateSettings: (settings: { enableExtensions?: boolean; autoLoadExtensions?: boolean }) =>
-      ipcRenderer.invoke('extension:updateSettings', settings)
+      ipcRenderer.invoke('extension:updateSettings', settings),
+    // 新增的增强功能API
+    getErrorStats: () => ipcRenderer.invoke('extension:getErrorStats'),
+    getPermissionStats: () => ipcRenderer.invoke('extension:getPermissionStats'),
+    clearErrorHistory: () => ipcRenderer.invoke('extension:clearErrorHistory'),
+    getWithPermissions: (id: string) => ipcRenderer.invoke('extension:getWithPermissions', id),
+    updatePermissionSettings: (id: string, permissions: string[], allowed: boolean) =>
+      ipcRenderer.invoke('extension:updatePermissionSettings', id, permissions, allowed),
+    // 隔离加载和卸载扩展
+    loadWithIsolation: (path: string, isolationLevel?: string) =>
+      ipcRenderer.invoke('extension:loadWithIsolation', path, isolationLevel),
+    unloadWithIsolation: (id: string) => ipcRenderer.invoke('extension:unloadWithIsolation', id)
   },
 
   // ===== 增强功能 API =====

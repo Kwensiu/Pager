@@ -129,7 +129,7 @@ export function useWebsiteDnd({
 }
 
 // 简化版本，用于不需要完整功能的场景
-export function useSimpleWebsiteDnd(id: string, disabled = false) {
+export function useBasicWebsiteDnd(id: string, disabled = false) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled

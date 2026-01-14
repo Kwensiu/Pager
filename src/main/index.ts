@@ -5,8 +5,9 @@ import {
   registerRenderProcessGoneHandler
 } from './core/window'
 import { registerIpcHandlers } from './ipc'
-import { registerSimpleExtensionHandlers } from './ipc/simpleExtensionHandlers'
-import { SimpleExtensionManager } from './extensions/simpleManager'
+import { ExtensionManager } from './extensions/extensionManager'
+import { extensionIsolationManager } from './services/extensionIsolation'
+import { extensionPermissionManager } from './services/extensionPermissionManager'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -51,12 +52,13 @@ app.whenReady().then(async () => {
   mainWindow = await createWindow()
   await registerIpcHandlers(mainWindow)
 
-  // 注册扩展相关的 IPC 处理器
-  registerSimpleExtensionHandlers()
-
   // 初始化扩展管理器并加载所有已启用的扩展
-  const extensionManager = SimpleExtensionManager.getInstance()
+  const extensionManager = ExtensionManager.getInstance()
   extensionManager.initialize(app.getPath('userData'))
+
+  // 初始化扩展服务
+  extensionIsolationManager.initializeSessionPool()
+  extensionPermissionManager.loadUserSettings()
 
   extensionManager.loadAllExtensions().catch((error) => {
     console.error('Failed to load extensions:', error)
@@ -74,4 +76,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// 应用退出时清理资源
+app.on('before-quit', () => {
+  // 销毁扩展隔离管理器
+  extensionIsolationManager.destroy()
 })

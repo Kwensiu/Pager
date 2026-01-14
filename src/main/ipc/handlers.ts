@@ -11,6 +11,11 @@ import type {
   WebsiteOrderUpdate
 } from '../types/store'
 import { registerEnhancedIpcHandlers } from './enhancedHandlers'
+import { extensionEnhancedHandlers } from './extensionEnhancedHandlers'
+import { ExtensionManager } from '../extensions/extensionManager'
+import { ExtensionIsolationLevel } from '../../shared/types/store'
+
+const extensionManager = ExtensionManager.getInstance()
 
 export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): Promise<void> {
   const { storeService } = await import('../services')
@@ -20,6 +25,156 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
 
   // 注册增强功能的 IPC 处理器
   registerEnhancedIpcHandlers(mainWindow)
+
+  // 创建并注册扩展增强处理器（实例化时会自动注册IPC处理器）
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  extensionEnhancedHandlers
+
+  // ===== 扩展管理相关 IPC 处理器 =====
+
+  // 获取所有扩展
+  ipcMain.handle('extension:getAll', async () => {
+    try {
+      const extensions = extensionManager.getAllExtensions()
+      return {
+        success: true,
+        extensions: extensions.map((ext) => ({
+          id: ext.id,
+          name: ext.name,
+          version: ext.version,
+          path: ext.path,
+          enabled: ext.enabled,
+          manifest: ext.manifest
+        }))
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 添加扩展
+  ipcMain.handle('extension:add', async (_, extensionPath: string) => {
+    try {
+      const result = await extensionManager.addExtension(extensionPath)
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 移除扩展
+  ipcMain.handle('extension:remove', async (_, extensionId: string) => {
+    try {
+      const result = await extensionManager.removeExtension(extensionId)
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 切换扩展状态
+  ipcMain.handle('extension:toggle', async (_, extensionId: string) => {
+    try {
+      const result = await extensionManager.toggleExtension(extensionId)
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 使用隔离加载扩展
+  ipcMain.handle(
+    'extension:loadWithIsolation',
+    async (_, extensionPath: string, isolationLevel?: string) => {
+      try {
+        const result = await extensionManager.loadExtensionWithIsolation(
+          extensionPath,
+          isolationLevel as ExtensionIsolationLevel | undefined
+        )
+        return result
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { success: false, error: errorMessage }
+      }
+    }
+  )
+
+  // 使用隔离卸载扩展
+  ipcMain.handle('extension:unloadWithIsolation', async (_, extensionId: string) => {
+    try {
+      const result = await extensionManager.unloadExtensionWithIsolation(extensionId)
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 获取扩展及其权限信息
+  ipcMain.handle('extension:getWithPermissions', async (_, extensionId: string) => {
+    try {
+      const result = await extensionManager.getExtensionWithPermissions(extensionId)
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 更新权限设置
+  ipcMain.handle(
+    'extension:updatePermissionSettings',
+    async (_, extensionId: string, permissions: string[], allowed: boolean) => {
+      try {
+        const result = await extensionManager.updatePermissionSettings(
+          extensionId,
+          permissions,
+          allowed
+        )
+        return result
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { success: false, error: errorMessage }
+      }
+    }
+  )
+
+  // 获取错误统计
+  ipcMain.handle('extension:getErrorStats', async () => {
+    try {
+      const result = await extensionManager.getErrorStats()
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 获取权限统计
+  ipcMain.handle('extension:getPermissionStats', async () => {
+    try {
+      const result = await extensionManager.getPermissionStats()
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 清除错误历史
+  ipcMain.handle('extension:clearErrorHistory', async () => {
+    try {
+      const result = await extensionManager.clearErrorHistory()
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
 
   // 窗口管理相关 IPC
   ipcMain.on('window:open-dev-tools', () => {

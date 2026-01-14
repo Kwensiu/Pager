@@ -1,4 +1,3 @@
-import { session } from 'electron'
 import { join } from 'path'
 import {
   existsSync,
@@ -9,10 +8,18 @@ import {
   readFileSync as fsReadFileSync
 } from 'fs'
 import type { ExtensionInfo, ExtensionManifest, ExtensionConfig } from './types'
+import { extensionIsolationManager } from '../services/extensionIsolation'
+import { extensionPermissionManager } from '../services/extensionPermissionManager'
+import { extensionErrorManager } from '../services/extensionErrorManager'
+import {
+  ExtensionSettings,
+  ExtensionIsolationLevel,
+  ExtensionRiskLevel
+} from '../../shared/types/store'
 
 // 动态导入 adm-zip 以避免在模块顶层导入
-let AdmZip: any = null
-async function getAdmZip() {
+let AdmZip: typeof import('adm-zip').default | null = null
+async function getAdmZip(): Promise<typeof import('adm-zip').default> {
   if (!AdmZip) {
     AdmZip = (await import('adm-zip')).default
   }
@@ -70,26 +77,27 @@ function isValidCrxFile(crxPath: string): boolean {
   }
 }
 
-export interface ExtensionSettings {
-  enableExtensions: boolean
-  autoLoadExtensions: boolean
-}
-
-export class SimpleExtensionManager {
-  private static instance: SimpleExtensionManager
+export class ExtensionManager {
+  private static instance: ExtensionManager
   private extensions: Map<string, ExtensionInfo> = new Map()
   private configPath: string = ''
   private config: ExtensionConfig = { extensions: [] }
   private settings: ExtensionSettings = {
     enableExtensions: true,
-    autoLoadExtensions: true
+    autoLoadExtensions: true,
+    defaultIsolationLevel: ExtensionIsolationLevel.STANDARD,
+    defaultRiskTolerance: ExtensionRiskLevel.MEDIUM
   }
+  private extensionSessions: Map<
+    string,
+    import('../services/extensionIsolation').ExtensionSession
+  > = new Map()
 
-  static getInstance(): SimpleExtensionManager {
-    if (!SimpleExtensionManager.instance) {
-      SimpleExtensionManager.instance = new SimpleExtensionManager()
+  static getInstance(): ExtensionManager {
+    if (!ExtensionManager.instance) {
+      ExtensionManager.instance = new ExtensionManager()
     }
-    return SimpleExtensionManager.instance
+    return ExtensionManager.instance
   }
 
   initialize(userDataPath: string): void {
@@ -101,7 +109,10 @@ export class SimpleExtensionManager {
     try {
       if (existsSync(this.configPath)) {
         const data = readFileSync(this.configPath, 'utf-8')
-        this.config = JSON.parse(data)
+        const config = JSON.parse(data)
+
+        this.config = { extensions: config.extensions || [] }
+        this.settings = { ...this.settings, ...(config.settings || {}) }
 
         // 将配置中的扩展加载到内存
         this.config.extensions.forEach((ext) => {
@@ -126,7 +137,12 @@ export class SimpleExtensionManager {
       }
 
       this.config.extensions = Array.from(this.extensions.values())
-      writeFileSync(this.configPath, JSON.stringify(this.config, null, 2))
+      // 将 settings 和 config 一起保存
+      const configWithSettings = {
+        extensions: this.config.extensions,
+        settings: this.settings
+      }
+      writeFileSync(this.configPath, JSON.stringify(configWithSettings, null, 2))
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Failed to save extension config:', errorMessage)
@@ -470,6 +486,9 @@ export class SimpleExtensionManager {
         return { success: false, error: 'Extension not found' }
       }
 
+      // 销毁扩展会话
+      await this.destroyExtensionSession(extensionId)
+
       // 如果已加载，先卸载
       if (extension.enabled) {
         await this.unloadExtension(extensionId)
@@ -512,6 +531,10 @@ export class SimpleExtensionManager {
     return Array.from(this.extensions.values())
   }
 
+  getExtension(extensionId: string): ExtensionInfo | undefined {
+    return this.extensions.get(extensionId)
+  }
+
   async loadAllExtensions(): Promise<void> {
     // 检查是否启用扩展功能
     if (!this.settings.enableExtensions) {
@@ -543,36 +566,86 @@ export class SimpleExtensionManager {
 
   updateSettings(newSettings: Partial<ExtensionSettings>): void {
     this.settings = { ...this.settings, ...newSettings }
+    this.saveConfig()
     console.log('Extension settings updated:', this.settings)
   }
 
   private async loadExtension(extension: ExtensionInfo): Promise<void> {
     try {
-      // 使用共享的 session 加载扩展，以便在所有 webview 中工作
-      const sharedSession = session.fromPartition('persist:webview-shared')
+      // 验证扩展权限
+      const riskLevel = this.settings.defaultRiskTolerance
+      const permissionValidation = await extensionPermissionManager.validateExtensionPermissions(
+        extension,
+        riskLevel
+      )
 
-      // 使用新的 API (session.extensions.loadExtension) 如果可用
-      if (sharedSession.extensions && sharedSession.extensions.loadExtension) {
-        await sharedSession.extensions.loadExtension(extension.path)
-      } else {
-        // 回退到旧的 API
-        await sharedSession.loadExtension(extension.path)
+      if (!permissionValidation.valid) {
+        throw new Error(
+          `Permission validation failed: ${permissionValidation.blockedPermissions.map((p) => p.permission).join(', ')}`
+        )
       }
 
-      console.log(`Extension loaded: ${extension.name}`)
+      // 创建扩展会话
+      const isolationLevel = this.settings.defaultIsolationLevel
+      const extensionSession = await extensionIsolationManager.createExtensionSession(
+        extension,
+        isolationLevel
+      )
+
+      // 存储会话信息
+      this.extensionSessions.set(extension.id, extensionSession)
+
+      // 使用隔离的 session 加载扩展
+      const isolationSession = extensionIsolationManager.getExtensionSession(extension.id)
+      if (!isolationSession) {
+        throw new Error('Failed to create extension session')
+      }
+
+      // 使用新的 API (session.extensions.loadExtension) 如果可用
+      if (
+        isolationSession.session.extensions &&
+        isolationSession.session.extensions.loadExtension
+      ) {
+        await isolationSession.session.extensions.loadExtension(extension.path)
+      } else {
+        // 回退到旧的 API
+        await isolationSession.session.loadExtension(extension.path)
+      }
     } catch (error) {
       console.error(`Failed to load extension ${extension.name}:`, error)
+
+      // 使用错误管理器处理错误
+      await extensionErrorManager.handleLoadError(extension, error as Error)
+
       throw error
     }
   }
 
   private async unloadExtension(extensionId: string): Promise<void> {
     try {
-      // 注意：Electron 目前没有直接的 unloadExtension API
-      // 这里只是记录日志，实际卸载需要重启应用
-      console.log(`Extension unloaded: ${extensionId}`)
+      // 销毁扩展会话
+      await this.destroyExtensionSession(extensionId)
+
+      const extension = this.extensions.get(extensionId)
+      if (extension) {
+        console.log(`Extension unloaded: ${extension.name}`)
+      }
     } catch (error) {
-      console.error(`Failed to unload extension ${extensionId}:`, error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`Failed to unload extension ${extensionId}:`, errorMessage)
+    }
+  }
+
+  private async destroyExtensionSession(extensionId: string): Promise<void> {
+    try {
+      // 从隔离管理器销毁会话
+      await extensionIsolationManager.destroyExtensionSession(extensionId)
+
+      // 从本地会话映射中移除
+      this.extensionSessions.delete(extensionId)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('Failed to destroy extension session:', errorMessage)
     }
   }
 
@@ -586,5 +659,270 @@ export class SimpleExtensionManager {
     // 返回已加载的扩展 ID 列表
     const extensions = this.getAllExtensions()
     return extensions.filter((ext) => ext.enabled).map((ext) => ext.id)
+  }
+
+  // 新增方法：使用隔离加载扩展
+  async loadExtensionWithIsolation(
+    extensionPath: string,
+    isolationLevel?: ExtensionIsolationLevel
+  ): Promise<{
+    success: boolean
+    extension?: { id: string; name: string; version: string; enabled: boolean }
+    sessionId?: string
+    error?: string
+  }> {
+    try {
+      // 验证扩展
+      const validation = await this.validateExtension(extensionPath)
+      if (!validation.valid) {
+        return { success: false, error: validation.error }
+      }
+
+      const manifest = validation.manifest!
+      const extensionId = this.generateExtensionId(manifest.name, manifest.version)
+
+      // 检查是否已存在
+      if (this.extensions.has(extensionId)) {
+        return { success: false, error: 'Extension already exists' }
+      }
+
+      const extension: ExtensionInfo = {
+        id: extensionId,
+        name: manifest.name,
+        version: manifest.version,
+        path: extensionPath,
+        enabled: true,
+        manifest
+      }
+
+      // 创建扩展会话
+      const level = isolationLevel || undefined
+      const extensionSession = await extensionIsolationManager.createExtensionSession(
+        extension,
+        level
+      )
+
+      // 验证权限
+      const riskLevel = this.settings.defaultRiskTolerance
+      const permissionValidation = await extensionPermissionManager.validateExtensionPermissions(
+        extension,
+        riskLevel
+      )
+
+      if (!permissionValidation.valid) {
+        // 销毁会话
+        await extensionIsolationManager.destroyExtensionSession(extensionId)
+        throw new Error(
+          `Permission validation failed: ${permissionValidation.blockedPermissions.map((p) => p.permission).join(', ')}`
+        )
+      }
+
+      // 注册扩展
+      this.extensions.set(extensionId, extension)
+      this.saveConfig()
+
+      // 使用隔离的 session 加载扩展
+      if (
+        extensionSession.session.extensions &&
+        extensionSession.session.extensions.loadExtension
+      ) {
+        await extensionSession.session.extensions.loadExtension(extension.path)
+      } else {
+        await extensionSession.session.loadExtension(extension.path)
+      }
+
+      return {
+        success: true,
+        extension: {
+          id: extension.id,
+          name: extension.name,
+          version: extension.version,
+          enabled: true
+        },
+        sessionId: extensionSession.id
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to load extension with isolation: ${errorMessage}` }
+    }
+  }
+
+  // 新增方法：使用隔离卸载扩展
+  async unloadExtensionWithIsolation(
+    extensionId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const extension = this.extensions.get(extensionId)
+      if (!extension) {
+        return { success: false, error: 'Extension not found' }
+      }
+
+      // 销毁扩展会话
+      await this.destroyExtensionSession(extensionId)
+
+      // 注销扩展
+      this.extensions.delete(extensionId)
+      this.saveConfig()
+
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to unload extension with isolation: ${errorMessage}` }
+    }
+  }
+
+  // 新增方法：获取扩展及其权限信息
+  async getExtensionWithPermissions(extensionId: string): Promise<{
+    success: boolean
+    extension?: {
+      id: string
+      name: string
+      version: string
+      enabled: boolean
+      manifest?: ExtensionManifest
+    }
+    session?: {
+      id: string
+      isolationLevel: ExtensionIsolationLevel
+      isActive: boolean
+      memoryUsage: number
+    } | null
+    permissions?: { settings: string[]; riskLevel: ExtensionRiskLevel }
+    error?: string
+  }> {
+    try {
+      const extension = this.getExtension(extensionId)
+      if (!extension) {
+        return { success: false, error: 'Extension not found' }
+      }
+
+      const isolationSession = extensionIsolationManager.getExtensionSession(extensionId)
+      const permissionSettings = extensionPermissionManager.getUserPermissionSettings(extensionId)
+
+      return {
+        success: true,
+        extension: {
+          id: extension.id,
+          name: extension.name,
+          version: extension.version,
+          enabled: extension.enabled,
+          manifest: extension.manifest
+        },
+        session: isolationSession
+          ? {
+              id: isolationSession.id,
+              isolationLevel: isolationSession.isolationLevel,
+              isActive: isolationSession.isActive,
+              memoryUsage: isolationSession.memoryUsage
+            }
+          : null,
+        permissions: {
+          settings: Array.from(permissionSettings),
+          riskLevel:
+            extensionPermissionManager.getUserPermissionSettings().size > 0
+              ? ExtensionRiskLevel.MEDIUM
+              : ExtensionRiskLevel.LOW
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to get extension with permissions: ${errorMessage}` }
+    }
+  }
+
+  // 新增方法：更新权限设置
+  async updatePermissionSettings(
+    extensionId: string,
+    permissions: string[],
+    allowed: boolean
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      extensionPermissionManager.updateUserPermissionSettings(extensionId, permissions, allowed)
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to update permission settings: ${errorMessage}` }
+    }
+  }
+
+  /**
+   * 注册扩展到管理器
+   */
+  registerExtension(extension: ExtensionInfo): void {
+    this.extensions.set(extension.id, extension)
+    this.saveConfig()
+  }
+
+  /**
+   * 从管理器中注销扩展
+   */
+  unregisterExtension(extensionId: string): void {
+    this.extensions.delete(extensionId)
+    this.saveConfig()
+  }
+
+  /**
+   * 保存扩展配置
+   */
+  saveExtensionConfig(): void {
+    this.saveConfig()
+  }
+
+  // 新增方法：获取错误统计
+  async getErrorStats(): Promise<{
+    success: boolean
+    stats?: {
+      totalErrors: number
+      errorsByType: Record<string, number>
+      recentErrors: Array<{ type: string; message: string; timestamp: number }>
+    }
+    error?: string
+  }> {
+    try {
+      const stats = extensionErrorManager.getErrorStats()
+      return { success: true, stats }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to get error stats: ${errorMessage}` }
+    }
+  }
+
+  // 新增方法：获取权限统计
+  async getPermissionStats(): Promise<{
+    success: boolean
+    stats?: {
+      totalExtensions: number
+      totalPermissions: number
+      permissionsByCategory: Record<string, number>
+      permissionsByRisk: Record<string, number>
+      userSettingsCount: number
+    }
+    error?: string
+  }> {
+    try {
+      const rawStats = extensionPermissionManager.getPermissionStats()
+      const stats = {
+        totalExtensions: this.extensions.size,
+        totalPermissions: rawStats.totalPermissions,
+        permissionsByCategory: rawStats.permissionsByCategory,
+        permissionsByRisk: rawStats.permissionsByRisk,
+        userSettingsCount: rawStats.userSettings.size
+      }
+      return { success: true, stats }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to get permission stats: ${errorMessage}` }
+    }
+  }
+
+  // 新增方法：清除错误历史
+  async clearErrorHistory(): Promise<{ success: boolean; error?: string }> {
+    try {
+      extensionErrorManager.clearErrorHistory()
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: `Failed to clear error history: ${errorMessage}` }
+    }
   }
 }

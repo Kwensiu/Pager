@@ -1,12 +1,6 @@
 {
   "appTitle": "Pager",
   "dashboard": "Dashboard",
-  "addGroup": {
-    "primary": "Add Category",
-    "secondary": "Add Group",
-    "primaryDesc": "Create a new category",
-    "secondaryDesc": "Create a new website group"
-  },
   "edit": "Edit",
   "delete": "Delete",
   "save": "Save",
@@ -18,6 +12,12 @@
   "dark": "Dark",
   "system": "Follow System",
   "groupNameRequired": "Group name is required",
+  "addGroup": {
+    "primary": "Add Category",
+    "secondary": "Add Group",
+    "primaryDesc": "Create a new category",
+    "secondaryDesc": "Create a new website group"
+  },
   "groupName": "Group Name",
   "groupNamePlaceholder": {
     "primary": "e.g., Work",
@@ -114,6 +114,7 @@
     "electronVersion": "Electron: v39.2.7",
     "chromiumVersion": "Chromium: v142.0.7444.235",
     "nodeVersion": "Node.js: v22.21.1",
+    "extensions": "Extensions",
     "enableExtensions": "Enable Extensions",
     "enableExtensionsDescription": "Allow loading and using Chrome extensions, including Tampermonkey scripts",
     "manageExtensions": "Manage Extensions",
@@ -133,6 +134,7 @@
     "addExtension": "Add Extension",
     "addExtensionDescription": "Select extension folder containing manifest.json or ZIP file",
     "noExtensions": "No extensions installed",
+    "loadingExtensions": "Loading extensions...",
     "extensionName": "Extension Name",
     "extensionVersion": "Version",
     "enabled": "Enabled",
@@ -140,16 +142,9 @@
     "enable": "Enable",
     "disable": "Disable",
     "remove": "Remove",
-    "selectExtensionFolder": "Select Extension Folder",
-    "selectExtensionZip": "Select Extension ZIP File",
-    "selectExtensionCrx": "Select Extension CRX File",
-    "invalidExtension": "Invalid extension",
-    "extensionAdded": "Extension added",
-    "extensionRemoved": "Extension removed",
-    "extensionToggled": "Extension status updated",
+    "details": "Details",
     "confirmRemove": "Confirm Remove Extension",
     "confirmRemoveDescription": "Are you sure you want to remove this extension? This action cannot be undone.",
-    "loadingExtensions": "Loading extensions...",
     "extensionPath": "Extension Path",
     "extensionZip": "Extension ZIP File",
     "extensionCrx": "Extension CRX File",
@@ -158,57 +153,220 @@
     "installFromZip": "ZIP",
     "installFromCrx": "CRX",
     "permissions": "Permissions",
-    "description": "Description",
-    "validation": {
-      "pathNotExist": "Extension path does not exist",
-      "manifestNotFound": "manifest.json file not found",
-      "nameRequired": "Extension name is required",
-      "versionRequired": "Extension version is required",
-      "manifestVersionRequired": "manifest_version field is missing",
-      "validationFailed": "Extension validation failed",
-      "alreadyExists": "Extension already exists"
+    "permissionsDescription": "Description",
+    "isolation": {
+      "title": "Extension Isolation",
+      "description": "Configure isolation level and permission control for extensions",
+      "strict": "Strict Isolation",
+      "standard": "Standard Isolation",
+      "relaxed": "Relaxed Isolation",
+      "none": "No Isolation"
     },
-    "status": {
-      "loading": "Loading",
-      "loaded": "Loaded",
-      "unloaded": "Unloaded",
-      "error": "Error"
+    "errorStats": "Error Statistics",
+    "permissionStats": "Permission Statistics",
+    "totalErrors": "Total Errors",
+    "recentErrors": "Recent Errors",
+    "totalPermissions": "Total Permissions",
+    "highRiskPermissions": "High Risk Permissions",
+    "granted": "Granted",
+    "denied": "Denied",
+    "grantPermission": "Grant Permission",
+    "revokePermission": "Revoke Permission"
+  },
+  "extensions.validation": {
+    "pathNotExist": "Extension path does not exist",
+    "manifestNotFound": "manifest.json file not found",
+    "nameRequired": "Extension name is required",
+    "versionRequired": "Extension version is required",
+    "manifestVersionRequired": "manifest_version field is missing",
+    "validationFailed": "Extension validation failed",
+    "alreadyExists": "Extension already exists",
+    "invalidCrxFile": "Invalid CRX file",
+    "crxMagicMismatch": "CRX file format is incorrect",
+    "unsupportedCrxVersion": "Unsupported CRX version",
+    "crxHeaderTooLarge": "CRX header size exceeds file size",
+    "failedToValidateCrx": "Failed to validate CRX extension",
+    "failedToAddCrx": "Failed to add CRX extension",
+    "permissionDenied": "Permission denied",
+    "securityViolation": "Security violation",
+    "manifestInvalid": "Manifest format error",
+    "fileNotFound": "Extension file missing or corrupted",
+    "networkError": "Network connection failed",
+    "memoryExceeded": "Memory usage exceeded",
+    "conflictDetected": "Extension conflict detected",
+    "invalidCrx": "Invalid CRX file format",
+    "unsupportedVersion": "Unsupported extension version",
+    "unknownError": "Unknown error"
+  },
+  "extensions.status": {
+    "loading": "Loading",
+    "loaded": "Loaded",
+    "unloaded": "Unloaded",
+    "error": "Error",
+    "isolated": "Isolated",
+    "permissionGranted": "Permission Granted",
+    "permissionDenied": "Permission Denied"
+  },
+  "extensions.actions": {
+    "viewDetails": "View Details",
+    "openFolder": "Open Folder",
+    "reload": "Reload",
+    "export": "Export",
+    "import": "Import",
+    "managePermissions": "Manage Permissions",
+    "changeIsolation": "Change Isolation Level",
+    "viewErrors": "View Errors"
+  },
+  "extensions.details": {
+    "title": "Extension Details",
+    "id": "Extension ID",
+    "author": "Author",
+    "homepage": "Homepage",
+    "icons": "Icons",
+    "contentScripts": "Content Scripts",
+    "backgroundScripts": "Background Scripts",
+    "webAccessibleResources": "Web Accessible Resources",
+    "sessionInfo": "Session Information",
+    "isolationLevel": "Isolation Level",
+    "memoryUsage": "Memory Usage",
+    "riskLevel": "Risk Level",
+    "permissionList": "Permission List"
+  },
+  "extensions.tips": {
+    "howToAdd": "How to add extensions?",
+    "howToAddDescription": "Click the \"Add Extension\" button and select the extension folder containing manifest.json. Supports standard Chrome extension format.",
+    "tampermonkey": "Supports Tampermonkey Scripts",
+    "tampermonkeyDescription": "You can install the Tampermonkey extension to use userscripts and enhance your web browsing experience.",
+    "restartRequired": "Some extensions require restarting the app to take effect",
+    "isolationTips": "Extension isolation can prevent malicious extensions from affecting other extensions and the application",
+    "permissionTips": "Please be careful when granting extension permissions, especially sensitive permissions like accessing tabs and modifying network requests"
+  },
+  "extensions.errors": {
+    "loadFailed": "Failed to load extension",
+    "removeFailed": "Failed to remove extension",
+    "toggleFailed": "Failed to toggle extension status",
+    "unknownError": "Unknown error",
+    "invalidCrxFile": "Invalid CRX file",
+    "crxMagicMismatch": "CRX file format is incorrect",
+    "unsupportedCrxVersion": "Unsupported CRX version",
+    "crxHeaderTooLarge": "CRX header size exceeds file size",
+    "failedToValidateCrx": "Failed to validate CRX extension",
+    "failedToAddCrx": "Failed to add CRX extension",
+    "sessionCreationFailed": "Failed to create extension session",
+    "permissionValidationFailed": "Permission validation failed",
+    "isolationLevelInvalid": "Invalid isolation level",
+    "extensionNotLoaded": "Extension not loaded",
+    "extensionAlreadyExists": "Extension already exists",
+    "extensionNotFound": "Extension not found",
+    "permissionDenied": "Permission denied",
+    "securityViolation": "Security violation",
+    "manifestInvalid": "Manifest format error",
+    "fileNotFound": "Extension file missing or corrupted",
+    "networkError": "Network connection failed",
+    "memoryExceeded": "Memory usage exceeded",
+    "conflictDetected": "Extension conflict detected",
+    "invalidCrx": "Invalid CRX file format",
+    "unsupportedVersion": "Unsupported extension version",
+    "unknownError": "Unknown error"
+  },
+  "enhancedFeatures": {
+    "title": "Enhanced Features",
+    "description": "Advanced features and optimization settings",
+    "fingerprint": {
+      "title": "Browser Fingerprint Spoofing",
+      "description": "Spoof browser fingerprint to prevent website tracking",
+      "enabled": "Enable Fingerprint Spoofing",
+      "mode": "Spoofing Mode",
+      "basic": "Basic Mode",
+      "balanced": "Balanced Mode",
+      "advanced": "Advanced Mode"
     },
-    "actions": {
-      "viewDetails": "View Details",
-      "openFolder": "Open Folder",
-      "reload": "Reload",
-      "export": "Export",
-      "import": "Import"
+    "shortcuts": {
+      "title": "Global Shortcuts",
+      "description": "Customize global shortcuts",
+      "enabled": "Enable Global Shortcuts",
+      "alwaysOnTop": "Always on Top",
+      "miniMode": "Mini Mode"
     },
-    "details": {
-      "title": "Extension Details",
-      "id": "Extension ID",
-      "author": "Author",
-      "homepage": "Homepage",
-      "icons": "Icons",
-      "contentScripts": "Content Scripts",
-      "backgroundScripts": "Background Scripts",
-      "webAccessibleResources": "Web Accessible Resources"
+    "tray": {
+      "title": "System Tray",
+      "description": "System tray icon and notifications",
+      "enabled": "Enable System Tray",
+      "showNotifications": "Show Notifications"
     },
-    "tips": {
-      "howToAdd": "How to add extensions?",
-      "howToAddDescription": "Click the \"Add Extension\" button and select the extension folder containing manifest.json. Supports standard Chrome extension format.",
-      "tampermonkey": "Supports Tampermonkey Scripts",
-      "tampermonkeyDescription": "You can install the Tampermonkey extension to use userscripts and enhance your web browsing experience.",
-      "restartRequired": "Some extensions require restarting the app to take effect"
+    "windowAdsorption": {
+      "title": "Window Edge Adsorption",
+      "description": "Window automatically snaps to screen edges when close",
+      "enabled": "Enable Window Adsorption",
+      "sensitivity": "Adsorption Sensitivity"
     },
-    "errors": {
-      "loadFailed": "Failed to load extension",
-      "removeFailed": "Failed to remove extension",
-      "toggleFailed": "Failed to toggle extension status",
-      "unknownError": "Unknown error",
-      "invalidCrxFile": "Invalid CRX file",
-      "crxMagicMismatch": "CRX file format is incorrect",
-      "unsupportedCrxVersion": "Unsupported CRX version",
-      "crxHeaderTooLarge": "CRX header size exceeds file size",
-      "failedToValidateCrx": "Failed to validate CRX extension",
-      "failedToAddCrx": "Failed to add CRX extension"
+    "memoryOptimizer": {
+      "title": "Memory Optimizer",
+      "description": "Automatically clean inactive websites to free up memory",
+      "enabled": "Enable Memory Optimization",
+      "cleanInterval": "Clean Interval (minutes)",
+      "maxInactiveTime": "Max Inactive Time (minutes)"
+    },
+    "dataSync": {
+      "title": "Data Sync",
+      "description": "Sync configuration and Cookie data",
+      "enabled": "Enable Data Sync",
+      "syncInterval": "Sync Interval (hours)",
+      "exportConfig": "Export Configuration",
+      "importConfig": "Import Configuration",
+      "exportCookies": "Export Cookies",
+      "importCookies": "Import Cookies"
+    },
+    "autoLaunch": {
+      "title": "Auto Launch",
+      "description": "Automatically start app on system boot",
+      "enabled": "Enable Auto Launch"
+    },
+    "jsInjector": {
+      "title": "JS Code Injection",
+      "description": "Inject custom JavaScript code into websites",
+      "enabled": "Enable Code Injection"
+    },
+    "proxy": {
+      "title": "Proxy Support",
+      "description": "Set proxy for websites",
+      "enabled": "Enable Proxy",
+      "rules": "Proxy Rules",
+      "testConnection": "Test Proxy Connection"
+    },
+    "theme": {
+      "title": "System Theme Switching",
+      "description": "Switch application theme",
+      "enabled": "Enable Theme Switching"
+    },
+    "windowManager": {
+      "title": "Window Management",
+      "description": "Window always on top, mini mode, etc.",
+      "alwaysOnTop": "Always on Top",
+      "miniMode": "Mini Mode",
+      "snapToEdge": "Snap to Edge"
+    },
+    "versionChecker": {
+      "title": "Version Checker",
+      "description": "Check for application updates",
+      "autoCheck": "Auto Check Updates",
+      "checkNow": "Check Now",
+      "download": "Download Update",
+      "install": "Install Update"
+    },
+    "sessionIsolation": {
+      "title": "Session Isolation",
+      "description": "Create separate sessions for each website",
+      "enabled": "Enable Session Isolation",
+      "exportCookies": "Export Cookies",
+      "importCookies": "Import Cookies"
+    },
+    "crashHandler": {
+      "title": "Process Crash Handler",
+      "description": "Handle application crashes and error reports",
+      "enabled": "Enable Crash Reports",
+      "autoRestart": "Auto Restart on Crash",
+      "sendReports": "Send Crash Reports"
     }
   }
 }
