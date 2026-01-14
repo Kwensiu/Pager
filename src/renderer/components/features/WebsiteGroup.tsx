@@ -70,7 +70,7 @@ export function WebsiteGroup({
     <div className="group py-2">
       <div
         onClick={handleToggle}
-        className="flex w-full items-center justify-between px-3 py-1.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md transition-colors cursor-pointer"
+        className="flex w-full items-center justify-between px-3 py-1.5 text-sm font-medium text-foreground text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md transition-colors cursor-pointer"
       >
         <span className="flex items-center gap-2">
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}

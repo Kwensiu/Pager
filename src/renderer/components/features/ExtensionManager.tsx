@@ -46,6 +46,20 @@ interface Extension {
   }
 }
 
+interface ErrorStats {
+  totalErrors: number
+  errorsByType: Record<string, number>
+  recentErrors: Array<{ type: string; message: string; timestamp: number }>
+}
+
+interface PermissionStats {
+  totalExtensions: number
+  totalPermissions: number
+  permissionsByCategory: Record<string, number>
+  permissionsByRisk: Record<string, number>
+  userSettingsCount: number
+}
+
 interface ExtensionManagerProps {
   open: boolean
   onOpenChange?: (open: boolean) => void
@@ -57,8 +71,8 @@ export function ExtensionManager({ open }: ExtensionManagerProps): JSX.Element {
   const [isLoading, setIsLoading] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
-  const [errorStats, setErrorStats] = useState<any>(null)
-  const [permissionStats, setPermissionStats] = useState<any>(null)
+  const [errorStats, setErrorStats] = useState<ErrorStats | null>(null)
+  const [permissionStats, setPermissionStats] = useState<PermissionStats | null>(null)
   const [selectedExtension, setSelectedExtension] = useState<Extension | null>(null)
 
   // 加载扩展列表
@@ -105,12 +119,16 @@ export function ExtensionManager({ open }: ExtensionManagerProps): JSX.Element {
         window.api.extension.getPermissionStats()
       ])
 
-      if (errorResult.success) {
+      if (errorResult.success && errorResult.stats) {
         setErrorStats(errorResult.stats)
+      } else {
+        setErrorStats(null)
       }
 
-      if (permissionResult.success) {
+      if (permissionResult.success && permissionResult.stats) {
         setPermissionStats(permissionResult.stats)
+      } else {
+        setPermissionStats(null)
       }
     } catch (error) {
       console.error('Failed to load stats:', error)
@@ -253,7 +271,7 @@ export function ExtensionManager({ open }: ExtensionManagerProps): JSX.Element {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
             {errorStats && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium flex items-center gap-2">
+                <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
                   {t('extensions.errorStats')}
                 </h4>
@@ -269,7 +287,7 @@ export function ExtensionManager({ open }: ExtensionManagerProps): JSX.Element {
             )}
             {permissionStats && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium flex items-center gap-2">
+                <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                   <Shield className="h-4 w-4" />
                   {t('extensions.permissionStats')}
                 </h4>

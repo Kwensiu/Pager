@@ -84,7 +84,7 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
                 {primaryGroups.map((primaryGroup) => (
                   <DropdownMenu.Item
                     key={primaryGroup.id}
-                    className={`relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 ${
+                    className={`relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none text-foreground data-[disabled]:opacity-50 ${
                       activePrimaryGroup?.id === primaryGroup.id ? 'bg-accent' : ''
                     }`}
                     onSelect={() => {

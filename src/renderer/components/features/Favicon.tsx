@@ -44,7 +44,7 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
   const preloadFavicons = useCallback(async (): Promise<void> => {
     // 预加载功能暂时禁用，等待 API 类型更新
     // TODO: 启用预加载功能
-  }, [url])
+  }, [])
 
   // 处理图片加载错误
   const handleImageError = useCallback(() => {
@@ -78,7 +78,7 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
   if (error || (!loading && !faviconUrl)) {
     return (
       <div
-        className={`flex h-6 w-6 items-center justify-center rounded ${className ? className.replace(/h-\d+|w-\d+/g, '') : 'bg-primary/10'}`}
+        className={`flex text-foreground h-6 w-6 items-center justify-center rounded ${className ? className.replace(/h-\d+|w-\d+/g, '') : 'bg-primary/10'}`}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -102,7 +102,7 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
   if (loading) {
     return (
       <div
-        className={`flex h-6 w-6 items-center justify-center rounded ${className ? className.replace(/h-\d+|w-\d+/g, '') : 'bg-primary/10'}`}
+        className={`flex h-6 w-6 items-center justify-center rounded text-foreground ${className ? className.replace(/h-\d+|w-\d+/g, '') : 'bg-primary/10'}`}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -146,7 +146,7 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
   // 默认图标（理论上不会执行到这里）
   return (
     <div
-      className={`flex h-6 w-6 items-center justify-center rounded ${className ? className.replace(/h-\d+|w-\d+/g, '') : 'bg-primary/10'}`}
+      className={`flex h-6 w-6 items-center justify-center rounded text-foreground ${className ? className.replace(/h-\d+|w-\d+/g, '') : 'bg-primary/10'}`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

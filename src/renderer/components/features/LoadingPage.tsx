@@ -153,7 +153,7 @@ const LoadingPage: React.FC<LoadingPageProps> = ({
         {showProgressBar && (
           <div className="mb-8">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium">进度</span>
+              <span className="text-sm font-medium text-foreground">进度</span>
               <span className="text-sm text-muted-foreground">{Math.round(displayProgress)}%</span>
             </div>
             <Progress value={displayProgress} className="h-2" />

@@ -144,7 +144,9 @@ export function EditWebsiteDialog({
               }
             >
               <Favicon url={faviconUrl} className="h-5 w-5" />
-              <span className="text-sm truncate max-w-[200px]">{faviconUrl || t('noFavicon')}</span>
+              <span className="text-sm truncate max-w-[200px] text-foreground">
+                {faviconUrl || t('noFavicon')}
+              </span>
             </div>
           </div>
 

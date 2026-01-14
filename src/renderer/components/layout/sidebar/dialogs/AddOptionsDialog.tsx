@@ -44,7 +44,7 @@ const AddOptionsDialog: React.FC<AddOptionsDialogProps> = ({
             }}
           >
             <Folder className="h-8 w-8" />
-            <span className="font-medium">{t('addOptions.addSecondaryGroup')}</span>
+            <span className="font-medium text-foreground">{t('addOptions.addSecondaryGroup')}</span>
           </Button>
 
           <Button
@@ -56,7 +56,7 @@ const AddOptionsDialog: React.FC<AddOptionsDialogProps> = ({
             }}
           >
             <Globe className="h-8 w-8" />
-            <span className="font-medium">{t('addOptions.addWebsite')}</span>
+            <span className="font-medium text-foreground">{t('addOptions.addWebsite')}</span>
           </Button>
         </div>
 

@@ -163,7 +163,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
           <SidebarFooter className={`mt-auto border-t ${isCollapsed ? 'p-1' : 'p-2'}`}>
             <div className="flex flex-col gap-2">
               <button
-                className={`w-full justify-start text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground ${
+                className={`w-full justify-start text-sm font-medium text-foreground rounded-md hover:bg-accent hover:text-accent-foreground ${
                   isCollapsed ? 'justify-center px-1 py-2 pl-[9px]' : 'px-3 py-2'
                 }`}
                 onClick={() => setShowSettings(!showSettings)}

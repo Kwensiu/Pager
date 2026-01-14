@@ -133,12 +133,12 @@ export const SortableSecondaryGroup: React.FC<SortableSecondaryGroupProps> = ({
 
         {/* 分组名称 - 折叠状态下显示垂直文字 */}
         {isCollapsed ? (
-          <span className="text-[10px] font-medium ml-0.5 leading-tight writing-mode-vertical text-center max-h-8 overflow-hidden">
+          <span className="text-[10px] font-medium text-foreground ml-0.5 leading-tight writing-mode-vertical text-center max-h-8 overflow-hidden">
             {secondaryGroup.name}
           </span>
         ) : (
           <div
-            className="flex-1 font-medium cursor-pointer"
+            className="flex-1 font-medium text-foreground cursor-pointer"
             onClick={handleGroupClick}
             role="button"
             tabIndex={0}

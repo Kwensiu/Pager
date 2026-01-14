@@ -260,7 +260,7 @@ export function AddExtensionDialog({
                   : t('extensions.extensionCrx')}
             </Label>
             <div
-              className="inline-flex items-start justify-start gap-2 rounded-md border border-input bg-background px-4 py-3 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer w-full"
+              className="inline-flex items-start justify-start gap-2 rounded-md border border-input bg-background px-4 py-3 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer w-full"
               onClick={
                 installMode === 'folder'
                   ? handleSelectFolder
@@ -306,14 +306,14 @@ export function AddExtensionDialog({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                     <CheckCircle className="h-4 w-4" />
-                    <span className="font-medium text-foreground">
+                    <span className="font-medium text-foreground text-foreground">
                       {t('extensions.extensionName')}
                     </span>
                   </div>
                   {validationResult.manifest && (
                     <div className="space-y-1 text-sm">
                       <div>
-                        <span className="font-medium text-foreground">
+                        <span className="font-medium text-foreground text-foreground">
                           {validationResult.manifest.name}
                         </span>
                         <span className="ml-2 text-muted-foreground">
@@ -328,7 +328,7 @@ export function AddExtensionDialog({
                       {validationResult.manifest.permissions &&
                         validationResult.manifest.permissions.length > 0 && (
                           <div>
-                            <div className="font-medium text-foreground">
+                            <div className="font-medium text-foreground text-foreground">
                               {t('extensions.permissions')}:
                             </div>
                             <div className="flex flex-wrap gap-1 mt-1">

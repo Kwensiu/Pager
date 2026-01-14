@@ -130,7 +130,7 @@ const DragDropSidebarContentInner: React.FC<SidebarContentWithDragDropProps> = (
             {/* 展开状态下的完整显示 */}
             {/* 一级分类下的网站列表 - 即使为空也渲染，作为拖拽目标 */}
             <div className="mb-1">
-              <div className="text-xs font-medium text-muted-foreground mb-2 pl-1">未分组网站</div>
+              <div className="text-xs font-medium text-foreground mb-2 pl-1">未分组网站</div>
               <div className="space-y-1">
                 <SortableContainer items={effectivePrimaryGroupWebsiteIds}>
                   {primaryGroupWebsites.map((website) => (
