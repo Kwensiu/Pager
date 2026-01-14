@@ -56,7 +56,7 @@ export interface WindowState {
 }
 
 export interface Settings {
-  theme: 'light' | 'dark' | 'system' // 新增 system 选项
+  theme: 'light' | 'dark' // 删除 system 选项，窗口固定为深色
   showDebugOptions: boolean
   // 新增字段 - tuboshu 功能
   isAutoLaunch?: boolean // 开机自启动

@@ -35,7 +35,7 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         </SidebarTrigger>
 
         {state === 'expanded' ? (
-          <div className="flex-1 ml-2">
+          <div className="flex-1">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <Button variant="ghost" className="w-full justify-between px-2 py-1.5">

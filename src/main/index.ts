@@ -11,29 +11,27 @@ import { extensionPermissionManager } from './services/extensionPermissionManage
 
 let mainWindow: BrowserWindow | null = null
 
-// ===== 命令行安全配置 =====
-// 禁用软件光栅化器
-app.commandLine.appendSwitch('disable-software-rasterizer')
-// 忽略证书错误
-app.commandLine.appendSwitch('ignore-certificate-errors')
-// 允许运行不安全内容
-app.commandLine.appendSwitch('allow-running-insecure-content')
-// 禁用 WebRTC 隐藏本地 IP
-app.commandLine.appendSwitch('disable-features', 'WebRtcHideLocalIpsWithMdns')
-// 强制 WebRTC IP 处理策略
-app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'disable_non_proxied_udp')
-// 设置语言
-app.commandLine.appendSwitch('lang', 'zh-CN')
-// 禁用自动化控制特征
-app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled')
-// 禁用站点隔离
-app.commandLine.appendSwitch('disable-features', 'IsolateOrigins,site-per-process')
-
-// 注册全局错误处理器
-registerCertificateErrorHandler()
-registerRenderProcessGoneHandler()
-
 app.whenReady().then(async () => {
+  // 注册全局错误处理器
+  registerCertificateErrorHandler()
+  registerRenderProcessGoneHandler()
+  // ===== 命令行安全配置 =====
+  // 禁用软件光栅化器
+  app.commandLine.appendSwitch('disable-software-rasterizer')
+  // 忽略证书错误
+  app.commandLine.appendSwitch('ignore-certificate-errors')
+  // 允许运行不安全内容
+  app.commandLine.appendSwitch('allow-running-insecure-content')
+  // 禁用 WebRTC 隐藏本地 IP
+  app.commandLine.appendSwitch('disable-features', 'WebRtcHideLocalIpsWithMdns')
+  // 强制 WebRTC IP 处理策略
+  app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'disable_non_proxied_udp')
+  // 设置语言
+  app.commandLine.appendSwitch('lang', 'zh-CN')
+  // 禁用自动化控制特征
+  app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled')
+  // 禁用站点隔离
+  app.commandLine.appendSwitch('disable-features', 'IsolateOrigins,site-per-process')
   // 设置 App User Model ID for Windows
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.pager.app')

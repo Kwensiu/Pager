@@ -42,6 +42,24 @@ function Dashboard({ currentWebsite }: DashboardProps): React.ReactElement {
     }
   }, [currentWebsite])
 
+  // 计算网站的指纹设置
+  const getWebsiteFingerprintSettings = useCallback(
+    (
+      website: Website
+    ): {
+      fingerprintEnabled: boolean
+      fingerprintMode: 'basic' | 'balanced' | 'advanced'
+    } => {
+      // 网站级别指纹设置完全独立
+      // 如果网站没有设置，使用默认值
+      return {
+        fingerprintEnabled: website.fingerprintEnabled ?? false,
+        fingerprintMode: website.fingerprintMode ?? 'balanced'
+      }
+    },
+    []
+  )
+
   const handleRefresh = useCallback(() => {
     window.api.webview.reload()
     setIsLoading(true)
@@ -68,23 +86,30 @@ function Dashboard({ currentWebsite }: DashboardProps): React.ReactElement {
   return (
     <div className="h-full w-full relative">
       {/* 渲染所有打开过的网站，但只显示当前选中的 */}
-      {openedWebsites.map((website) => (
-        <div
-          key={website.url}
-          className="absolute inset-0"
-          style={{ display: currentWebsite?.url === website.url ? 'block' : 'none' }}
-        >
-          <WebViewContainer
-            url={website.url}
-            isLoading={isLoading}
-            onRefresh={handleRefresh}
-            onGoBack={handleGoBack}
-            onGoForward={handleGoForward}
-            onOpenExternal={() => handleOpenExternal(website.url)}
-            onExtensionClick={handleExtensionClick}
-          />
-        </div>
-      ))}
+      {openedWebsites.map((website) => {
+        const fingerprintSettings = getWebsiteFingerprintSettings(website)
+
+        return (
+          <div
+            key={website.url}
+            className="absolute inset-0"
+            style={{ display: currentWebsite?.url === website.url ? 'block' : 'none' }}
+          >
+            <WebViewContainer
+              url={website.url}
+              isLoading={isLoading}
+              onRefresh={handleRefresh}
+              onGoBack={handleGoBack}
+              onGoForward={handleGoForward}
+              onOpenExternal={() => handleOpenExternal(website.url)}
+              onExtensionClick={handleExtensionClick}
+              // 传递指纹设置
+              fingerprintEnabled={fingerprintSettings.fingerprintEnabled}
+              fingerprintMode={fingerprintSettings.fingerprintMode}
+            />
+          </div>
+        )
+      })}
 
       {/* 扩展管理器对话框 */}
       <Dialog open={showExtensionManager} onOpenChange={setShowExtensionManager}>

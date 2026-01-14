@@ -1,22 +1,33 @@
 # Pager
 
-Pager is an Electron application built with React and TypeScript. This application provides a sidebar-based interface for managing and accessing multiple websites in a single application, designed to enhance productivity by organizing web resources in a structured manner.
+Pager 是一个基于 Electron + React + TypeScript 构建的桌面应用程序，提供侧边栏界面来管理和访问多个网站，旨在通过结构化组织网络资源来提高生产力。
 
-**Note: This project is currently in very early stages of testing. Features and functionality may change significantly during development.**
+**注意：本项目目前处于早期测试阶段，功能和特性可能在开发过程中发生重大变化。**
 
-## Recommended IDE Setup
+## 用户文档
+
+完整的用户文档可在 [docs/](docs/) 目录中找到：
+
+- [快速开始指南](docs/quickstart.md) - 5分钟上手教程
+- [安装指南](docs/installation.md) - 系统要求和安装步骤
+- [功能详解](docs/features.md) - 所有功能的详细说明
+- [完整用户文档](docs/README.md) - 完整的用户手册
+
+## 开发环境配置
+
+### 推荐 IDE 设置
 
 - [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 
-## Project Setup
+## 项目设置
 
-### Install
+### 安装依赖
 
 ```bash
 $ yarn install
 ```
 
-### Development
+### 开发模式
 
 ```bash
 $ yarn dev
@@ -24,21 +35,21 @@ $ yarn dev
 $ yarn format
 ```
 
-### Build
+### 构建应用程序
 
 ```bash
-# For windows
+# Windows
 $ yarn build:win
 
-# For macOS
+# macOS
 $ yarn build:mac
 
-# For Linux
+# Linux
 $ yarn build:linux
 ```
 
-## License
+## 许可证
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+本项目采用 MIT 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。
 
-Copyright (c) 2026 Kwensiu
+版权所有 (c) 2026 Kwensiu

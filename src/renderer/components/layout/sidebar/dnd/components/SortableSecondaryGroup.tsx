@@ -101,7 +101,7 @@ export const SortableSecondaryGroup: React.FC<SortableSecondaryGroupProps> = ({
 
       {/* 分组头部 */}
       <div
-        className={`flex items-center ${isCollapsed ? 'justify-center p-1.5 cursor-pointer hover:bg-accent/50' : 'p-3'}`}
+        className={`flex items-center ${isCollapsed ? 'justify-center p-1.5 cursor-pointer hover:bg-accent/50' : 'p-2'}`}
         onClick={isCollapsed ? handleGroupClick : undefined}
         role={isCollapsed ? 'button' : undefined}
         tabIndex={isCollapsed ? 0 : undefined}

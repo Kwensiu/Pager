@@ -9,10 +9,6 @@ interface Settings {
   collapsedSidebarMode: 'all' | 'expanded'
   dataPath: string
 
-  // 浏览器指纹伪装
-  fingerprintEnabled: boolean
-  fingerprintMode: 'basic' | 'balanced' | 'advanced'
-
   // 全局快捷键
   shortcutsEnabled: boolean
   shortcutAlwaysOnTop: string
@@ -79,10 +75,6 @@ const defaultSettings: Settings = {
   minimizeToTray: true,
   collapsedSidebarMode: 'all',
   dataPath: '',
-
-  // 浏览器指纹伪装
-  fingerprintEnabled: false,
-  fingerprintMode: 'balanced',
 
   // 全局快捷键
   shortcutsEnabled: true,

@@ -132,7 +132,6 @@ export function ExtensionManager({ open }: ExtensionManagerProps): JSX.Element {
       if (result.success) {
         await loadExtensions()
         await loadStats()
-        setIsAddDialogOpen(false)
 
         // 显示成功消息
         console.log('Extension loaded successfully:', result)

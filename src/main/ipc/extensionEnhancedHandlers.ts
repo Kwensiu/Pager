@@ -49,38 +49,53 @@ export class ExtensionEnhancedHandlers {
   constructor() {
     this.extensionLoader = new ExtensionLoader()
     this.simpleExtensionManager = ExtensionManager.getInstance()
-    this.registerHandlers()
+    // 延迟注册处理器，确保 ipcMain 已初始化
+    setTimeout(() => {
+      this.registerHandlers()
+    }, 100)
   }
 
   /**
    * 注册IPC处理器
    */
   private registerHandlers(): void {
-    // 扩展隔离相关
-    ipcMain.handle('extension-isolation:create-session', this.createExtensionSession.bind(this))
-    ipcMain.handle('extension-isolation:destroy-session', this.destroyExtensionSession.bind(this))
-    ipcMain.handle('extension-isolation:get-session', this.getExtensionSession.bind(this))
-    ipcMain.handle('extension-isolation:update-usage', this.updateSessionUsage.bind(this))
-    ipcMain.handle('extension-isolation:get-stats', this.getSessionStats.bind(this))
-    ipcMain.handle('extension-isolation:update-config', this.updateIsolationConfig.bind(this))
-    ipcMain.handle('extension-isolation:get-config', this.getIsolationConfig.bind(this))
+    try {
+      // 扩展隔离相关
+      ipcMain.handle('extension-isolation:create-session', this.createExtensionSession.bind(this))
+      ipcMain.handle('extension-isolation:destroy-session', this.destroyExtensionSession.bind(this))
+      ipcMain.handle('extension-isolation:get-session', this.getExtensionSession.bind(this))
+      ipcMain.handle('extension-isolation:update-usage', this.updateSessionUsage.bind(this))
+      ipcMain.handle('extension-isolation:get-stats', this.getSessionStats.bind(this))
+      ipcMain.handle('extension-isolation:update-config', this.updateIsolationConfig.bind(this))
+      ipcMain.handle('extension-isolation:get-config', this.getIsolationConfig.bind(this))
 
-    // 权限管理相关
-    ipcMain.handle('extension-permission:validate', this.validateExtensionPermissions.bind(this))
-    ipcMain.handle('extension-permission:update-settings', this.updatePermissionSettings.bind(this))
-    ipcMain.handle('extension-permission:get-settings', this.getPermissionSettings.bind(this))
-    ipcMain.handle('extension-permission:get-stats', this.getPermissionStats.bind(this))
-    ipcMain.handle('extension-permission:reset-settings', this.resetPermissionSettings.bind(this))
+      // 权限管理相关
+      ipcMain.handle('extension-permission:validate', this.validateExtensionPermissions.bind(this))
+      ipcMain.handle(
+        'extension-permission:update-settings',
+        this.updatePermissionSettings.bind(this)
+      )
+      ipcMain.handle('extension-permission:get-settings', this.getPermissionSettings.bind(this))
+      ipcMain.handle('extension-permission:get-stats', this.getPermissionStats.bind(this))
+      ipcMain.handle('extension-permission:reset-settings', this.resetPermissionSettings.bind(this))
 
-    // 错误管理相关
-    ipcMain.handle('extension-error:handle-load-error', this.handleLoadError.bind(this))
-    ipcMain.handle('extension-error:get-stats', this.getErrorStats.bind(this))
-    ipcMain.handle('extension-error:clear-history', this.clearErrorHistory.bind(this))
+      // 错误管理相关
+      ipcMain.handle('extension-error:handle-load-error', this.handleLoadError.bind(this))
+      ipcMain.handle('extension-error:get-stats', this.getErrorStats.bind(this))
+      ipcMain.handle('extension-error:clear-history', this.clearErrorHistory.bind(this))
 
-    // 扩展管理相关
-    ipcMain.handle('extension:load-with-isolation', this.loadExtensionWithIsolation.bind(this))
-    ipcMain.handle('extension:unload-with-isolation', this.unloadExtensionWithIsolation.bind(this))
-    ipcMain.handle('extension:get-with-permissions', this.getExtensionWithPermissions.bind(this))
+      // 扩展管理相关
+      ipcMain.handle('extension:load-with-isolation', this.loadExtensionWithIsolation.bind(this))
+      ipcMain.handle(
+        'extension:unload-with-isolation',
+        this.unloadExtensionWithIsolation.bind(this)
+      )
+      ipcMain.handle('extension:get-with-permissions', this.getExtensionWithPermissions.bind(this))
+
+      console.log('[ExtensionEnhancedHandlers] Handlers registered successfully')
+    } catch (error) {
+      console.error('[ExtensionEnhancedHandlers] Failed to register handlers:', error)
+    }
   }
 
   /**

@@ -95,7 +95,7 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
             relative
             flex
             items-center
-            ${isCollapsed ? 'justify-center px-0' : 'px-2'}
+            ${isCollapsed ? 'justify-center px-0' : 'px-1'}
             py-1.5
             rounded-md
             transition-all

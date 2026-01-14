@@ -672,8 +672,20 @@ export class ExtensionManager {
     error?: string
   }> {
     try {
+      console.log('[DEBUG] loadExtensionWithIsolation called with path:', extensionPath)
+      console.log(
+        '[DEBUG] File extension:',
+        extensionPath.toLowerCase().endsWith('.zip')
+          ? 'ZIP'
+          : extensionPath.toLowerCase().endsWith('.crx')
+            ? 'CRX'
+            : 'Directory'
+      )
+
       // 验证扩展
       const validation = await this.validateExtension(extensionPath)
+      console.log('[DEBUG] Validation result:', validation)
+
       if (!validation.valid) {
         return { success: false, error: validation.error }
       }
@@ -686,11 +698,33 @@ export class ExtensionManager {
         return { success: false, error: 'Extension already exists' }
       }
 
+      // 处理 ZIP 文件 - 需要先解压
+      let actualPath = extensionPath
+      if (extensionPath.toLowerCase().endsWith('.zip')) {
+        console.log('[DEBUG] ZIP file detected, extracting...')
+        const AdmZip = await getAdmZip()
+        const zip = new AdmZip(extensionPath)
+
+        // 创建解压目录
+        const extractDir = join(this.configPath, '..', 'extracted', extensionId)
+        console.log('[DEBUG] Extracting to:', extractDir)
+
+        if (existsSync(extractDir)) {
+          rmSync(extractDir, { recursive: true, force: true })
+        }
+        mkdirSync(extractDir, { recursive: true })
+
+        // 解压 ZIP 文件
+        zip.extractAllTo(extractDir, true)
+        actualPath = extractDir
+        console.log('[DEBUG] Extraction complete, actual path:', actualPath)
+      }
+
       const extension: ExtensionInfo = {
         id: extensionId,
         name: manifest.name,
         version: manifest.version,
-        path: extensionPath,
+        path: actualPath,
         enabled: true,
         manifest
       }
@@ -722,14 +756,16 @@ export class ExtensionManager {
       this.saveConfig()
 
       // 使用隔离的 session 加载扩展
+      console.log('[DEBUG] Loading extension from path:', actualPath)
       if (
         extensionSession.session.extensions &&
         extensionSession.session.extensions.loadExtension
       ) {
-        await extensionSession.session.extensions.loadExtension(extension.path)
+        await extensionSession.session.extensions.loadExtension(actualPath)
       } else {
-        await extensionSession.session.loadExtension(extension.path)
+        await extensionSession.session.loadExtension(actualPath)
       }
+      console.log('[DEBUG] Extension loaded successfully')
 
       return {
         success: true,

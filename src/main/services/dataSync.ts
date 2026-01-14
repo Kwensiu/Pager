@@ -24,7 +24,7 @@ class DataSyncService {
     'primaryGroupId',
     'secondaryGroupId',
     'children',
-    
+
     // 设置相关属性
     'theme',
     'language',

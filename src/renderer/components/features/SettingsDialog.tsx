@@ -32,10 +32,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const [activeTab, setActiveTab] = useState('general')
   const { settings, updateSettings } = useSettings()
   const [showExtensionManager, setShowExtensionManager] = useState(false)
-  
+
   // 获取数据路径
   const [dataPath, setDataPath] = useState('')
-  
+
   // 组件加载时获取数据路径
   React.useEffect(() => {
     const fetchDataPath = async () => {
@@ -55,10 +55,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         setDataPath('获取路径失败')
       }
     }
-    
+
     fetchDataPath()
   }, [])
-  
+
   // 打开数据目录
   const openDataDirectory = async () => {
     try {
@@ -67,7 +67,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         const result = await api.dialog.openDirectory({
           properties: ['openDirectory']
         })
-        
+
         if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
           // 打开选定的目录
           const { shell } = require('electron')
@@ -148,13 +148,11 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
   const handleResetToDefaults = async (): Promise<void> => {
     updateSettings({
-      theme: 'system',
+      theme: 'light',
       language: 'zh',
       autoUpdate: true,
       minimizeToTray: true,
       collapsedSidebarMode: 'all',
-      fingerprintEnabled: false,
-      fingerprintMode: 'balanced',
       shortcutsEnabled: true,
       shortcutAlwaysOnTop: 'Ctrl+Shift+T',
       shortcutMiniMode: 'Ctrl+Shift+M',
@@ -240,7 +238,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      
+
       // 使用本地时间格式：年月日时分秒
       const now = new Date()
       const year = now.getFullYear()
@@ -249,7 +247,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       const hours = String(now.getHours()).padStart(2, '0')
       const minutes = String(now.getMinutes()).padStart(2, '0')
       const seconds = String(now.getSeconds()).padStart(2, '0')
-      
+
       a.download = `pager-settings-${year}-${month}-${day}-${hours}-${minutes}-${seconds}.json`
       document.body.appendChild(a)
       a.click()
@@ -282,14 +280,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       }
 
       const filePath = filePaths[0]
-      
+
       // 使用 IPC 读取文件内容
       const result = await (window as any).api.enhanced.fs.readFile(filePath)
-      
+
       if (!result.success) {
         throw new Error(result.error || '读取文件失败')
       }
-      
+
       const fileContent = result.content
       const importData = JSON.parse(fileContent)
 
@@ -346,9 +344,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
               </div>
               <Select
                 value={settings.theme}
-                onValueChange={(value: 'light' | 'dark' | 'system') =>
-                  handleSettingChange('theme', value)
-                }
+                onValueChange={(value: 'light' | 'dark') => handleSettingChange('theme', value)}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />
@@ -356,7 +352,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 <SelectContent>
                   <SelectItem value="light">浅色</SelectItem>
                   <SelectItem value="dark">深色</SelectItem>
-                  <SelectItem value="system">跟随系统</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -441,40 +436,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         {/* 隐私设置 */}
         <TabsContent value="privacy" className="space-y-4">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>浏览器指纹伪装</Label>
-                <p className="text-sm text-muted-foreground">伪装浏览器指纹防止追踪</p>
-              </div>
-              <Switch
-                checked={settings.fingerprintEnabled}
-                onCheckedChange={(checked) => handleSettingChange('fingerprintEnabled', checked)}
-              />
-            </div>
-
-            {settings.fingerprintEnabled && (
-              <div className="pl-4 space-y-2">
-                <Label>伪装模式</Label>
-                <Select
-                  value={settings.fingerprintMode}
-                  onValueChange={(value: 'basic' | 'balanced' | 'advanced') =>
-                    handleSettingChange('fingerprintMode', value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="basic">基础模式</SelectItem>
-                    <SelectItem value="balanced">平衡模式</SelectItem>
-                    <SelectItem value="advanced">高级模式</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <Separator />
-
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>启用 JavaScript</Label>
@@ -857,11 +818,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 >
                   清除所有数据
                 </Button>
-                <Button
-                  onClick={openDataDirectory}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={openDataDirectory} variant="outline" size="sm">
                   打开数据目录
                 </Button>
               </div>

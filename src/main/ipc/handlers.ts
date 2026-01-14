@@ -83,6 +83,59 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
     }
   })
 
+  // 验证扩展
+  ipcMain.handle('extension:validate', async (_, extensionPath: string) => {
+    try {
+      const result = await extensionManager.validateExtension(extensionPath)
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { valid: false, error: errorMessage }
+    }
+  })
+
+  // 获取已加载的扩展
+  ipcMain.handle('extension:getLoaded', async () => {
+    try {
+      const loadedExtensions = extensionManager.getLoadedExtensions()
+      return {
+        success: true,
+        extensions: loadedExtensions
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 获取扩展设置
+  ipcMain.handle('extension:getSettings', async () => {
+    try {
+      const settings = extensionManager.getSettings()
+      return {
+        success: true,
+        settings
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return { success: false, error: errorMessage }
+    }
+  })
+
+  // 更新扩展设置
+  ipcMain.handle(
+    'extension:updateSettings',
+    async (_, settings: { enableExtensions?: boolean; autoLoadExtensions?: boolean }) => {
+      try {
+        extensionManager.updateSettings(settings)
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { success: false, error: errorMessage }
+      }
+    }
+  )
+
   // 使用隔离加载扩展
   ipcMain.handle(
     'extension:loadWithIsolation',

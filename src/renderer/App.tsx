@@ -7,41 +7,50 @@ import { I18nProviderWrapper } from './core/i18n/I18nProvider'
 function App(): JSX.Element {
   const [activeWebsiteId, setActiveWebsiteId] = useState<string | null>(null)
 
-  // 初始化主题
+  // 极简主题应用
   useEffect(() => {
-    const savedSettings = localStorage.getItem('settings')
-    let theme = 'system' // 默认值
+    const applyTheme = () => {
+      const savedSettings = localStorage.getItem('settings')
+      let theme = 'dark' // 默认深色
 
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings)
-        theme = parsed.theme || 'system'
-      } catch (error) {
-        console.error('Failed to parse settings:', error)
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings)
+          theme = parsed.theme || 'dark'
+        } catch (error) {
+          console.error('Failed to parse settings:', error)
+        }
+      }
+
+      console.log('[App] Applying content theme:', theme)
+
+      const root = document.documentElement
+
+      // 完全清除 dark class
+      root.classList.remove('dark')
+
+      // 只处理深色模式
+      if (theme === 'dark') {
+        root.classList.add('dark')
+      }
+      // 浅色模式：什么都不做
+
+      console.log('[App] Root classes:', root.className)
+    }
+
+    // 初始应用
+    applyTheme()
+
+    // 监听设置变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'settings') {
+        console.log('[App] Settings changed')
+        applyTheme()
       }
     }
 
-    const root = document.documentElement
-
-    if (theme === 'system' || theme === 'follow-light-dark') {
-      // 处理亮暗跟随模式
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      root.classList.toggle('dark', systemPrefersDark)
-
-      // 监听系统主题变化
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleChange = (e: MediaQueryListEvent): void => {
-        root.classList.toggle('dark', e.matches)
-      }
-
-      mediaQuery.addEventListener('change', handleChange)
-      return () => mediaQuery.removeEventListener('change', handleChange)
-    } else {
-      root.classList.toggle('dark', theme === 'dark')
-    }
-
-    // 确保所有代码路径都有返回值
-    return undefined
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   const handleWebsiteClick = (website: Website): void => {

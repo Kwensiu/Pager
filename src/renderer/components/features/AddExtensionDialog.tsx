@@ -198,7 +198,9 @@ export function AddExtensionDialog({
   const handleAdd = async (): Promise<void> => {
     if (selectedPath && validationResult?.valid) {
       try {
+        // 等待扩展添加完成后再关闭对话框
         await onAdd(selectedPath)
+        // 确保操作成功后再关闭对话框
         onOpenChange(false)
       } catch (error) {
         console.error('Failed to add extension:', error)

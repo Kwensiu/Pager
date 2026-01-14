@@ -253,16 +253,23 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
   })
 
   // ===== 系统主题切换 =====
-  ipcMain.handle('theme:set', async (_, theme: 'light' | 'dark' | 'system') => {
-    return themeService.setTheme(theme)
+  ipcMain.handle('theme:set', async (_, theme: 'light' | 'dark') => {
+    console.log('[IPC] theme:set called with:', theme)
+    themeService.setTheme(theme)
+    return undefined
   })
 
   ipcMain.handle('theme:get-current', async () => {
-    return themeService.getCurrentTheme()
+    const current = themeService.getCurrentTheme()
+    console.log('[IPC] theme:get-current returning:', current)
+    return current
   })
 
   ipcMain.handle('theme:toggle', async () => {
-    return themeService.toggleTheme()
+    console.log('[IPC] theme:toggle called')
+    const result = themeService.toggleTheme()
+    console.log('[IPC] theme:toggle result:', result)
+    return result
   })
 
   // ===== 窗口管理 =====

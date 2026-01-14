@@ -136,7 +136,7 @@ export const api = {
   enhanced: {
     // 文件系统操作
     fs: {
-      readFile: (filePath: string) => ipcRenderer.invoke('fs:read-file', filePath),
+      readFile: (filePath: string) => ipcRenderer.invoke('fs:read-file', filePath)
     },
     // 浏览器指纹伪装
     fingerprint: {

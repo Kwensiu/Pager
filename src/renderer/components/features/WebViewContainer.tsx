@@ -11,6 +11,7 @@ interface WebViewElement extends HTMLWebViewElement {
   goForward?: () => void
   reload?: () => void
   loadURL?: (url: string) => void
+  getWebContents?: () => unknown
 }
 
 // 扩展 HTMLWebViewElement 接口以包含 Electron 特定属性
@@ -30,6 +31,9 @@ interface WebViewContainerProps {
   onOpenExternal?: () => void
   onNavigate?: (url: string) => void
   onExtensionClick?: () => void
+  // 指纹伪装设置
+  fingerprintEnabled?: boolean
+  fingerprintMode?: 'basic' | 'balanced' | 'advanced'
 }
 
 export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps>(
@@ -42,7 +46,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       onGoForward,
       onOpenExternal,
       onNavigate,
-      onExtensionClick
+      onExtensionClick,
+      fingerprintEnabled = false,
+      fingerprintMode = 'balanced'
     },
     ref
   ) => {
@@ -54,12 +60,129 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     // 使用 URL 作为 key 的一部分，确保 URL 变化时重新创建 webview
     const webviewKey = useMemo(() => `${partition}-${url}`, [partition, url])
 
+    // 应用指纹伪装到 webview
+    const applyFingerprint = useCallback(async (): Promise<void> => {
+      if (!fingerprintEnabled) {
+        console.log('指纹伪装未启用，跳过应用')
+        return
+      }
+
+      try {
+        console.log('应用指纹伪装，模式:', fingerprintMode)
+
+        // 生成指纹
+        const fingerprintResult = await window.api.enhanced.fingerprint.generate({
+          mode: fingerprintMode
+        })
+
+        console.log('指纹生成成功:', fingerprintResult)
+
+        // 应用指纹到网站
+        // 注意：这里需要获取 webContents，但 webview API 不直接暴露
+        // 我们通过注入脚本的方式修改浏览器指纹
+        const webview = webviewRef.current
+        if (!webview) {
+          console.warn('Webview 未找到，无法应用指纹')
+          return
+        }
+
+        // 类型断言，确保我们可以访问 fingerprint 属性
+        const fingerprintData = fingerprintResult.fingerprint as Record<string, unknown>
+
+        // 注入指纹伪装脚本
+        const fingerprintScript = `
+          (function() {
+            // 修改 User-Agent
+            Object.defineProperty(navigator, 'userAgent', {
+              value: '${fingerprintData.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}',
+              writable: false,
+              configurable: false
+            });
+            
+            // 修改平台
+            Object.defineProperty(navigator, 'platform', {
+              value: '${fingerprintData.platform || 'Win32'}',
+              writable: false,
+              configurable: false
+            });
+            
+            // 修改语言
+            Object.defineProperty(navigator, 'languages', {
+              value: ${JSON.stringify(fingerprintData.languages || ['zh-CN', 'zh', 'en-US', 'en'])},
+              writable: false,
+              configurable: false
+            });
+            
+            // 修改硬件并发数
+            Object.defineProperty(navigator, 'hardwareConcurrency', {
+              value: ${fingerprintData.hardwareConcurrency || 8},
+              writable: false,
+              configurable: false
+            });
+            
+            // 修改设备内存
+            Object.defineProperty(navigator, 'deviceMemory', {
+              value: ${fingerprintData.deviceMemory || 8},
+              writable: false,
+              configurable: false
+            });
+            
+            // 修改屏幕分辨率
+            const screenResolution = '${fingerprintData.screenResolution || '1920x1080'}';
+            const [width, height] = screenResolution.split('x').map(Number);
+            
+            // 修改屏幕属性
+            Object.defineProperty(screen, 'width', {
+              value: width,
+              writable: false,
+              configurable: false
+            });
+            
+            Object.defineProperty(screen, 'height', {
+              value: height,
+              writable: false,
+              configurable: false
+            });
+            
+            Object.defineProperty(screen, 'availWidth', {
+              value: width,
+              writable: false,
+              configurable: false
+            });
+            
+            Object.defineProperty(screen, 'availHeight', {
+              value: height,
+              writable: false,
+              configurable: false
+            });
+            
+            // 修改时区
+            Object.defineProperty(Intl.DateTimeFormat().resolvedOptions(), 'timeZone', {
+              value: '${fingerprintData.timezone || 'Asia/Shanghai'}',
+              writable: false,
+              configurable: false
+            });
+            
+            console.log('指纹伪装已应用，模式: ${fingerprintMode}');
+          })();
+        `
+
+        await webview.executeJavaScript(fingerprintScript)
+        console.log('指纹伪装脚本注入成功')
+      } catch (error) {
+        console.error('应用指纹伪装失败:', error)
+      }
+    }, [fingerprintEnabled, fingerprintMode])
+
     useEffect(() => {
       const webview = webviewRef.current
       if (!webview) return
 
       const handleDomReady = (): void => {
         console.log('Webview DOM ready:', url)
+
+        // 应用指纹伪装
+        applyFingerprint()
 
         // 注入鼠标侧键处理脚本到 webview
         try {
@@ -215,7 +338,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       return () => {
         webview.removeEventListener('dom-ready', handleDomReady)
       }
-    }, [url])
+    }, [url, applyFingerprint])
 
     // 仅保存 webview 引用
     const webviewCallbackRef = useCallback((element: WebViewElement | null) => {
