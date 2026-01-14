@@ -375,6 +375,58 @@ export function useSidebarLogic({
     dialogManagement.closeSecondaryGroupEditDialog()
   }
 
+  // 主要分类编辑功能
+  const handleEditPrimaryGroup = (group: PrimaryGroup) => {
+    dialogManagement.openPrimaryGroupEditDialog(group)
+  }
+
+  const handleDeletePrimaryGroup = (groupId: string) => {
+    dialogManagement.openConfirmDeletePrimaryGroup(groupId)
+  }
+
+  const confirmDeletePrimaryGroup = () => {
+    if (!dialogManagement.primaryGroupConfirmDelete.primaryGroupId) return
+
+    const groupId = dialogManagement.primaryGroupConfirmDelete.primaryGroupId
+
+    // 如果删除的是当前激活的分类，需要切换到其他分类
+    if (activePrimaryGroup?.id === groupId) {
+      const otherGroups = primaryGroups.filter((g) => g.id !== groupId)
+      if (otherGroups.length > 0) {
+        setInternalActivePrimaryGroup(otherGroups[0])
+      } else {
+        setInternalActivePrimaryGroup(null)
+      }
+    }
+
+    // 删除分类
+    const updatedPrimaryGroups = primaryGroups.filter((g) => g.id !== groupId)
+    setPrimaryGroups(updatedPrimaryGroups)
+    storageService.setPrimaryGroups(updatedPrimaryGroups)
+
+    dialogManagement.closeConfirmDeletePrimaryGroup()
+  }
+
+  const cancelDeletePrimaryGroup = () => {
+    dialogManagement.closeConfirmDeletePrimaryGroup()
+  }
+
+  const handleSavePrimaryGroup = (updatedGroup: PrimaryGroup) => {
+    const updatedPrimaryGroups = primaryGroups.map((pg) =>
+      pg.id === updatedGroup.id ? updatedGroup : pg
+    )
+
+    setPrimaryGroups(updatedPrimaryGroups)
+    storageService.setPrimaryGroups(updatedPrimaryGroups)
+
+    // 如果更新的是当前激活的分类，更新激活状态
+    if (activePrimaryGroup?.id === updatedGroup.id) {
+      setInternalActivePrimaryGroup(updatedGroup)
+    }
+
+    dialogManagement.closePrimaryGroupEditDialog()
+  }
+
   // 更新primaryGroups的函数
   const updatePrimaryGroups = useCallback((newGroups: PrimaryGroup[]) => {
     setPrimaryGroups(newGroups)
@@ -425,6 +477,11 @@ export function useSidebarLogic({
     confirmDeleteSecondaryGroup,
     cancelDeleteSecondaryGroup,
     handleSaveSecondaryGroup,
+    handleEditPrimaryGroup,
+    handleDeletePrimaryGroup,
+    confirmDeletePrimaryGroup,
+    cancelDeletePrimaryGroup,
+    handleSavePrimaryGroup,
     updatePrimaryGroups,
 
     // 状态设置函数

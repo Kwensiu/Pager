@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Website, SecondaryGroup } from '@/types/website'
+import { Website, SecondaryGroup, PrimaryGroup } from '@/types/website'
 
 export interface DialogManagementState {
   // 网站相关对话框
@@ -17,6 +17,10 @@ export interface DialogManagementState {
   isSecondaryGroupEditDialogOpen: boolean
   editingSecondaryGroup: SecondaryGroup | null
 
+  // 主要分类编辑对话框
+  isPrimaryGroupEditDialogOpen: boolean
+  editingPrimaryGroup: PrimaryGroup | null
+
   // 确认对话框
   confirmDialog: {
     open: boolean
@@ -25,6 +29,10 @@ export interface DialogManagementState {
   secondaryGroupConfirmDelete: {
     open: boolean
     secondaryGroupId: string | null
+  }
+  primaryGroupConfirmDelete: {
+    open: boolean
+    primaryGroupId: string | null
   }
   clearDataDialogOpen: boolean
   resetDataDialogOpen: boolean
@@ -47,11 +55,17 @@ export interface DialogManagementActions {
   openSecondaryGroupEditDialog: (group: SecondaryGroup) => void
   closeSecondaryGroupEditDialog: () => void
 
+  // 主要分类编辑对话框操作
+  openPrimaryGroupEditDialog: (group: PrimaryGroup) => void
+  closePrimaryGroupEditDialog: () => void
+
   // 确认对话框操作
   openConfirmDeleteWebsite: (websiteId: string) => void
   closeConfirmDeleteWebsite: () => void
   openConfirmDeleteSecondaryGroup: (secondaryGroupId: string) => void
   closeConfirmDeleteSecondaryGroup: () => void
+  openConfirmDeletePrimaryGroup: (primaryGroupId: string) => void
+  closeConfirmDeletePrimaryGroup: () => void
   openClearDataDialog: () => void
   closeClearDataDialog: () => void
   openResetDataDialog: () => void
@@ -71,11 +85,14 @@ export interface DialogManagementActions {
   setDialogMode: (mode: 'primary' | 'secondary' | 'website') => void
   setIsSecondaryGroupEditDialogOpen: (open: boolean) => void
   setEditingSecondaryGroup: (group: SecondaryGroup | null) => void
+  setIsPrimaryGroupEditDialogOpen: (open: boolean) => void
+  setEditingPrimaryGroup: (group: PrimaryGroup | null) => void
   setConfirmDialog: (dialog: { open: boolean; websiteId: string | null }) => void
   setSecondaryGroupConfirmDelete: (dialog: {
     open: boolean
     secondaryGroupId: string | null
   }) => void
+  setPrimaryGroupConfirmDelete: (dialog: { open: boolean; primaryGroupId: string | null }) => void
   setClearDataDialogOpen: (open: boolean) => void
   setResetDataDialogOpen: (open: boolean) => void
   setClearSoftwareDataDialogOpen: (open: boolean) => void
@@ -98,6 +115,10 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
   const [isSecondaryGroupEditDialogOpen, setIsSecondaryGroupEditDialogOpen] = useState(false)
   const [editingSecondaryGroup, setEditingSecondaryGroup] = useState<SecondaryGroup | null>(null)
 
+  // 主要分类编辑对话框状态
+  const [isPrimaryGroupEditDialogOpen, setIsPrimaryGroupEditDialogOpen] = useState(false)
+  const [editingPrimaryGroup, setEditingPrimaryGroup] = useState<PrimaryGroup | null>(null)
+
   // 确认对话框状态
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; websiteId: string | null }>({
     open: false,
@@ -107,6 +128,10 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
     open: boolean
     secondaryGroupId: string | null
   }>({ open: false, secondaryGroupId: null })
+  const [primaryGroupConfirmDelete, setPrimaryGroupConfirmDelete] = useState<{
+    open: boolean
+    primaryGroupId: string | null
+  }>({ open: false, primaryGroupId: null })
   const [clearDataDialogOpen, setClearDataDialogOpen] = useState(false)
   const [resetDataDialogOpen, setResetDataDialogOpen] = useState(false)
   const [clearSoftwareDataDialogOpen, setClearSoftwareDataDialogOpen] = useState(false)
@@ -161,6 +186,17 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
     setSelectedSecondaryGroupId(null)
   }, [])
 
+  // 主要分类编辑对话框操作
+  const openPrimaryGroupEditDialog = useCallback((group: PrimaryGroup) => {
+    setEditingPrimaryGroup(group)
+    setIsPrimaryGroupEditDialogOpen(true)
+  }, [])
+
+  const closePrimaryGroupEditDialog = useCallback(() => {
+    setIsPrimaryGroupEditDialogOpen(false)
+    setEditingPrimaryGroup(null)
+  }, [])
+
   // 确认对话框操作
   const openConfirmDeleteWebsite = useCallback((websiteId: string) => {
     setConfirmDialog({ open: true, websiteId })
@@ -176,6 +212,14 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
 
   const closeConfirmDeleteSecondaryGroup = useCallback(() => {
     setSecondaryGroupConfirmDelete({ open: false, secondaryGroupId: null })
+  }, [])
+
+  const openConfirmDeletePrimaryGroup = useCallback((primaryGroupId: string) => {
+    setPrimaryGroupConfirmDelete({ open: true, primaryGroupId })
+  }, [])
+
+  const closeConfirmDeletePrimaryGroup = useCallback(() => {
+    setPrimaryGroupConfirmDelete({ open: false, primaryGroupId: null })
   }, [])
 
   const openClearDataDialog = useCallback(() => {
@@ -221,8 +265,11 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
     dialogMode,
     isSecondaryGroupEditDialogOpen,
     editingSecondaryGroup,
+    isPrimaryGroupEditDialogOpen,
+    editingPrimaryGroup,
     confirmDialog,
     secondaryGroupConfirmDelete,
+    primaryGroupConfirmDelete,
     clearDataDialogOpen,
     resetDataDialogOpen,
     clearSoftwareDataDialogOpen,
@@ -237,10 +284,14 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
     closeGroupDialog,
     openSecondaryGroupEditDialog,
     closeSecondaryGroupEditDialog,
+    openPrimaryGroupEditDialog,
+    closePrimaryGroupEditDialog,
     openConfirmDeleteWebsite,
     closeConfirmDeleteWebsite,
     openConfirmDeleteSecondaryGroup,
     closeConfirmDeleteSecondaryGroup,
+    openConfirmDeletePrimaryGroup,
+    closeConfirmDeletePrimaryGroup,
     openClearDataDialog,
     closeClearDataDialog,
     openResetDataDialog,
@@ -260,8 +311,11 @@ export function useDialogManagement(): DialogManagementState & DialogManagementA
     setDialogMode,
     setIsSecondaryGroupEditDialogOpen,
     setEditingSecondaryGroup,
+    setIsPrimaryGroupEditDialogOpen,
+    setEditingPrimaryGroup,
     setConfirmDialog,
     setSecondaryGroupConfirmDelete,
+    setPrimaryGroupConfirmDelete,
     setClearDataDialogOpen,
     setResetDataDialogOpen,
     setClearSoftwareDataDialogOpen,

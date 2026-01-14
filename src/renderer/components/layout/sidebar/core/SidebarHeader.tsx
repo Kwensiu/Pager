@@ -3,7 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Button } from '@/ui/button'
 import { SidebarHeader as UISidebarHeader, SidebarTrigger } from '@/ui/sidebar'
 import { useSidebar } from '@/ui/sidebar.types'
-import { Folder, Plus, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Folder, Plus, PanelLeftClose, PanelLeftOpen, Pencil, Trash2 } from 'lucide-react'
 import { PrimaryGroup } from '@/types/website'
 import { useI18n } from '@/core/i18n/useI18n'
 
@@ -12,16 +12,36 @@ export interface SidebarHeaderProps {
   activePrimaryGroup: PrimaryGroup | null
   onSwitchPrimaryGroup: (group: PrimaryGroup) => void
   onAddPrimaryGroup: () => void
+  onEditPrimaryGroup?: (group: PrimaryGroup) => void
+  onDeletePrimaryGroup?: (groupId: string) => void
 }
 
 const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   primaryGroups,
   activePrimaryGroup,
   onSwitchPrimaryGroup,
-  onAddPrimaryGroup
+  onAddPrimaryGroup,
+  onEditPrimaryGroup,
+  onDeletePrimaryGroup
 }) => {
   const { t } = useI18n()
   const { state } = useSidebar()
+
+  const handleEditClick = (e: React.MouseEvent, group: PrimaryGroup): void => {
+    e.stopPropagation()
+    e.preventDefault()
+    if (onEditPrimaryGroup) {
+      onEditPrimaryGroup(group)
+    }
+  }
+
+  const handleDeleteClick = (e: React.MouseEvent, groupId: string): void => {
+    e.stopPropagation()
+    e.preventDefault()
+    if (onDeletePrimaryGroup) {
+      onDeletePrimaryGroup(groupId)
+    }
+  }
 
   return (
     <UISidebarHeader className="border-b px-1 h-[53px]">
@@ -72,7 +92,27 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
                     }}
                   >
                     <Folder className="mr-2 h-4 w-4" />
-                    {primaryGroup.name}
+                    <span className="flex-1">{primaryGroup.name}</span>
+
+                    {/* 操作按钮 */}
+                    <div className="flex items-center gap-1 ml-2">
+                      <button
+                        className="p-1 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={(e) => handleEditClick(e, primaryGroup)}
+                        title={t('edit')}
+                        aria-label={t('edit')}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={(e) => handleDeleteClick(e, primaryGroup.id)}
+                        title={t('delete')}
+                        aria-label={t('delete')}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </DropdownMenu.Item>
                 ))}
 

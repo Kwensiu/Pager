@@ -16,6 +16,7 @@ import AddOptionsDialog from './sidebar/dialogs/AddOptionsDialog'
 import { AddGroupDialog } from '@/components/features/AddGroupDialog'
 import { AddWebsiteDialog } from '@/components/features/AddWebsiteDialog'
 import { EditWebsiteDialog } from '@/components/features/EditWebsiteDialog'
+import { EditPrimaryGroupDialog } from '@/components/features/EditPrimaryGroupDialog'
 import { ConfirmDialog } from '@/components/features/ConfirmDialog'
 import SettingsDialog from '@/components/features/SettingsDialog'
 import { Website } from '@/types/website'
@@ -68,8 +69,11 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
     selectedSecondaryGroupId,
     isSecondaryGroupEditDialogOpen,
     editingSecondaryGroup,
+    isPrimaryGroupEditDialogOpen,
+    editingPrimaryGroup,
     confirmDialog,
     secondaryGroupConfirmDelete,
+    primaryGroupConfirmDelete,
     clearDataDialogOpen,
     resetDataDialogOpen,
     clearSoftwareDataDialogOpen,
@@ -97,6 +101,11 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
     confirmDeleteSecondaryGroup,
     cancelDeleteSecondaryGroup,
     handleSaveSecondaryGroup,
+    handleEditPrimaryGroup,
+    handleDeletePrimaryGroup,
+    confirmDeletePrimaryGroup,
+    cancelDeletePrimaryGroup,
+    handleSavePrimaryGroup,
     updatePrimaryGroups,
 
     // 状态设置函数
@@ -105,6 +114,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
     setIsEditDialogOpen,
     setIsGroupDialogOpen,
     setIsSecondaryGroupEditDialogOpen,
+    setIsPrimaryGroupEditDialogOpen,
     setClearDataDialogOpen,
     setResetDataDialogOpen,
     setClearSoftwareDataDialogOpen,
@@ -123,6 +133,8 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
             activePrimaryGroup={activePrimaryGroup}
             onSwitchPrimaryGroup={switchPrimaryGroup}
             onAddPrimaryGroup={handleAddPrimaryGroup}
+            onEditPrimaryGroup={handleEditPrimaryGroup}
+            onDeletePrimaryGroup={handleDeletePrimaryGroup}
           />
           <UISidebarContent className="h-full overflow-y-auto sidebar-scrollbar custom-scrollbar">
             <SidebarContentWithDragDrop
@@ -374,6 +386,31 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
           setClearCacheDialogOpen(false)
         }}
         onCancel={() => setClearCacheDialogOpen(false)}
+      />
+
+      {/* 编辑主要分类对话框 */}
+      <EditPrimaryGroupDialog
+        open={isPrimaryGroupEditDialogOpen}
+        onOpenChange={setIsPrimaryGroupEditDialogOpen}
+        group={editingPrimaryGroup}
+        onSave={handleSavePrimaryGroup}
+        onDelete={handleDeletePrimaryGroup}
+      />
+
+      {/* 确认删除主要分类对话框 */}
+      <ConfirmDialog
+        open={primaryGroupConfirmDelete.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelDeletePrimaryGroup()
+          }
+        }}
+        title="确认删除分类"
+        description="确定要删除这个分类吗？此操作将删除分类下的所有网站和分组，且不可撤销。"
+        confirmText="删除"
+        cancelText="取消"
+        onConfirm={confirmDeletePrimaryGroup}
+        onCancel={cancelDeletePrimaryGroup}
       />
     </>
   )

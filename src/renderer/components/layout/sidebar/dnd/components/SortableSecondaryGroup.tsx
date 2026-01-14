@@ -63,12 +63,13 @@ export const SortableSecondaryGroup: React.FC<SortableSecondaryGroupProps> = ({
     }
   }
 
-  // 处理右键菜单
+  // 处理右键菜单 - 如果外部提供了onContextMenu则调用，否则不阻止默认行为
   const handleContextMenu = (e: React.MouseEvent): void => {
-    e.preventDefault()
     if (onContextMenu) {
+      e.preventDefault()
       onContextMenu(e)
     }
+    // 如果没有提供onContextMenu，让事件冒泡，这样外层的ContextMenuTrigger可以处理
   }
 
   return (
