@@ -61,6 +61,7 @@ yarn install
 - 使用 `env-paths@3.0.0`（满足 `conf` 包的需求）
 
 验证命令：
+
 ```bash
 # 检查 conf 包使用的 ajv 版本
 cat node_modules/conf/node_modules/ajv/package.json | grep version

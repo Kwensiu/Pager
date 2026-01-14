@@ -31,9 +31,26 @@ export class SortingService {
       return orderA - orderB
     })
 
-    const targetIndex = sortedGroups.findIndex((g) => g.id === overId)
+    // 查找目标索引，overId可能是任何元素的ID，我们需要找到它对应的二级分组
+    let targetIndex = sortedGroups.findIndex((g) => g.id === overId)
+
+    // 如果没找到直接匹配的分组ID，尝试通过其他方式确定位置
     if (targetIndex === -1) {
-      return
+      // 如果overId不是分组ID，我们可以根据插入位置来确定目标索引
+      const insertPosition = result.insertPosition || 'below'
+
+      // 找到当前拖拽分组的位置
+      const activeIndex = sortedGroups.findIndex((g) => g.id === activeId)
+      if (activeIndex !== -1) {
+        // 如果是向下插入，目标索引应该是当前位置+1
+        // 如果是向上插入，目标索引应该是当前位置
+        targetIndex = insertPosition === 'below' ? activeIndex + 1 : activeIndex
+
+        // 确保目标索引在有效范围内
+        targetIndex = Math.max(0, Math.min(targetIndex, sortedGroups.length))
+      } else {
+        return
+      }
     }
 
     // 更新二级分组顺序

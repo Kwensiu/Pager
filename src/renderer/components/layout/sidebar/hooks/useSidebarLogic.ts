@@ -425,8 +425,10 @@ export function useSidebarLogic({
 
   // 更新primaryGroups的函数
   const updatePrimaryGroups = useCallback((newGroups: PrimaryGroup[]) => {
-    setPrimaryGroups(newGroups)
-    storageService.setPrimaryGroups(newGroups)
+    // 深度克隆数组以确保React检测到变化
+    const updatedGroups = JSON.parse(JSON.stringify(newGroups)) as PrimaryGroup[]
+    setPrimaryGroups(updatedGroups)
+    storageService.setPrimaryGroups(updatedGroups)
   }, [])
 
   // 返回所有状态和函数

@@ -239,15 +239,38 @@ export const SortableSecondaryGroup = React.memo(
   SortableSecondaryGroupComponent,
   (prevProps, nextProps) => {
     // 自定义比较函数，只在必要时重新渲染
-    return (
-      prevProps.secondaryGroup.id === nextProps.secondaryGroup.id &&
-      prevProps.secondaryGroup.name === nextProps.secondaryGroup.name &&
-      prevProps.secondaryGroup.expanded === nextProps.secondaryGroup.expanded &&
-      prevProps.secondaryGroup.websites.length === nextProps.secondaryGroup.websites.length &&
-      prevProps.active === nextProps.active &&
-      prevProps.disabled === nextProps.disabled &&
-      prevProps.isCollapsed === nextProps.isCollapsed
-    )
+    // 检查所有可能影响渲染的属性，包括深层对象的比较
+    if (
+      prevProps.secondaryGroup.id !== nextProps.secondaryGroup.id ||
+      prevProps.secondaryGroup.name !== nextProps.secondaryGroup.name ||
+      prevProps.secondaryGroup.expanded !== nextProps.secondaryGroup.expanded ||
+      prevProps.active !== nextProps.active ||
+      prevProps.disabled !== nextProps.disabled ||
+      prevProps.isCollapsed !== nextProps.isCollapsed
+    ) {
+      return false
+    }
+
+    // 深度比较 websites 数组
+    if (prevProps.secondaryGroup.websites.length !== nextProps.secondaryGroup.websites.length) {
+      return false
+    }
+
+    // 检查每个网站的关键属性
+    for (let i = 0; i < prevProps.secondaryGroup.websites.length; i++) {
+      const prevWebsite = prevProps.secondaryGroup.websites[i]
+      const nextWebsite = nextProps.secondaryGroup.websites[i]
+
+      if (
+        prevWebsite.id !== nextWebsite.id ||
+        prevWebsite.name !== nextWebsite.name ||
+        prevWebsite.url !== nextWebsite.url
+      ) {
+        return false
+      }
+    }
+
+    return true
   }
 )
 

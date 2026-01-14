@@ -51,6 +51,11 @@ export function useSecondaryGroupDnd({
     data: {
       type: 'secondaryGroup',
       secondaryGroup
+    },
+    animateLayoutChanges: () => true,
+    transition: {
+      duration: 200,
+      easing: 'ease'
     }
   })
 
@@ -80,7 +85,7 @@ export function useSecondaryGroupDnd({
 
   const handleDragEnd = useCallback(() => {
     // 可以在这里添加自定义逻辑
-  }, [id])
+  }, [id, secondaryGroup])
 
   return {
     // 拖拽相关属性
