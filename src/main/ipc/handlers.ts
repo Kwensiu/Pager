@@ -226,6 +226,256 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
     }
   })
 
+  // ===== WebView 相关 IPC 处理器 =====
+
+  // 监听所有 webview 的右键菜单事件
+  mainWindow.webContents.on('did-attach-webview', (_event, webContents) => {
+    console.log('Webview attached, setting up context menu listener')
+
+    // 监听 webview 的右键菜单事件
+    webContents.on('context-menu', (event, params) => {
+      console.log('=== WebView Context Menu Event ===')
+      console.log('Context menu triggered in webview:', params)
+
+      // 构建右键菜单
+      const { Menu } = require('electron')
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: '后退',
+          accelerator: 'Alt+Left',
+          click: () => {
+            webContents.goBack()
+          }
+        },
+        {
+          label: '前进',
+          accelerator: 'Alt+Right',
+          click: () => {
+            webContents.goForward()
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '重新加载',
+          accelerator: 'F5',
+          click: () => {
+            webContents.reload()
+          }
+        },
+        {
+          label: '强制重新加载',
+          accelerator: 'Ctrl+F5',
+          click: () => {
+            webContents.reloadIgnoringCache()
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '复制',
+          accelerator: 'Ctrl+C',
+          enabled: params.selectionText?.length > 0,
+          click: () => {
+            webContents.copy()
+          }
+        },
+        {
+          label: '粘贴',
+          accelerator: 'Ctrl+V',
+          enabled: params.isEditable,
+          click: () => {
+            webContents.paste()
+          }
+        },
+        {
+          label: '全选',
+          accelerator: 'Ctrl+A',
+          click: () => {
+            webContents.selectAll()
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '查看源代码',
+          click: () => {
+            webContents.openDevTools()
+          }
+        },
+        {
+          label: '检查元素',
+          click: () => {
+            webContents.inspectElement(params.x, params.y)
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '在外部浏览器中打开',
+          click: () => {
+            if (params.pageURL) {
+              const { shell } = require('electron')
+              shell.openExternal(params.pageURL)
+            }
+          }
+        }
+      ])
+
+      // 显示菜单
+      contextMenu.popup({
+        window: mainWindow,
+        x: params.x,
+        y: params.y
+      })
+    })
+  })
+
+  // 监听 webview 创建事件
+  ipcMain.on('webview-created', (_, webviewId: string) => {
+    console.log('Webview created:', webviewId)
+
+    // 尝试获取 webview 的 webContents
+    // 注意：这需要在主进程中处理
+  })
+
+  // WebView 右键菜单
+  ipcMain.on('webview:show-context-menu', (_, params) => {
+    try {
+      console.log('=== WebView Context Menu Debug ===')
+      console.log('Received webview context menu request:', params)
+      console.log('Main window available:', !!mainWindow)
+      console.log('Main window webContents available:', !!mainWindow?.webContents)
+
+      const { Menu } = require('electron')
+
+      // 构建右键菜单
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: '后退',
+          accelerator: 'Alt+Left',
+          click: () => {
+            // 发送后退命令到渲染进程
+            mainWindow.webContents.send('webview:navigate-back')
+          }
+        },
+        {
+          label: '前进',
+          accelerator: 'Alt+Right',
+          click: () => {
+            // 发送前进命令到渲染进程
+            mainWindow.webContents.send('webview:navigate-forward')
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '重新加载',
+          accelerator: 'F5',
+          click: () => {
+            // 发送重新加载命令到渲染进程
+            mainWindow.webContents.send('webview:reload')
+          }
+        },
+        {
+          label: '强制重新加载',
+          accelerator: 'Ctrl+F5',
+          click: () => {
+            // 发送强制重新加载命令到渲染进程
+            mainWindow.webContents.send('webview:reload-force')
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '复制',
+          accelerator: 'Ctrl+C',
+          enabled: params.selectionText?.length > 0,
+          click: () => {
+            // 发送复制命令到渲染进程
+            mainWindow.webContents.send('webview:copy')
+          }
+        },
+        {
+          label: '粘贴',
+          accelerator: 'Ctrl+V',
+          enabled: params.isEditable,
+          click: () => {
+            // 发送粘贴命令到渲染进程
+            mainWindow.webContents.send('webview:paste')
+          }
+        },
+        {
+          label: '全选',
+          accelerator: 'Ctrl+A',
+          click: () => {
+            // 发送全选命令到渲染进程
+            mainWindow.webContents.send('webview:select-all')
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '查看源代码',
+          click: () => {
+            // 发送查看源代码命令到渲染进程
+            mainWindow.webContents.send('webview:view-source')
+          }
+        },
+        {
+          label: '检查元素',
+          click: () => {
+            // 发送检查元素命令到渲染进程
+            mainWindow.webContents.send('webview:inspect-element')
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '在外部浏览器中打开',
+          click: () => {
+            if (params.pageURL) {
+              const { shell } = require('electron')
+              shell.openExternal(params.pageURL)
+            }
+          }
+        }
+      ])
+
+      console.log('Context menu built successfully, showing menu...')
+      console.log('Menu position:', { x: params.x, y: params.y })
+
+      // 显示菜单
+      contextMenu.popup({
+        window: mainWindow,
+        x: params.x,
+        y: params.y
+      })
+
+      console.log('Context menu popup called')
+    } catch (error) {
+      console.error('Error showing webview context menu:', error)
+    }
+  })
+
+  // WebView 导航控制
+  ipcMain.on('webview:load-url', (_, url: string) => {
+    // 发送URL加载命令到渲染进程
+    mainWindow.webContents.send('webview:load-url', url)
+  })
+
+  ipcMain.on('webview:hide', () => {
+    // 发送隐藏webview命令到渲染进程
+    mainWindow.webContents.send('webview:hide')
+  })
+
+  ipcMain.on('webview:reload', () => {
+    // 发送重新加载命令到渲染进程
+    mainWindow.webContents.send('webview:reload')
+  })
+
+  ipcMain.on('webview:go-back', () => {
+    // 发送后退命令到渲染进程
+    mainWindow.webContents.send('webview:navigate-back')
+  })
+
+  ipcMain.on('webview:go-forward', () => {
+    // 发送前进命令到渲染进程
+    mainWindow.webContents.send('webview:navigate-forward')
+  })
+
   // 窗口管理相关 IPC
   ipcMain.on('window:open-dev-tools', () => {
     if (mainWindow) {

@@ -60,6 +60,117 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     // 使用 URL 作为 key 的一部分，确保 URL 变化时重新创建 webview
     const webviewKey = useMemo(() => `${partition}-${url}`, [partition, url])
 
+    // 监听来自主进程的webview操作命令
+    useEffect(() => {
+      const handleNavigateBack = (): void => {
+        const webview = webviewRef.current
+        if (webview && webview.goBack) {
+          webview.goBack()
+        } else if (onGoBack) {
+          onGoBack()
+        }
+      }
+
+      const handleNavigateForward = (): void => {
+        const webview = webviewRef.current
+        if (webview && webview.goForward) {
+          webview.goForward()
+        } else if (onGoForward) {
+          onGoForward()
+        }
+      }
+
+      const handleReload = (): void => {
+        const webview = webviewRef.current
+        if (webview && webview.reload) {
+          webview.reload()
+        } else if (onRefresh) {
+          onRefresh()
+        }
+      }
+
+      const handleReloadForce = (): void => {
+        const webview = webviewRef.current
+        if (webview && webview.reload) {
+          // 忽略缓存重新加载
+          webview.reload()
+        } else if (onRefresh) {
+          onRefresh()
+        }
+      }
+
+      const handleCopy = (): void => {
+        const webview = webviewRef.current
+        if (webview) {
+          webview.executeJavaScript('document.execCommand("copy")')
+        }
+      }
+
+      const handlePaste = (): void => {
+        const webview = webviewRef.current
+        if (webview) {
+          webview.executeJavaScript('document.execCommand("paste")')
+        }
+      }
+
+      const handleSelectAll = (): void => {
+        const webview = webviewRef.current
+        if (webview) {
+          webview.executeJavaScript('document.execCommand("selectAll")')
+        }
+      }
+
+      const handleViewSource = (): void => {
+        const webview = webviewRef.current
+        if (webview && webview.getURL) {
+          const currentUrl = webview.getURL()
+          if (currentUrl) {
+            window.open(`view-source:${currentUrl}`)
+          }
+        }
+      }
+
+      const handleInspectElement = (): void => {
+        const webview = webviewRef.current
+        if (webview) {
+          webview.executeJavaScript(`
+            // 尝试打开开发者工具
+            if (window.devTools) {
+              window.devTools.show()
+            }
+          `)
+        }
+      }
+
+      // 注册IPC监听器
+      if (window.api?.ipcRenderer) {
+        window.api.ipcRenderer.on('webview:navigate-back', handleNavigateBack)
+        window.api.ipcRenderer.on('webview:navigate-forward', handleNavigateForward)
+        window.api.ipcRenderer.on('webview:reload', handleReload)
+        window.api.ipcRenderer.on('webview:reload-force', handleReloadForce)
+        window.api.ipcRenderer.on('webview:copy', handleCopy)
+        window.api.ipcRenderer.on('webview:paste', handlePaste)
+        window.api.ipcRenderer.on('webview:select-all', handleSelectAll)
+        window.api.ipcRenderer.on('webview:view-source', handleViewSource)
+        window.api.ipcRenderer.on('webview:inspect-element', handleInspectElement)
+
+        return () => {
+          // 清理IPC监听器
+          window.api.ipcRenderer.removeAllListeners('webview:navigate-back')
+          window.api.ipcRenderer.removeAllListeners('webview:navigate-forward')
+          window.api.ipcRenderer.removeAllListeners('webview:reload')
+          window.api.ipcRenderer.removeAllListeners('webview:reload-force')
+          window.api.ipcRenderer.removeAllListeners('webview:copy')
+          window.api.ipcRenderer.removeAllListeners('webview:paste')
+          window.api.ipcRenderer.removeAllListeners('webview:select-all')
+          window.api.ipcRenderer.removeAllListeners('webview:view-source')
+          window.api.ipcRenderer.removeAllListeners('webview:inspect-element')
+        }
+      }
+
+      return undefined
+    }, [onGoBack, onGoForward, onRefresh])
+
     // 应用指纹伪装到 webview
     const applyFingerprint = useCallback(async (): Promise<void> => {
       if (!fingerprintEnabled) {
@@ -183,6 +294,15 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
         // 应用指纹伪装
         applyFingerprint()
+
+        // 设置右键菜单监听器
+        try {
+          // 右键菜单现在通过主进程的 did-attach-webview 事件处理
+          // 不需要在渲染进程中设置监听器
+          console.log('WebView context menu will be handled by main process')
+        } catch (error) {
+          console.error('设置webview右键菜单监听器失败:', error)
+        }
 
         // 注入鼠标侧键处理脚本到 webview
         try {

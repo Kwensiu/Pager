@@ -9,6 +9,14 @@ import type {
 } from '../main/types/store'
 
 export const api = {
+  // 暴露 ipcRenderer 用于监听事件
+  ipcRenderer: {
+    on: (channel: string, listener: (...args: any[]) => void) => ipcRenderer.on(channel, listener),
+    removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
+    send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
+    invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args)
+  },
+
   // WebView 相关 API
   webview: {
     loadUrl: (url: string) => ipcRenderer.send('webview:load-url', url),
@@ -16,7 +24,9 @@ export const api = {
     getUrl: () => ipcRenderer.invoke('webview:get-url'),
     reload: () => ipcRenderer.send('webview:reload'),
     goBack: () => ipcRenderer.send('webview:go-back'),
-    goForward: () => ipcRenderer.send('webview:go-forward')
+    goForward: () => ipcRenderer.send('webview:go-forward'),
+    showContextMenu: (params: Electron.ContextMenuParams) =>
+      ipcRenderer.send('webview:show-context-menu', params)
   },
 
   // 窗口管理

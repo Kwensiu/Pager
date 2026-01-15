@@ -13,6 +13,12 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: {
+      ipcRenderer: {
+        on: (channel: string, listener: (...args: any[]) => void) => void
+        removeAllListeners: (channel: string) => void
+        send: (channel: string, ...args: any[]) => void
+        invoke: (channel: string, ...args: any[]) => Promise<any>
+      }
       webview: {
         loadUrl: (url: string) => void
         hide: () => void
@@ -20,6 +26,7 @@ declare global {
         reload: () => void
         goBack: () => void
         goForward: () => void
+        showContextMenu: (params: Electron.ContextMenuParams) => void
       }
       window: {
         resize: () => void
