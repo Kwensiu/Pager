@@ -1,5 +1,11 @@
 import { session } from 'electron'
 import type { Website } from '../../shared/types/store'
+import { HttpsProxyAgent } from 'https-proxy-agent'
+import { HttpProxyAgent } from 'http-proxy-agent'
+import { SocksProxyAgent } from 'socks-proxy-agent'
+
+// 定义代理 Agent 类型
+export type ProxyAgent = unknown
 
 /**
  * 代理服务
@@ -341,6 +347,50 @@ class ProxyService {
   }
 
   /**
+   * 获取全局代理设置
+   * @returns 全局代理规则或 null
+   */
+  getGlobalProxy(): string | null {
+    // 从设置中获取全局代理配置
+    // 这里需要导入 storeService，为了避免循环依赖，我们通过参数传入
+    return null // 将在具体使用时从设置中获取
+  }
+
+  /**
+   * 创建代理 Agent
+   * @param proxyRules 代理规则
+   * @returns 代理 Agent 实例
+   */
+  createProxyAgent(proxyRules: string): ProxyAgent | null {
+    const parsed = this.parseProxyRules(proxyRules)
+    if (!parsed) return null
+
+    // 解析代理规则
+    if (parsed.includes('socks5://')) {
+      return new SocksProxyAgent(parsed)
+    }
+
+    // HTTP/HTTPS 代理
+    const httpsMatch = parsed.match(/https=([^:;]+):(\d+)/)
+    const httpMatch = parsed.match(/http=([^:;]+):(\d+)/)
+
+    if (httpsMatch) {
+      return new HttpsProxyAgent(`https://${httpsMatch[1]}:${httpsMatch[2]}`)
+    }
+    if (httpMatch) {
+      return new HttpProxyAgent(`http://${httpMatch[1]}:${httpMatch[2]}`)
+    }
+
+    // 默认格式
+    const defaultMatch = parsed.match(/([^:]+):(\d+)/)
+    if (defaultMatch) {
+      return new HttpsProxyAgent(`http://${defaultMatch[1]}:${defaultMatch[2]}`)
+    }
+
+    return null
+  }
+
+  /**
    * 清理资源
    */
   cleanup(): void {
@@ -348,5 +398,5 @@ class ProxyService {
   }
 }
 
-// 导出单例实例
-export const proxyService = new ProxyService()
+// 导出单例实例 - 网站级别代理服务
+export const websiteProxyService = new ProxyService()

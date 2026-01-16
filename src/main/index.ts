@@ -9,6 +9,8 @@ import { ExtensionManager } from './extensions/extensionManager'
 import { extensionIsolationManager } from './services/extensionIsolation'
 import { extensionPermissionManager } from './services/extensionPermissionManager'
 import { sessionIsolationService } from './services/sessionIsolation'
+import { globalProxyService } from './services/proxyService'
+import { storeService } from './services/store'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -47,6 +49,9 @@ app.whenReady().then(async () => {
     })
   })
 
+  // 初始化代理服务
+  await globalProxyService.initialize()
+
   // 创建窗口
   mainWindow = await createWindow()
   await registerIpcHandlers(mainWindow)
@@ -78,10 +83,14 @@ app.on('window-all-closed', () => {
 })
 
 // 应用退出时清理资源
+app.on('will-quit', () => {
+  globalProxyService.destroy()
+})
+
+// 应用退出时清理资源
 app.on('before-quit', async () => {
   try {
     // 获取当前设置
-    const { storeService } = await import('./services/store')
     const settings = await storeService.getSettings()
 
     // 如果启用了保存会话，保存当前会话状态

@@ -1,88 +1,81 @@
 import { URL } from 'url'
-import { get as httpRequest } from 'https'
-import { get as httpRequestHttp } from 'http'
 import { FaviconStrategy } from './types'
+import { globalProxyService } from '../proxyService'
 
 // 检查 URL 状态的辅助函数
 export function checkUrlStatus(url: string, timeout: number = 3000): Promise<number> {
   return new Promise((resolve, reject) => {
-    try {
-      const parsedUrl = new URL(url)
-      const options = {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'HEAD',
-        timeout,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
+    ;(async () => {
+      try {
+        // 获取软件专用session
+        const softwareSession = globalProxyService.getSoftwareSession()
+
+        const fetchOptions: RequestInit = {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
+          }
         }
+
+        // 设置超时
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+        try {
+          const response = await softwareSession.fetch(url, {
+            ...fetchOptions,
+            signal: controller.signal
+          } as Record<string, unknown>)
+
+          clearTimeout(timeoutId)
+          resolve(response.status || 500)
+        } catch (error) {
+          clearTimeout(timeoutId)
+          reject(error)
+        }
+      } catch (error) {
+        reject(error)
       }
-
-      const request = parsedUrl.protocol === 'https:' ? httpRequest : httpRequestHttp
-
-      const req = request(options, (res) => {
-        resolve(res.statusCode || 500)
-      })
-
-      req.on('error', (e) => {
-        reject(e)
-      })
-
-      req.on('timeout', () => {
-        req.destroy()
-        reject(new Error('Request timeout'))
-      })
-
-      req.end()
-    } catch (error) {
-      reject(error)
-    }
+    })()
   })
 }
 
 // 获取 URL 内容的辅助函数
 export function fetchUrlContent(url: string, timeout: number = 5000): Promise<string> {
   return new Promise((resolve, reject) => {
-    try {
-      const parsedUrl = new URL(url)
-      const options = {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'GET',
-        timeout,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
+    ;(async () => {
+      try {
+        // 获取软件专用session
+        const softwareSession = globalProxyService.getSoftwareSession()
+
+        const fetchOptions: RequestInit = {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
+          }
         }
-      }
 
-      const request = parsedUrl.protocol === 'https:' ? httpRequest : httpRequestHttp
+        // 设置超时
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-      let data = ''
-      const req = request(options, (res) => {
-        res.on('data', (chunk) => {
-          data += chunk
-        })
+        try {
+          const response = await softwareSession.fetch(url, {
+            ...fetchOptions,
+            signal: controller.signal
+          } as Record<string, unknown>)
 
-        res.on('end', () => {
+          clearTimeout(timeoutId)
+          const data = await response.text()
           resolve(data)
-        })
-      })
-
-      req.on('error', (e) => {
-        reject(e)
-      })
-
-      req.on('timeout', () => {
-        req.destroy()
-        reject(new Error('Request timeout'))
-      })
-
-      req.end()
-    } catch (error) {
-      reject(error)
-    }
+        } catch (error) {
+          clearTimeout(timeoutId)
+          reject(error)
+        }
+      } catch (error) {
+        reject(error)
+      }
+    })()
   })
 }
 

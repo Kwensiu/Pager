@@ -1,6 +1,6 @@
 import { autoUpdater } from 'electron-updater'
 import { app } from 'electron'
-import fetch from 'electron-fetch'
+import { globalProxyService } from './proxyService'
 
 /**
  * 版本检查服务
@@ -31,6 +31,20 @@ class VersionChecker {
     }
 
     try {
+      // 配置代理设置
+      const globalProxy = this.getGlobalProxySettings()
+      if (globalProxy) {
+        // electron-updater 支持通过环境变量设置代理
+        if (globalProxy.includes('https://')) {
+          process.env.HTTPS_PROXY = globalProxy
+          process.env.HTTP_PROXY = globalProxy
+        } else {
+          process.env.HTTP_PROXY = globalProxy
+          process.env.HTTPS_PROXY = globalProxy
+        }
+        console.log('Auto updater proxy configured:', globalProxy)
+      }
+
       autoUpdater.autoDownload = false
       autoUpdater.autoInstallOnAppQuit = true
 
@@ -284,7 +298,22 @@ class VersionChecker {
     html_url: string
   } | null> {
     try {
-      const response = await fetch('https://api.github.com/repos/Kwensiu/pager/releases/latest')
+      // 获取软件专用session
+      const softwareSession = globalProxyService.getSoftwareSession()
+
+      const fetchOptions: RequestInit = {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Pager-App/1.0',
+          Accept: 'application/vnd.github.v3+json'
+        }
+      }
+
+      // 使用软件专用session进行fetch
+      const response = await softwareSession.fetch(
+        'https://api.github.com/repos/Kwensiu/pager/releases/latest',
+        fetchOptions as Record<string, unknown>
+      )
 
       if (!response.ok) {
         throw new Error(`GitHub API error: ${response.status}`)
@@ -296,6 +325,25 @@ class VersionChecker {
       console.error('Failed to check GitHub releases:', error)
       return null
     }
+  }
+
+  /**
+   * 获取全局代理设置
+   * @returns 代理规则或 null
+   */
+  private getGlobalProxySettings(): string | null {
+    // 尝试从多个来源获取代理设置
+    // 1. 从环境变量获取
+    const httpProxy = process.env.HTTP_PROXY || process.env.http_proxy
+    const httpsProxy = process.env.HTTPS_PROXY || process.env.https_proxy
+
+    if (httpsProxy) return httpsProxy
+    if (httpProxy) return httpProxy
+
+    // 2. 从设置中获取（需要导入 storeService，这里暂时返回 null）
+    // TODO: 实现从设置中获取代理配置
+
+    return null
   }
 
   /**

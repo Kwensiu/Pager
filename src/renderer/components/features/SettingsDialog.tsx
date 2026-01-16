@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs'
 import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { Slider } from '../../ui/slider'
+import { Loader2, CheckCircle, XCircle, Globe, Zap } from 'lucide-react'
 import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
 import { ExtensionIsolationLevel, ExtensionRiskLevel } from '../../../shared/types/store'
@@ -33,6 +34,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const [activeTab, setActiveTab] = useState('general')
   const { settings, updateSettings } = useSettings()
   const [showExtensionManager, setShowExtensionManager] = useState(false)
+
+  // 代理测试状态
+  const [isTestingProxy, setIsTestingProxy] = useState(false)
+  const [proxyTestResult, setProxyTestResult] = useState<{
+    success: boolean
+    latency?: number
+    error?: string
+  } | null>(null)
 
   // 获取数据路径
   const [dataPath, setDataPath] = useState('')
@@ -199,29 +208,33 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       trayShowNotifications: true,
       windowAlwaysOnTop: false,
       windowMiniMode: false,
-      windowAdsorptionEnabled: true,
+      windowAdsorptionEnabled: false,
       windowAdsorptionSensitivity: 50,
-      memoryOptimizerEnabled: true,
-      memoryCleanInterval: 30,
-      maxInactiveTime: 60,
+      memoryOptimizerEnabled: false,
+      memoryCleanInterval: 60,
+      maxInactiveTime: 30,
       autoSyncEnabled: false,
       syncInterval: 24,
       isAutoLaunch: false,
       proxyEnabled: false,
       proxyRules: '',
+      proxySoftwareOnly: true, // 仅代理软件本体，不代理网页内容
       autoCheckUpdates: true,
       updateCheckInterval: 24,
       sessionIsolationEnabled: false,
-      crashReportingEnabled: true,
-      autoRestartOnCrash: false,
-      enableJavaScript: true,
-      allowPopups: true,
-      saveSession: true,
+      crashReportingEnabled: false,
+      saveSession: false,
       clearCacheOnExit: false,
-      allowLocalFileAccess: false, // 重置本地文件访问为关闭
+      allowLocalFileAccess: false,
+      isOpenDevTools: false,
+      isOpenZoom: false,
+      isOpenContextMenu: false,
+      leftMenuPosition: 'left',
+      howLinkOpenMethod: 'tuboshu',
+      dataPath: '',
       extensionSettings: {
-        enableExtensions: true,
-        autoLoadExtensions: true,
+        enableExtensions: false,
+        autoLoadExtensions: false,
         defaultIsolationLevel: ExtensionIsolationLevel.STANDARD,
         defaultRiskTolerance: ExtensionRiskLevel.MEDIUM
       },
@@ -232,22 +245,41 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   }
 
   const testProxyConnection = async (): Promise<void> => {
+    if (!settings.proxyRules?.trim()) {
+      setProxyTestResult({
+        success: false,
+        error: '请先输入代理规则'
+      })
+      return
+    }
+
+    setIsTestingProxy(true)
+    setProxyTestResult(null)
+
     try {
       const { api } = window
       if (!api?.enhanced?.proxy) {
-        alert('代理功能不可用')
+        setProxyTestResult({
+          success: false,
+          error: '代理功能不可用'
+        })
         return
       }
 
-      const result = await api.enhanced.proxy.testConnection(settings.proxyRules || '')
+      const result = await api.enhanced.proxy.testConnection(settings.proxyRules)
 
-      if (result.success) {
-        alert(`代理连接测试成功！延迟: ${result.latency}ms`)
-      } else {
-        alert(`代理连接测试失败: ${result.error}`)
-      }
+      setProxyTestResult({
+        success: result.success,
+        latency: result.latency,
+        error: result.error
+      })
     } catch (error) {
-      alert(`测试失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      setProxyTestResult({
+        success: false,
+        error: error instanceof Error ? error.message : '测试失败'
+      })
+    } finally {
+      setIsTestingProxy(false)
     }
   }
 
@@ -379,7 +411,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
   return (
     <div className="p-6 h-full overflow-y-auto bg-background text-foreground sidebar-scrollbar">
-      <h1 className="text-2xl font-bold mb-6 text-foreground">{t('settings.title') || '设置'}</h1>
+      <h1 className="text-2xl font-bold mb-6 text-foreground">{t('settings.title', '设置')}</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-6 mb-4">
@@ -753,41 +785,128 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         </TabsContent>
 
         {/* 网络设置 */}
-        <TabsContent value="network" className="space-y-4">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>代理支持</Label>
-                <p className="text-sm text-muted-foreground">为网站设置代理</p>
-              </div>
-              <Switch
-                checked={settings.proxyEnabled}
-                onCheckedChange={(checked) => handleSettingChange('proxyEnabled', checked)}
-              />
-            </div>
-
-            {settings.proxyEnabled && (
-              <div className="pl-4 space-y-4">
-                <div className="space-y-2">
-                  <Label>代理规则</Label>
-                  <Input
-                    value={settings.proxyRules}
-                    onChange={(e) => handleSettingChange('proxyRules', e.target.value)}
-                    placeholder="例如: http=proxy.example.com:8080;https=proxy.example.com:8080"
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    格式: http=host:port;https=host:port;socks=host:port
-                  </p>
+        <TabsContent value="network" className="space-y-6">
+          <div className="space-y-6">
+            {/* 代理设置 */}
+            <div className="rounded-lg border bg-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-primary" />
+                    <Label className="text-base font-semibold">{t('proxy.title')}</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{t('proxy.description')}</p>
                 </div>
-
-                <Button onClick={testProxyConnection} variant="outline" size="sm">
-                  测试代理连接
-                </Button>
+                <Switch
+                  checked={settings.proxyEnabled}
+                  onCheckedChange={(checked) => handleSettingChange('proxyEnabled', checked)}
+                />
               </div>
-            )}
+
+              {settings.proxyEnabled && (
+                <div className="space-y-4">
+                  {/* 软件代理开关 */}
+                  <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">{t('proxy.softwareOnly')}</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t('proxy.softwareOnlyDescription')}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.proxySoftwareOnly ?? true}
+                      onCheckedChange={(checked) =>
+                        handleSettingChange('proxySoftwareOnly', checked)
+                      }
+                    />
+                  </div>
+
+                  {/* 网页代理设置 - 始终显示 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Label className="text-sm font-medium">{t('proxy.rules')}</Label>
+                      {settings.proxySoftwareOnly && (
+                        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                          {t('proxy.softwareProxyEnabled')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={settings.proxyRules}
+                        onChange={(e) => handleSettingChange('proxyRules', e.target.value)}
+                        placeholder={t('proxy.rulesPlaceholder')}
+                        className="font-mono flex-1"
+                      />
+                      <Button
+                        onClick={testProxyConnection}
+                        variant="outline"
+                        size="sm"
+                        disabled={isTestingProxy || !settings.proxyRules?.trim()}
+                        className="h-9 px-2"
+                      >
+                        {isTestingProxy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Zap className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        <strong>{t('proxy.supportedFormats')}</strong>
+                      </p>
+                      <div className="grid gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-secondary rounded text-xs">
+                            {t('proxy.http')}
+                          </span>
+                          <code>http=proxy.example.com:8080;https=proxy.example.com:8080</code>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-secondary rounded text-xs">
+                            {t('proxy.socks5')}
+                          </span>
+                          <code>socks5://proxy.example.com:1080</code>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-secondary rounded text-xs">
+                            {t('proxy.simple')}
+                          </span>
+                          <code>proxy.example.com:8080</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 测试结果显示 */}
+                  {proxyTestResult && (
+                    <div className="flex items-center gap-2 text-sm p-3 rounded-md bg-muted/50">
+                      {proxyTestResult.success ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span className="text-green-600">
+                            {t('proxy.connectionSuccess')}{' '}
+                            {proxyTestResult.latency && `(${proxyTestResult.latency}ms)`}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-4 w-4 text-red-500" />
+                          <span className="text-red-600">
+                            {proxyTestResult.error || t('proxy.connectionFailed')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <Separator />
 
+            {/* 数据同步设置 */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>数据同步</Label>
@@ -798,21 +917,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 onCheckedChange={(checked) => handleSettingChange('autoSyncEnabled', checked)}
               />
             </div>
-
-            {settings.autoSyncEnabled && (
-              <div className="pl-4 space-y-2">
-                <Label>同步间隔（小时）</Label>
-                <Input
-                  type="number"
-                  value={settings.syncInterval}
-                  onChange={(e) =>
-                    handleSettingChange('syncInterval', parseInt(e.target.value) || 24)
-                  }
-                  min={1}
-                  max={168}
-                />
-              </div>
-            )}
           </div>
         </TabsContent>
 
@@ -976,7 +1080,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       <Dialog open={showExtensionManager} onOpenChange={setShowExtensionManager}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>{t('extensions.title') || '扩展管理'}</DialogTitle>
+            <DialogTitle>{t('extensions.title', '扩展管理')}</DialogTitle>
             <DialogDescription>
               {t('extensions.description') || '管理您的浏览器扩展'}
             </DialogDescription>

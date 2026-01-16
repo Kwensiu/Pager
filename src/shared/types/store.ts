@@ -89,6 +89,7 @@ export interface Settings {
   syncInterval?: number // 同步间隔
   proxyEnabled?: boolean // 代理启用
   proxyRules?: string // 代理规则
+  proxySoftwareOnly?: boolean // 仅代理软件本体，不代理网页内容
   autoCheckUpdates?: boolean // 自动检查更新
   updateCheckInterval?: number // 更新检查间隔
   autoRestartOnCrash?: boolean // 崩溃后自动重启

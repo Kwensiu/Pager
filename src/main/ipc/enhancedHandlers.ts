@@ -7,7 +7,7 @@ import { memoryOptimizerService } from '../services/memoryOptimizer'
 import { dataSyncService } from '../services/dataSync'
 import { autoLaunchService } from '../services/autoLaunch'
 import { jsInjectorService } from '../services/jsInjector'
-import { proxyService } from '../services/proxy'
+import { websiteProxyService } from '../services/proxy'
 import { themeService } from '../services/theme'
 import { windowManager } from '../services/windowManager'
 import { extensionEnhancer } from '../services/extensionEnhancer'
@@ -238,19 +238,19 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
       partition: string,
       proxyRules: string
     ) => {
-      return proxyService.setProxyForPartition(partition, proxyRules)
+      return websiteProxyService.setProxyForPartition(partition, proxyRules)
     }
   )
 
   ipcMain.handle(
     'proxy:clear-for-website',
     async (_: Electron.IpcMainInvokeEvent, _websiteId: string, partition: string) => {
-      return proxyService.clearProxyForPartition(partition)
+      return websiteProxyService.clearProxyForPartition(partition)
     }
   )
 
-  ipcMain.handle('proxy:test-connection', async (_, proxyRules: string, testUrl?: string) => {
-    return proxyService.testProxyConnection(proxyRules, testUrl)
+  ipcMain.handle('proxy:test-connection', async (_, proxyRules: string) => {
+    return websiteProxyService.testProxyConnection(proxyRules)
   })
 
   // ===== 系统主题切换 =====
