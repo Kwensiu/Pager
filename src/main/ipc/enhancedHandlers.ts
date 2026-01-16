@@ -11,7 +11,6 @@ import { websiteProxyService } from '../services/proxy'
 import { themeService } from '../services/theme'
 import { windowManager } from '../services/windowManager'
 import { extensionEnhancer } from '../services/extensionEnhancer'
-import { versionChecker } from '../services/versionChecker'
 import { sessionIsolationService } from '../services/sessionIsolation'
 import { crashHandler } from '../services/crashHandler'
 import { sessionManager } from '../services/sessionManager'
@@ -312,18 +311,22 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
 
   // ===== 版本检查 =====
   ipcMain.handle('version-checker:check-update', async (_, force?: boolean) => {
+    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.checkForAppUpdate(force)
   })
 
   ipcMain.handle('version-checker:download-update', async () => {
+    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.downloadUpdate()
   })
 
   ipcMain.handle('version-checker:install-update', async () => {
+    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.installUpdate()
   })
 
   ipcMain.handle('version-checker:get-version-info', async () => {
+    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.getVersionInfo()
   })
 
@@ -386,23 +389,14 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
   })
 
   // ===== 通用功能 =====
-  ipcMain.handle('enhanced:get-all-features', async () => {
+  ipcMain.handle('services:get-stats', async () => {
+    const { versionChecker } = await import('../services/versionChecker')
     return {
-      fingerprint: true,
-      shortcuts: true,
-      tray: true,
-      windowAdsorption: windowAdsorptionService.isEnabled(),
-      memoryOptimizer: memoryOptimizerService.isEnabled(),
-      dataSync: true,
-      autoLaunch: autoLaunchService.isEnabled(),
-      jsInjector: true,
-      proxy: true,
       theme: themeService.getCurrentTheme(),
       windowManager: windowManager.getWindowState(),
       extensionEnhancer: extensionEnhancer.getExtensionStats(),
       versionChecker: versionChecker.getUpdateStats(),
       sessionIsolation: (await sessionIsolationService.getAllIsolatedWebsites()).length > 0,
-      crashHandler: crashHandler.getCrashStats(),
       sessionManager: sessionManager.getSessionStats()
     }
   })

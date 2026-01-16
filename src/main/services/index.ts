@@ -1,4 +1,3 @@
-export { storeService, store } from './store'
 export { fingerprintService } from './fingerprint'
 export { trayService } from './tray'
 export { windowAdsorptionService } from './windowAdsorption'
@@ -16,3 +15,9 @@ export { sessionIsolationService } from './sessionIsolation'
 export { crashHandler } from './crashHandler'
 export { FaviconService } from './favicon'
 export { sessionManager } from './sessionManager'
+
+// 动态导出storeService以避免循环依赖
+export const getStoreService = async (): Promise<typeof import('./store').storeService> => {
+  const { storeService } = await import('./store')
+  return storeService
+}

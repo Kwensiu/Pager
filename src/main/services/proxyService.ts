@@ -1,5 +1,4 @@
 import { session, net, Session } from 'electron'
-import { storeService } from './store'
 import { Settings } from '../../shared/types/store'
 
 /**
@@ -18,6 +17,9 @@ class GlobalProxyService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
+    // 动态导入storeService以避免循环依赖
+    const { storeService } = await import('./store')
+
     // 使用轮询监听设置变化
     this.checkInterval = setInterval(async () => {
       const currentSettings = await storeService.getSettings()
@@ -25,9 +27,9 @@ class GlobalProxyService {
       // 检查相关设置是否发生变化
       if (
         !this.lastSettings ||
-        this.lastSettings.proxyEnabled !== currentSettings.proxyEnabled ||
-        this.lastSettings.proxyRules !== currentSettings.proxyRules ||
-        this.lastSettings.proxySoftwareOnly !== currentSettings.proxySoftwareOnly
+        currentSettings.proxyEnabled !== this.lastSettings.proxyEnabled ||
+        currentSettings.proxyRules !== this.lastSettings.proxyRules ||
+        currentSettings.proxySoftwareOnly !== this.lastSettings.proxySoftwareOnly
       ) {
         this.lastSettings = { ...currentSettings }
         await this.updateProxyConfig()
@@ -50,6 +52,8 @@ class GlobalProxyService {
   }
 
   private async updateProxyConfig(): Promise<void> {
+    // 动态导入storeService以避免循环依赖
+    const { storeService } = await import('./store')
     const settings = await storeService.getSettings()
     const defaultSession = session.defaultSession
     const softwareSession = session.fromPartition(this.SOFTWARE_SESSION_PARTITION)

@@ -80,7 +80,7 @@ interface ExtensionManifest {
 }
 
 export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): Promise<void> {
-  const { storeService } = await import('../services')
+  const { storeService } = await import('../services/store')
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))

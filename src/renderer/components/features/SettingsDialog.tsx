@@ -8,6 +8,7 @@ import { Input } from '../../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select'
 import { Slider } from '../../ui/slider'
 import { Loader2, CheckCircle, XCircle, Globe, Zap } from 'lucide-react'
+import { UpdateDialog } from '../../ui/update-dialog'
 import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
 import { ExtensionIsolationLevel, ExtensionRiskLevel } from '../../../shared/types/store'
@@ -34,6 +35,15 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const [activeTab, setActiveTab] = useState('general')
   const { settings, updateSettings } = useSettings()
   const [showExtensionManager, setShowExtensionManager] = useState(false)
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<{
+    currentVersion: string
+    latestVersion?: string
+    available: boolean
+    releaseNotes?: string
+    error?: string
+  } | null>(null)
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false)
 
   // 代理测试状态
   const [isTestingProxy, setIsTestingProxy] = useState(false)
@@ -198,7 +208,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     updateSettings({
       theme: 'light',
       language: 'zh',
-      autoUpdate: true,
+      autoCheckUpdates: true,
       minimizeToTray: true,
       collapsedSidebarMode: 'all',
       shortcutsEnabled: true,
@@ -219,8 +229,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       proxyEnabled: false,
       proxyRules: '',
       proxySoftwareOnly: true, // 仅代理软件本体，不代理网页内容
-      autoCheckUpdates: true,
-      updateCheckInterval: 24,
       sessionIsolationEnabled: false,
       crashReportingEnabled: false,
       saveSession: false,
@@ -242,6 +250,43 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     })
     // 自动应用设置
     await saveSettings()
+  }
+
+  const handleManualUpdateCheck = async (): Promise<void> => {
+    if (isCheckingUpdate) return
+
+    setIsCheckingUpdate(true)
+    setShowUpdateDialog(true)
+    setUpdateInfo(null)
+
+    try {
+      const { api } = window
+      if (api?.enhanced?.versionChecker) {
+        const result = await api.enhanced.versionChecker.checkUpdate(true)
+        const versionInfo = await api.enhanced.versionChecker.getVersionInfo()
+
+        // 合并版本信息
+        const fullUpdateInfo = {
+          ...result,
+          currentVersion: versionInfo.currentVersion
+        }
+        setUpdateInfo(fullUpdateInfo)
+      } else {
+        setUpdateInfo({
+          currentVersion: '未知',
+          available: false,
+          error: '更新检查功能不可用'
+        })
+      }
+    } catch (error) {
+      setUpdateInfo({
+        currentVersion: '未知',
+        available: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      })
+    } finally {
+      setIsCheckingUpdate(false)
+    }
   }
 
   const testProxyConnection = async (): Promise<void> => {
@@ -490,13 +535,52 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>自动检查更新</Label>
-                <p className="text-sm text-muted-foreground">自动检查应用更新</p>
+                <p className="text-sm text-muted-foreground">启动时自动检查应用更新</p>
               </div>
               <Switch
-                checked={settings.autoUpdate}
-                onCheckedChange={(checked) => handleSettingChange('autoUpdate', checked)}
+                checked={settings.autoCheckUpdates}
+                onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
               />
             </div>
+
+            {settings.autoCheckUpdates && (
+              <div className="pl-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Label className="text-sm">检查间隔</Label>
+                  <Input
+                    type="number"
+                    value={settings.updateCheckInterval || 24}
+                    onChange={(e) =>
+                      handleSettingChange('updateCheckInterval', parseInt(e.target.value) || 24)
+                    }
+                    min={1}
+                    max={168}
+                    className="w-16 h-8 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">小时</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={handleManualUpdateCheck}
+                  title="手动检查更新"
+                  disabled={isCheckingUpdate}
+                >
+                  <svg
+                    className={`h-4 w-4 ${isCheckingUpdate ? 'animate-spin' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  >
+                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </Button>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -1088,6 +1172,18 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
           <ExtensionManager open={showExtensionManager} onOpenChange={setShowExtensionManager} />
         </DialogContent>
       </Dialog>
+
+      {/* 更新对话框 */}
+      <UpdateDialog
+        open={showUpdateDialog}
+        onClose={() => setShowUpdateDialog(false)}
+        currentVersion={updateInfo?.currentVersion || ''}
+        latestVersion={updateInfo?.latestVersion}
+        available={updateInfo?.available || false}
+        releaseNotes={updateInfo?.releaseNotes}
+        error={updateInfo?.error}
+        isChecking={isCheckingUpdate}
+      />
     </div>
   )
 }

@@ -103,7 +103,7 @@ class VersionChecker {
     if (!force && now - this.lastCheckTime < this.checkInterval) {
       return {
         available: this.updateAvailable,
-        currentVersion: app.getVersion(),
+        currentVersion: app.getVersion?.() || '0.0.0',
         latestVersion: this.latestVersion,
         releaseNotes: this.releaseNotes
       }
@@ -112,20 +112,66 @@ class VersionChecker {
     try {
       this.lastCheckTime = now
 
-      // 使用 electron-updater 检查更新
-      await autoUpdater.checkForUpdates()
+      // 使用 GitHub API 检查更新（开发环境也工作）
+      console.log('开始检查GitHub更新...')
+      const githubRelease = await this.checkGitHubReleases()
+      console.log('GitHub发布信息:', githubRelease)
 
-      return {
-        available: this.updateAvailable,
-        currentVersion: app.getVersion(),
-        latestVersion: this.latestVersion,
-        releaseNotes: this.releaseNotes
+      if (githubRelease) {
+        const currentVersion = app.getVersion?.() || '0.0.0'
+        const latestVersion = githubRelease.tag_name.startsWith('v')
+          ? githubRelease.tag_name.slice(1)
+          : githubRelease.tag_name
+
+        console.log('当前版本:', currentVersion)
+        console.log('最新版本:', latestVersion)
+
+        // 比较版本号
+        const isNewer = this.compareVersions(latestVersion, currentVersion) > 0
+        console.log('版本比较结果:', isNewer, '(>0表示有更新)')
+
+        this.updateAvailable = isNewer
+        this.latestVersion = latestVersion
+        this.releaseNotes = githubRelease.body
+
+        return {
+          available: isNewer,
+          currentVersion,
+          latestVersion,
+          releaseNotes: githubRelease.body
+        }
+      }
+
+      // GitHub API 失败时的处理
+      console.log('GitHub API检查失败，使用备用检查机制')
+      const currentVersion = app.getVersion?.() || '0.0.0'
+
+      // 备用：硬编码已知最新版本（临时解决方案）
+      const knownLatestVersion = '0.0.3'
+      const isNewer = this.compareVersions(knownLatestVersion, currentVersion) > 0
+
+      if (isNewer) {
+        console.log('使用备用机制检测到更新:', knownLatestVersion, '>', currentVersion)
+        return {
+          available: true,
+          currentVersion,
+          latestVersion: knownLatestVersion,
+          releaseNotes: 'GitHub API检查失败，但已知有新版本可用。请访问 GitHub 页面下载最新版本。'
+        }
+      } else {
+        console.log('备用机制：当前版本已是最新或无法确定')
+        return {
+          available: false,
+          currentVersion,
+          latestVersion: knownLatestVersion,
+          error: '无法连接到GitHub API，请检查网络连接'
+        }
       }
     } catch (error) {
-      console.error('Failed to check for updates:', error)
+      console.error('检查更新失败:', error)
       return {
         available: false,
-        currentVersion: app.getVersion(),
+        currentVersion: app.getVersion?.() || '0.0.0',
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
@@ -182,13 +228,26 @@ class VersionChecker {
     platform: string
     arch: string
   } {
-    return {
-      appVersion: app.getVersion(),
-      electronVersion: process.versions.electron,
-      chromeVersion: process.versions.chrome,
-      nodeVersion: process.versions.node,
-      platform: process.platform,
-      arch: process.arch
+    try {
+      const appVersion = app.getVersion?.() || '0.0.0'
+      return {
+        appVersion,
+        electronVersion: process.versions.electron || 'unknown',
+        chromeVersion: process.versions.chrome || 'unknown',
+        nodeVersion: process.versions.node || 'unknown',
+        platform: process.platform || 'unknown',
+        arch: process.arch || 'unknown'
+      }
+    } catch (error) {
+      console.error('Failed to get version info:', error)
+      return {
+        appVersion: '0.0.0',
+        electronVersion: 'unknown',
+        chromeVersion: 'unknown',
+        nodeVersion: 'unknown',
+        platform: 'unknown',
+        arch: 'unknown'
+      }
     }
   }
 
@@ -315,14 +374,32 @@ class VersionChecker {
         fetchOptions as Record<string, unknown>
       )
 
+      console.log('GitHub API响应状态:', response.status, response.statusText)
+      console.log('GitHub API响应头:', Object.fromEntries(response.headers.entries()))
+
       if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`)
+        const errorText = await response.text()
+        console.error('GitHub API错误响应:', errorText)
+        throw new Error(`GitHub API error: ${response.status} - ${response.statusText}`)
       }
 
       const data = await response.json()
+      console.log('GitHub API响应数据:', data)
       return data
     } catch (error) {
-      console.error('Failed to check GitHub releases:', error)
+      console.error('检查GitHub发布失败:', error)
+
+      // 检查是否是网络问题
+      if (error instanceof Error) {
+        if (error.message.includes('fetch') || error.message.includes('network')) {
+          console.error('网络连接问题，请检查网络设置')
+        } else if (error.message.includes('CORS')) {
+          console.error('CORS问题，这不应该发生')
+        } else if (error.message.includes('timeout')) {
+          console.error('请求超时，请重试')
+        }
+      }
+
       return null
     }
   }

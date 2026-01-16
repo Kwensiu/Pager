@@ -28,7 +28,7 @@ class DataSyncService {
     // 设置相关属性
     'theme',
     'language',
-    'autoUpdate',
+    'autoCheckUpdates',
     'minimizeToTray',
     'collapsedSidebarMode',
     'fingerprintEnabled',

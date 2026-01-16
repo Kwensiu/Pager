@@ -70,7 +70,6 @@ export interface Settings {
   howLinkOpenMethod?: 'tuboshu' | 'external' // 链接打开方式
   collapsedSidebarMode?: 'all' | 'expanded' // 侧边栏折叠模式
   language?: string // 语言设置
-  autoUpdate?: boolean // 自动更新
   minimizeToTray?: boolean // 最小化到托盘
   dataPath?: string // 数据路径
   shortcutsEnabled?: boolean // 快捷键启用

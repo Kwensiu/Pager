@@ -1,7 +1,10 @@
 appId: com.pager.app
 productName: Pager
 copyright: Copyright © 2026 Kwensiu
-publish: null
+publish:
+  provider: github
+  owner: Kwensiu
+  repo: Pager
 directories:
   buildResources: build
 files:

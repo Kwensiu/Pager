@@ -10,14 +10,18 @@ import { extensionIsolationManager } from './services/extensionIsolation'
 import { extensionPermissionManager } from './services/extensionPermissionManager'
 import { sessionIsolationService } from './services/sessionIsolation'
 import { globalProxyService } from './services/proxyService'
-import { storeService } from './services/store'
 
 let mainWindow: BrowserWindow | null = null
 
 app.whenReady().then(async () => {
+  // 动态导入服务以避免循环依赖
+  const { storeService } = await import('./services/store')
+  const { versionChecker } = await import('./services/versionChecker')
+
   // 注册全局错误处理器
   registerCertificateErrorHandler()
   registerRenderProcessGoneHandler()
+
   // ===== 命令行安全配置 =====
   // 禁用软件光栅化器
   app.commandLine.appendSwitch('disable-software-rasterizer')
@@ -68,6 +72,35 @@ app.whenReady().then(async () => {
     console.error('Failed to load extensions:', error)
   })
 
+  // 初始化自动检查更新
+  try {
+    const settings = await storeService.getSettings()
+
+    if (settings.autoCheckUpdates) {
+      console.log('Auto-check for updates enabled, checking...')
+      // 延迟5秒后检查更新，避免影响应用启动速度
+      setTimeout(async () => {
+        try {
+          const updateInfo = await versionChecker.checkForAppUpdate(false)
+          if (updateInfo.available) {
+            console.log(`Update available: ${updateInfo.latestVersion}`)
+            // 这里可以显示通知
+          }
+        } catch (error) {
+          console.error('Failed to check for updates:', error)
+        }
+      }, 5000)
+    }
+
+    // 设置更新检查间隔
+    if (settings.updateCheckInterval) {
+      const intervalMs = settings.updateCheckInterval * 60 * 60 * 1000
+      versionChecker.setCheckInterval(intervalMs)
+    }
+  } catch (error) {
+    console.error('Failed to initialize auto update check:', error)
+  }
+
   app.on('activate', async function () {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = await createWindow()
@@ -90,6 +123,9 @@ app.on('will-quit', () => {
 // 应用退出时清理资源
 app.on('before-quit', async () => {
   try {
+    // 动态导入storeService以避免循环依赖
+    const { storeService } = await import('./services/store')
+
     // 获取当前设置
     const settings = await storeService.getSettings()
 
