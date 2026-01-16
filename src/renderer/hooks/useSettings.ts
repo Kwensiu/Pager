@@ -157,7 +157,15 @@ export function useSettings(): {
       if (e.key === 'settings' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue)
-          setSettings((prev) => ({ ...prev, ...parsed }))
+          // 避免覆盖当前状态，只合并新设置
+          setSettings((prev) => {
+            const merged = { ...prev, ...parsed }
+            // 防止循环更新：如果新旧设置相同，不更新状态
+            if (JSON.stringify(prev) === JSON.stringify(merged)) {
+              return prev
+            }
+            return merged
+          })
         } catch (error) {
           console.error('Failed to parse settings from storage event:', error)
         }
@@ -169,19 +177,33 @@ export function useSettings(): {
   }, [])
 
   const updateSettings = (newSettings: Partial<Settings>): void => {
-    const updated = { ...settings, ...newSettings }
-    setSettings(updated)
-    localStorage.setItem('settings', JSON.stringify(updated))
-    // 手动触发 storage 事件，确保同一个标签页内的组件也能收到更新
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: 'settings',
-        newValue: JSON.stringify(updated),
-        oldValue: localStorage.getItem('settings'),
-        storageArea: localStorage,
-        url: window.location.href
-      })
-    )
+    setSettings((prev) => {
+      const updated = { ...prev, ...newSettings }
+      // 只有设置真正改变时才更新 localStorage
+      if (JSON.stringify(prev) === JSON.stringify(updated)) {
+        return prev
+      }
+      
+      localStorage.setItem('settings', JSON.stringify(updated))
+      
+      // 手动触发 storage 事件，确保同一个标签页内的组件也能收到更新
+      // 但避免循环触发
+      try {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'settings',
+            newValue: JSON.stringify(updated),
+            oldValue: JSON.stringify(prev),
+            storageArea: localStorage,
+            url: window.location.href
+          })
+        )
+      } catch (error) {
+        console.warn('Failed to dispatch storage event:', error)
+      }
+      
+      return updated
+    })
   }
 
   return { settings, updateSettings }

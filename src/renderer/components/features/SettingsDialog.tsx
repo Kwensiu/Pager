@@ -105,45 +105,83 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       }
 
       // 应用主题
-      await api.enhanced.theme.set(settings.theme)
+      if (api.enhanced.theme?.set) {
+        await api.enhanced.theme.set(settings.theme)
+      }
 
       // 应用窗口管理设置
-      if (settings.windowAlwaysOnTop) {
+      if (settings.windowAlwaysOnTop && api.enhanced.windowManager?.toggleAlwaysOnTop) {
         await api.enhanced.windowManager.toggleAlwaysOnTop()
       }
 
       // 应用内存优化
-      if (settings.memoryOptimizerEnabled) {
-        await api.enhanced.memoryOptimizer.start()
-      } else {
-        await api.enhanced.memoryOptimizer.stop()
+      if (api.enhanced.memoryOptimizer) {
+        if (settings.memoryOptimizerEnabled) {
+          await api.enhanced.memoryOptimizer.start()
+        } else {
+          await api.enhanced.memoryOptimizer.stop()
+        }
       }
 
       // 应用自动启动
-      if (settings.autoLaunchEnabled) {
-        await api.enhanced.autoLaunch.enable()
-      } else {
-        await api.enhanced.autoLaunch.disable()
+      if (api.enhanced.autoLaunch) {
+        if (settings.autoLaunchEnabled) {
+          await api.enhanced.autoLaunch.enable()
+        } else {
+          await api.enhanced.autoLaunch.disable()
+        }
       }
 
       // 应用窗口边缘吸附
-      if (settings.windowAdsorptionEnabled) {
-        await api.enhanced.windowAdsorption.enable()
-        await api.enhanced.windowAdsorption.setSensitivity(settings.windowAdsorptionSensitivity)
-      } else {
-        await api.enhanced.windowAdsorption.disable()
+      if (api.enhanced.windowAdsorption) {
+        if (settings.windowAdsorptionEnabled) {
+          await api.enhanced.windowAdsorption.enable()
+          if (api.enhanced.windowAdsorption.setSensitivity) {
+            await api.enhanced.windowAdsorption.setSensitivity(settings.windowAdsorptionSensitivity)
+          }
+        } else {
+          await api.enhanced.windowAdsorption.disable()
+        }
       }
 
       console.log('Settings applied successfully')
     } catch (error) {
       console.error('Failed to apply settings:', error)
+      // 不抛出错误，避免影响 UI 状态
     }
   }
 
   const handleSettingChange = async (key: keyof typeof settings, value: unknown): Promise<void> => {
+    // 立即更新 UI 状态
     updateSettings({ [key]: value } as Partial<typeof settings>)
-    // 自动应用设置
-    await saveSettings()
+    
+    // 对于某些特殊设置，延迟应用以避免状态冲突
+    const settingsRequiringDelay = [
+      'windowAlwaysOnTop',
+      'windowMiniMode', 
+      'windowAdsorptionEnabled',
+      'memoryOptimizerEnabled',
+      'autoLaunchEnabled'
+    ]
+    
+    if (settingsRequiringDelay.includes(key)) {
+      // 延迟应用设置，给系统状态同步时间
+      setTimeout(async () => {
+        try {
+          await saveSettings()
+        } catch (error) {
+          console.error('Failed to apply settings:', error)
+          // 如果应用失败，不恢复 UI 状态，让用户看到他们选择的状态
+        }
+      }, 200)
+    } else {
+      // 对于其他设置，立即应用
+      try {
+        await saveSettings()
+      } catch (error) {
+        console.error('Failed to apply settings:', error)
+      }
+    }
   }
 
   const handleResetToDefaults = async (): Promise<void> => {
