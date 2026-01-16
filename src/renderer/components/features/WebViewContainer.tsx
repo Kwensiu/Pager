@@ -63,8 +63,24 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     const webviewRef = useRef<WebViewElement>(null)
     const [currentUrl, setCurrentUrl] = useState(url) // 跟踪实际URL
 
-    // 使用固定的共享 session，以便扩展可以在所有 webview 中工作
-    const partition = 'persist:webview-shared'
+    // 根据设置和URL动态生成partition
+    const partition = useMemo(() => {
+      if (!settings.sessionIsolationEnabled) {
+        // 如果未启用Session隔离，使用共享session以便扩展工作
+        return 'persist:webview-shared'
+      }
+
+      try {
+        // 从URL提取域名作为隔离标识
+        const urlObj = new URL(url)
+        const domain = urlObj.hostname.replace(/[^\w-]/g, '-')
+        return `persist:website-${domain}`
+      } catch (error) {
+        console.warn('Invalid URL for session isolation:', url, error)
+        // URL解析失败时回退到共享session
+        return 'persist:webview-shared'
+      }
+    }, [url, settings.sessionIsolationEnabled])
 
     // 使用 URL 和设置作为 key 的一部分，确保 URL 或设置变化时重新创建 webview
     const webviewKey = useMemo(

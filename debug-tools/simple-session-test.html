@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>简单Session测试</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background: #f0f0f0;
+      }
+      .test-area {
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+      }
+      button {
+        padding: 10px;
+        margin: 5px;
+        background: #007acc;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .result {
+        background: #f8f8f8;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 3px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 简单Session测试</h1>
+
+    <div class="test-area">
+      <h3>当前环境</h3>
+      <div id="environment"></div>
+    </div>
+
+    <div class="test-area">
+      <h3>Cookie测试</h3>
+      <button onclick="setCookie()">设置Cookie</button>
+      <button onclick="getCookie()">获取Cookie</button>
+      <button onclick="clearCookie()">清除Cookie</button>
+      <div id="cookie-result" class="result"></div>
+    </div>
+
+    <div class="test-area">
+      <h3>LocalStorage测试</h3>
+      <button onclick="setStorage()">设置Storage</button>
+      <button onclick="getStorage()">获取Storage</button>
+      <button onclick="clearStorage()">清除Storage</button>
+      <div id="storage-result" class="result"></div>
+    </div>
+
+    <div class="test-area">
+      <h3>跨域检查</h3>
+      <button onclick="checkCrossDomain()">检查其他域数据</button>
+      <div id="cross-result" class="result"></div>
+    </div>
+
+    <script>
+      function showEnvironment() {
+        const env = {
+          hostname: window.location.hostname,
+          href: window.location.href,
+          origin: window.location.origin,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        }
+        document.getElementById('environment').textContent = JSON.stringify(env, null, 2)
+      }
+
+      function setCookie() {
+        const value = `test_${window.location.hostname}_${Date.now()}`
+        document.cookie = `simple_test=${value}; path=/; max-age=3600`
+        document.getElementById('cookie-result').textContent = `已设置Cookie: ${value}`
+      }
+
+      function getCookie() {
+        const cookies = document.cookie
+          .split(';')
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0)
+        const testCookies = cookies.filter((c) => c.includes('simple_test'))
+        document.getElementById('cookie-result').textContent =
+          `所有Cookie (${cookies.length}个):\n${cookies.join('\n')}\n\n测试Cookie:\n${testCookies.join('\n')}`
+      }
+
+      function clearCookie() {
+        const cookies = document.cookie.split(';')
+        cookies.forEach((cookie) => {
+          const name = cookie.split('=')[0]
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+        })
+        document.getElementById('cookie-result').textContent = '已清除所有Cookie'
+      }
+
+      function setStorage() {
+        const value = {
+          domain: window.location.hostname,
+          timestamp: Date.now(),
+          test: 'simple_test'
+        }
+        localStorage.setItem('simple_test', JSON.stringify(value))
+        document.getElementById('storage-result').textContent =
+          `已设置Storage: ${JSON.stringify(value)}`
+      }
+
+      function getStorage() {
+        const allKeys = Object.keys(localStorage)
+        const testData = localStorage.getItem('simple_test')
+        let result = `所有Storage键 (${allKeys.length}个):\n${allKeys.join('\n')}\n\n`
+        result += `测试数据:\n${testData || '未找到'}`
+
+        // 检查其他域的数据
+        const crossDomainData = allKeys.filter(
+          (key) => key.includes('simple_test') && !key.includes(window.location.hostname)
+        )
+
+        if (crossDomainData.length > 0) {
+          result += `\n\n⚠️ 发现跨域数据:\n${crossDomainData.join('\n')}`
+        } else {
+          result += '\n\n✅ 未发现跨域数据'
+        }
+
+        document.getElementById('storage-result').textContent = result
+      }
+
+      function clearStorage() {
+        localStorage.clear()
+        document.getElementById('storage-result').textContent = '已清除所有Storage'
+      }
+
+      function checkCrossDomain() {
+        // 检查所有可能的跨域数据
+        const cookies = document.cookie.split(';').map((c) => c.trim())
+        const storageKeys = Object.keys(localStorage)
+
+        const cookieDomains = []
+        const storageDomains = []
+
+        cookies.forEach((cookie) => {
+          if (cookie.includes('simple_test')) {
+            const value = cookie.split('=')[1]
+            const domain = value.split('_')[1]
+            if (domain && domain !== window.location.hostname) {
+              cookieDomains.push(domain)
+            }
+          }
+        })
+
+        storageKeys.forEach((key) => {
+          if (key.includes('simple_test')) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key))
+              if (data.domain && data.domain !== window.location.hostname) {
+                storageDomains.push(data.domain)
+              }
+            } catch (e) {
+              // ignore parse errors
+            }
+          }
+        })
+
+        const result = {
+          currentDomain: window.location.hostname,
+          crossDomainCookies: cookieDomains,
+          crossDomainStorage: storageDomains,
+          isIsolated: cookieDomains.length === 0 && storageDomains.length === 0
+        }
+
+        document.getElementById('cross-result').textContent =
+          `跨域检查结果:\n${JSON.stringify(result, null, 2)}`
+      }
+
+      // 初始化
+      showEnvironment()
+    </script>
+  </body>
+</html>

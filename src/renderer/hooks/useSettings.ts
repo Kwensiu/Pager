@@ -22,7 +22,7 @@ const defaultSettings: Settings = {
   },
   enableJavaScript: true,
   allowPopups: true,
-  sessionIsolationEnabled: true,
+  sessionIsolationEnabled: false,
   crashReportingEnabled: true,
   saveSession: true,
   clearCacheOnExit: false,

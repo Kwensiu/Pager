@@ -211,7 +211,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       proxyRules: '',
       autoCheckUpdates: true,
       updateCheckInterval: 24,
-      sessionIsolationEnabled: true,
+      sessionIsolationEnabled: false,
       crashReportingEnabled: true,
       autoRestartOnCrash: false,
       enableJavaScript: true,
