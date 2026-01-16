@@ -199,7 +199,19 @@ export class ExtensionEnhancedHandlers {
     config: Partial<import('../../shared/types/store').ExtensionIsolationConfig>
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      extensionIsolationManager.updateConfig(config as any)
+      const typedConfig = config as Partial<
+        import('../../shared/types/store').ExtensionIsolationConfig
+      >
+      const levelMap: Record<string, ExtensionIsolationLevel> = {
+        strict: ExtensionIsolationLevel.STRICT,
+        standard: ExtensionIsolationLevel.STANDARD,
+        relaxed: ExtensionIsolationLevel.RELAXED,
+        none: ExtensionIsolationLevel.NONE
+      }
+      extensionIsolationManager.updateConfig({
+        ...typedConfig,
+        level: typedConfig.level ? levelMap[typedConfig.level] : ExtensionIsolationLevel.STANDARD
+      } as import('../services/extensionIsolation').IsolationConfig)
       return { success: true }
     } catch (error) {
       return {

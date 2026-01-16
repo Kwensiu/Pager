@@ -3,6 +3,7 @@
 import fs from 'fs'
 
 // 模拟 CRX 文件解析
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function analyzeCrxFile(crxPath) {
   try {
     console.log(`=== 分析 CRX 文件: ${crxPath} ===`)

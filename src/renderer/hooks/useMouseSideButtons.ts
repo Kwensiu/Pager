@@ -39,7 +39,7 @@ export function useMouseSideButtons({
   useEffect(() => {
     if (!enabled) return
 
-    const handleMouseDown = (e: MouseEvent) => {
+    const handleMouseDown = (e: MouseEvent): void => {
       // 检查是否应该忽略此事件
       const target = e.target as HTMLElement
 

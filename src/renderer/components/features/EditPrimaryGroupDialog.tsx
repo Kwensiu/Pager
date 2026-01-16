@@ -40,11 +40,16 @@ export function EditPrimaryGroupDialog({
 
   useEffect(() => {
     if (open && group) {
-      setName(group.name)
-      setError(undefined)
-    } else {
-      resetForm()
+      const timer = requestAnimationFrame(() => {
+        setName(group.name)
+        setError(undefined)
+      })
+      return () => cancelAnimationFrame(timer)
     }
+    if (!open) {
+      requestAnimationFrame(() => resetForm())
+    }
+    return
   }, [open, group])
 
   const handleSubmit = (): void => {

@@ -14,7 +14,7 @@ if (process.contextIsolated) {
           extensionId: string,
           extensionName: string,
           extensionPath: string,
-          manifest: any
+          manifest: Record<string, unknown>
         ) =>
           ipcRenderer.invoke(
             'extension:create-config-page',
@@ -44,7 +44,7 @@ if (process.contextIsolated) {
         extensionId: string,
         extensionName: string,
         extensionPath: string,
-        manifest: any
+        manifest: Record<string, unknown>
       ) =>
         ipcRenderer.invoke(
           'extension:create-config-page',

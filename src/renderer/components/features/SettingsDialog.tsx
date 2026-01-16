@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '../../ui/button'
 import { Switch } from '../../ui/switch'
 import { Label } from '../../ui/label'
@@ -37,8 +37,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const [dataPath, setDataPath] = useState('')
 
   // 组件加载时获取数据路径
-  React.useEffect(() => {
-    const fetchDataPath = async () => {
+  useEffect(() => {
+    const fetchDataPath = async (): Promise<void> => {
       try {
         const { api } = window
         if (api?.store?.getDataPath) {
@@ -57,10 +57,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     }
 
     fetchDataPath()
-  }, [])
+  }, [updateSettings])
 
   // 打开数据目录
-  const openDataDirectory = async () => {
+  const openDataDirectory = async (): Promise<void> => {
     try {
       const { api } = window
       if (api?.dialog?.openDirectory) {
@@ -70,13 +70,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
         if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
           // 打开选定的目录
-          const { shell } = require('electron')
+          const { shell } = await import('electron')
           await shell.openPath(result.filePaths[0])
         }
       } else {
         // 如果API不可用，尝试直接打开当前数据路径
         if (dataPath) {
-          const { shell } = require('electron')
+          const { shell } = await import('electron')
           await shell.openPath(dataPath)
         }
       }
@@ -280,11 +280,24 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       }
 
       const filePath = filePaths[0]
+      if (!filePath) return
 
       // 使用 IPC 读取文件内容
-      const result = await (window as any).api.enhanced.fs.readFile(filePath)
+      const result = await (
+        window as unknown as {
+          api: {
+            enhanced: {
+              fs: {
+                readFile: (
+                  path: string
+                ) => Promise<{ success: boolean; content?: string; error?: string }>
+              }
+            }
+          }
+        }
+      ).api.enhanced.fs.readFile(filePath)
 
-      if (!result.success) {
+      if (!result.success || !result.content) {
         throw new Error(result.error || '读取文件失败')
       }
 

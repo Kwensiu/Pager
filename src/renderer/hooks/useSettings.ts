@@ -134,7 +134,10 @@ const defaultSettings: Settings = {
   showDebugOptions: false
 }
 
-export function useSettings() {
+export function useSettings(): {
+  settings: Settings
+  updateSettings: (newSettings: Partial<Settings>) => void
+} {
   const [settings, setSettings] = useState<Settings>(() => {
     try {
       const savedSettings = localStorage.getItem('settings')
@@ -150,7 +153,7 @@ export function useSettings() {
 
   // 监听 localStorage 的变化（来自其他标签页或窗口）
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = (e: StorageEvent): void => {
       if (e.key === 'settings' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue)
@@ -165,7 +168,7 @@ export function useSettings() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  const updateSettings = (newSettings: Partial<Settings>) => {
+  const updateSettings = (newSettings: Partial<Settings>): void => {
     const updated = { ...settings, ...newSettings }
     setSettings(updated)
     localStorage.setItem('settings', JSON.stringify(updated))

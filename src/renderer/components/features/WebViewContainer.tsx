@@ -534,13 +534,11 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
             ref={webviewCallbackRef}
             src={url}
             style={{ width: '100%', height: '100%', border: 'none' }}
-            // @ts-ignore - allowpopups is a boolean attribute but DOM expects string
-            allowpopups={true.toString()}
-            // eslint-disable-next-line react/no-unknown-property
-            partition={partition}
-            // 启用扩展支持
-            // @ts-ignore - webpreferences is a valid webview attribute
-            webpreferences="contextIsolation=yes, nodeIntegration=no, javascript=yes"
+            {...({ allowpopups: '' } as React.HTMLAttributes<HTMLElement>)}
+            {...({ partition } as React.HTMLAttributes<HTMLElement>)}
+            {...({
+              webpreferences: 'contextIsolation=yes, nodeIntegration=no, javascript=yes'
+            } as React.HTMLAttributes<HTMLElement>)}
           />
         </div>
       </div>

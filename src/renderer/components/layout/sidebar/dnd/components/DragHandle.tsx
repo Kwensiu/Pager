@@ -30,7 +30,7 @@ export const DragHandle: React.FC<DragHandleProps> = ({
     lg: 'w-6 h-6'
   }
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent): void => {
     e.stopPropagation()
     if (onClick && !disabled) {
       onClick(e)

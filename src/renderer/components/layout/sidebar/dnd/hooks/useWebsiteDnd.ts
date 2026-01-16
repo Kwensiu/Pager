@@ -1,21 +1,22 @@
 import { useCallback } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { CSS, Transform } from '@dnd-kit/utilities'
+import type { DraggableAttributes } from '@dnd-kit/core'
 import { Website } from '@/types/website'
 import { useDragDrop } from '../contexts/DragDropContext'
 
 interface UseWebsiteDndProps {
   id: string
   website: Website
-  secondaryGroupId?: string // 改为可选
-  primaryGroupId?: string // 添加一级分类ID
+  secondaryGroupId?: string
+  primaryGroupId?: string
   disabled?: boolean
 }
 
 interface UseWebsiteDndReturn {
   // 拖拽相关属性
-  attributes: Record<string, any>
-  listeners: Record<string, any>
+  attributes: DraggableAttributes
+  listeners: Record<string, unknown> | undefined
   setNodeRef: (node: HTMLElement | null) => void
   transform: string | undefined
   transition: string | undefined
@@ -92,26 +93,26 @@ export function useWebsiteDnd({
 
   const handleDragStart = useCallback(() => {
     // 可以在这里添加自定义逻辑
-  }, [id, website.name])
+  }, [])
 
   const handleDragEnd = useCallback(() => {
     // 可以在这里添加自定义逻辑
-  }, [id])
+  }, [])
 
   // 从拖拽上下文中获取插入位置
   // 已移除未使用的insertPosition变量
 
   return {
     // 拖拽相关属性
-    attributes: attributes || {},
-    listeners: listeners || {},
+    attributes,
+    listeners,
     setNodeRef,
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Transform.toString(transform || null),
     transition,
 
     // 状态
     isDragging,
-    isOver: shouldShowDropIndicator, // 使用计算后的值
+    isOver: shouldShowDropIndicator,
     isSorting,
 
     // 样式
@@ -125,37 +126,67 @@ export function useWebsiteDnd({
 }
 
 // 简化版本，用于不需要完整功能的场景
-export function useBasicWebsiteDnd(id: string, disabled = false) {
+export function useBasicWebsiteDnd(id: string, disabled = false): UseWebsiteDndReturn {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled
   })
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1
+  }
+
+  const dragHandleStyle: React.CSSProperties = {
+    cursor: isDragging ? 'grabbing' : 'grab',
+    opacity: isDragging ? 1 : 0.4,
+    transition: 'opacity 0.2s ease',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '16px',
+    height: '16px',
+    marginRight: '6px'
   }
 
   return {
     attributes,
     listeners,
     setNodeRef,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    isDragging,
+    isOver: false,
+    isSorting: false,
     style,
-    isDragging
+    dragHandleStyle,
+    handleDragStart: () => {},
+    handleDragEnd: () => {}
   }
 }
 
 // 用于网站列表的拖拽上下文
-export function useWebsiteListDnd(websiteIds: string[]) {
-  const getWebsiteStyle = useCallback((isDragging: boolean, transform: any, transition: any) => {
-    return {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-      cursor: isDragging ? 'grabbing' : 'pointer'
-    }
-  }, [])
+export function useWebsiteListDnd(websiteIds: string[]): {
+  getWebsiteStyle: (
+    isDragging: boolean,
+    transform: Transform | null,
+    transition: string | undefined
+  ) => React.CSSProperties
+  getDragHandleStyle: (isDragging: boolean) => React.CSSProperties
+  websiteIds: string[]
+} {
+  const getWebsiteStyle = useCallback(
+    (isDragging: boolean, transform: Transform | null, transition: string | undefined) => {
+      return {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        cursor: isDragging ? 'grabbing' : 'pointer'
+      }
+    },
+    []
+  )
 
   const getDragHandleStyle = useCallback((isDragging: boolean) => {
     return {

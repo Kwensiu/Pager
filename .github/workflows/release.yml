@@ -27,7 +27,6 @@ jobs:
     env:
       PLATFORM: win
       ARTIFACT_NAME: windows
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository

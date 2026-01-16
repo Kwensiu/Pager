@@ -1,5 +1,6 @@
 import fs from 'fs'
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function tryExtractZipFromCrx(crxPath) {
   try {
     console.log(`=== 尝试从损坏的 CRX 文件中提取 ZIP 数据 ===`)

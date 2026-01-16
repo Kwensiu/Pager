@@ -1,7 +1,7 @@
 // 扩展隔离预加载脚本
 // 为每个扩展提供隔离的运行环境
 
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer } = window.electron || {}
 
 // 向渲染进程暴露隔离相关的API
 contextBridge.exposeInMainWorld('extensionIsolation', {

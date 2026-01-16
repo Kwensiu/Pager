@@ -189,7 +189,10 @@ export class ExtensionIsolationManager {
     memoryUsage: number
     sessionsByIsolationLevel: Record<ExtensionIsolationLevel, number>
   }> {
-    const sessionsByIsolationLevel: Record<ExtensionIsolationLevel, number> = {} as any
+    const sessionsByIsolationLevel: Record<ExtensionIsolationLevel, number> = {} as Record<
+      ExtensionIsolationLevel,
+      number
+    >
 
     // 初始化统计对象
     Object.values(ExtensionIsolationLevel).forEach((level) => {

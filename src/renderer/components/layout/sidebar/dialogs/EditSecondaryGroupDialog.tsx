@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -25,18 +25,8 @@ const EditSecondaryGroupDialog: React.FC<EditSecondaryGroupDialogProps> = ({
   group,
   onSave
 }) => {
-  // Initialize name from group prop
+  // Use controlled input with key-based reset
   const [name, setName] = useState(group?.name ?? '')
-
-  // Reset name when group changes or dialog opens/closes
-  useEffect(() => {
-    if (open && group) {
-      setName(group.name ?? '')
-    } else if (!open) {
-      // Reset when dialog closes
-      setName('')
-    }
-  }, [open, group])
 
   const handleSave = (): void => {
     if (!group) return
@@ -45,8 +35,16 @@ const EditSecondaryGroupDialog: React.FC<EditSecondaryGroupDialogProps> = ({
     onOpenChange(false)
   }
 
+  const handleOpenChange = (newOpen: boolean): void => {
+    if (!newOpen) {
+      // Reset form when closing
+      setName('')
+    }
+    onOpenChange(newOpen)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} key={group?.id}>
+    <Dialog open={open} onOpenChange={handleOpenChange} key={group?.id}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>编辑分组</DialogTitle>

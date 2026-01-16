@@ -9,7 +9,7 @@ function App(): JSX.Element {
 
   // 极简主题应用
   useEffect(() => {
-    const applyTheme = () => {
+    const applyTheme = (): void => {
       const savedSettings = localStorage.getItem('settings')
       let theme = 'dark' // 默认深色
 
@@ -42,7 +42,7 @@ function App(): JSX.Element {
     applyTheme()
 
     // 监听设置变化
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = (e: StorageEvent): void => {
       if (e.key === 'settings') {
         console.log('[App] Settings changed')
         applyTheme()

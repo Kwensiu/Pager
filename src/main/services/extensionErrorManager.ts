@@ -1,4 +1,4 @@
-import type { ExtensionInfo } from '../extensions/types'
+import type { ExtensionInfo, ExtensionManifest } from '../extensions/types'
 
 export enum ExtensionErrorType {
   MANIFEST_INVALID = 'MANIFEST_INVALID',
@@ -23,7 +23,7 @@ export enum ErrorSeverity {
 export interface ExtensionError {
   type: ExtensionErrorType
   message: string
-  details?: any
+  details?: Record<string, unknown>
   severity: ErrorSeverity
   recoverable: boolean
   timestamp: number
@@ -42,7 +42,7 @@ export interface UserFriendlyError {
 
 export interface ExtensionLoadResult {
   success: boolean
-  extension?: any
+  extension?: ExtensionInfo
   error?: ExtensionError
   retryAfter?: number
 }
@@ -455,7 +455,7 @@ export class ExtensionErrorManager {
    */
   private async retryLoad(
     extension: ExtensionInfo,
-    options: { retryCount?: number; retryAfter?: number; fixedManifest?: any }
+    options: { retryCount?: number; retryAfter?: number; fixedManifest?: ExtensionManifest }
   ): Promise<ExtensionLoadResult> {
     try {
       // 如果有修复的manifest，应用它
@@ -478,6 +478,7 @@ export class ExtensionErrorManager {
           id: extension.id,
           name: extension.name,
           version: extension.version,
+          path: extension.path,
           enabled: true
         }
       }
@@ -489,7 +490,7 @@ export class ExtensionErrorManager {
   /**
    * 尝试修复manifest
    */
-  private async tryFixManifest(extension: ExtensionInfo): Promise<any | null> {
+  private async tryFixManifest(extension: ExtensionInfo): Promise<ExtensionManifest | null> {
     try {
       // 这里可以实现manifest修复逻辑
       // 例如：添加缺失的字段、修复格式错误等
@@ -549,8 +550,11 @@ export class ExtensionErrorManager {
     errorsBySeverity: Record<ErrorSeverity, number>
     recentErrors: ExtensionError[]
   } {
-    const errorsByType: Record<ExtensionErrorType, number> = {} as any
-    const errorsBySeverity: Record<ErrorSeverity, number> = {} as any
+    const errorsByType: Record<ExtensionErrorType, number> = {} as Record<
+      ExtensionErrorType,
+      number
+    >
+    const errorsBySeverity: Record<ErrorSeverity, number> = {} as Record<ErrorSeverity, number>
 
     // 初始化统计对象
     Object.values(ExtensionErrorType).forEach((type) => {

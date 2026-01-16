@@ -182,7 +182,8 @@ export class FaviconService {
         // 过滤过期条目
         const now = Date.now()
         Object.entries(parsed).forEach(([key, entry]) => {
-          if (now - (entry as any).timestamp < this.config.cacheTtl) {
+          const cacheEntry = entry as { timestamp: number }
+          if (now - cacheEntry.timestamp < this.config.cacheTtl) {
             this.memoryCache.set(key, entry as FaviconCacheEntry)
           }
         })

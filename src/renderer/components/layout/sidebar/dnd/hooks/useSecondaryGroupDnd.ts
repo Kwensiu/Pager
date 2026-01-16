@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import type { DraggableAttributes } from '@dnd-kit/core'
 import { SecondaryGroup } from '@/types/website'
 
 interface UseSecondaryGroupDndProps {
@@ -11,18 +12,14 @@ interface UseSecondaryGroupDndProps {
 
 interface UseSecondaryGroupDndReturn {
   // 拖拽相关属性
-  attributes: any
-  listeners: any
+  attributes: DraggableAttributes
+  listeners: Record<string, unknown> | undefined
   setNodeRef: (node: HTMLElement | null) => void
   transform: string | undefined
   transition: string | undefined
-
-  // 状态
   isDragging: boolean
   isOver: boolean
   isSorting: boolean
-
-  // 样式
   style: React.CSSProperties
   dragHandleStyle: React.CSSProperties
 
@@ -81,11 +78,11 @@ export function useSecondaryGroupDnd({
 
   const handleDragStart = useCallback(() => {
     // 可以在这里添加自定义逻辑，比如播放声音、显示提示等
-  }, [id, secondaryGroup.name])
+  }, [])
 
   const handleDragEnd = useCallback(() => {
     // 可以在这里添加自定义逻辑
-  }, [id, secondaryGroup])
+  }, [])
 
   return {
     // 拖拽相关属性
@@ -111,23 +108,45 @@ export function useSecondaryGroupDnd({
 }
 
 // 简化版本，用于不需要完整功能的场景
-export function useBasicSecondaryGroupDnd(id: string, disabled = false) {
+export function useBasicSecondaryGroupDnd(
+  id: string,
+  disabled = false
+): UseSecondaryGroupDndReturn {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled
   })
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1
+  }
+
+  const dragHandleStyle: React.CSSProperties = {
+    cursor: isDragging ? 'grabbing' : 'grab',
+    opacity: isDragging ? 1 : 0.6,
+    transition: 'opacity 0.2s ease',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    marginRight: '8px'
   }
 
   return {
     attributes,
     listeners,
     setNodeRef,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    isDragging,
+    isOver: false,
+    isSorting: false,
     style,
-    isDragging
+    dragHandleStyle,
+    handleDragStart: () => {},
+    handleDragEnd: () => {}
   }
 }

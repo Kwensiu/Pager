@@ -98,8 +98,6 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
           `}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
-          role="button"
-          tabIndex={0}
           aria-label={`访问 ${website.name}`}
           aria-current={active ? 'page' : undefined}
           data-testid={`website-${website.id}`}

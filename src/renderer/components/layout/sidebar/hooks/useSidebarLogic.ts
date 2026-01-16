@@ -2,7 +2,11 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { PrimaryGroup, SecondaryGroup, Website } from '@/types/website'
 import { storageService } from '@/core/storage'
 import { getDefaultGroups } from '@/utils/defaultGroupsHelper'
-import { useDialogManagement } from './useDialogManagement'
+import {
+  useDialogManagement,
+  DialogManagementState,
+  DialogManagementActions
+} from './useDialogManagement'
 
 // 检查是否是首次启动应用
 const isFirstRun = (): boolean => {
@@ -19,10 +23,91 @@ export interface UseSidebarLogicProps {
   onWebsiteClick?: (website: Website) => void
 }
 
+export interface UseSidebarLogicReturn extends DialogManagementState, DialogManagementActions {
+  // 状态
+  primaryGroups: PrimaryGroup[]
+  activePrimaryGroup: PrimaryGroup | null
+  currentWebsite: Website | null
+  contextMenuWebsite: string | null
+  contextMenuSecondaryGroup: string | null
+  contextMenuPosition: { x: number; y: number }
+  contextMenuRef: React.RefObject<HTMLDivElement | null>
+  showSettings: boolean
+  showDebugOptions: boolean
+
+  // 函数
+  setActivePrimaryGroup: (group: PrimaryGroup | null) => void
+  toggleSecondaryGroup: (secondaryGroupId: string) => void
+  handleAddWebsite: (groupId: string, isSecondaryGroup: boolean) => void
+  handleAddSecondaryGroup: (primaryGroupId: string) => void
+  handleAddPrimaryGroup: () => void
+  handleWebsiteSubmit: (
+    websiteData: Omit<Website, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<void>
+  handleSaveWebsite: (updatedWebsite: Website) => void
+  handleWebsiteClick: (website: Website) => void
+  handleWebsiteUpdate: (website: Website) => void
+  handleDeleteWebsite: (websiteId: string) => void
+  confirmDeleteWebsite: () => void
+  cancelDeleteWebsite: () => void
+  switchPrimaryGroup: (primaryGroup: PrimaryGroup) => void
+  handleContextMenu: (e: React.MouseEvent, secondaryGroupId: string) => void
+  handleWebsiteContextMenu: (e: React.MouseEvent, websiteId: string) => void
+  handleCloseContextMenu: () => void
+  handleClearData: () => void
+  confirmClearData: () => void
+  cancelClearData: () => void
+  handleResetToDefaults: () => void
+  confirmResetToDefaults: () => Promise<void>
+  cancelResetToDefaults: () => void
+  handleEditSecondaryGroup: (secondaryGroup: SecondaryGroup) => void
+  handleDeleteSecondaryGroup: (secondaryGroupId: string) => void
+  confirmDeleteSecondaryGroup: () => void
+  cancelDeleteSecondaryGroup: () => void
+  handleSaveSecondaryGroup: (updatedGroup: SecondaryGroup) => void
+  handleEditPrimaryGroup: (group: PrimaryGroup) => void
+  handleDeletePrimaryGroup: (groupId: string) => void
+  confirmDeletePrimaryGroup: () => void
+  cancelDeletePrimaryGroup: () => void
+  handleSavePrimaryGroup: (updatedGroup: PrimaryGroup) => void
+  updatePrimaryGroups: (newGroups: PrimaryGroup[]) => void
+
+  // 状态设置函数
+  setCurrentWebsite: (website: Website | null) => void
+  setContextMenuWebsite: (websiteId: string | null) => void
+  setContextMenuSecondaryGroup: (secondaryGroupId: string | null) => void
+  setContextMenuPosition: (position: { x: number; y: number }) => void
+  setShowSettings: (show: boolean) => void
+  setShowDebugOptions: (show: boolean) => void
+
+  // 从dialogManagement扩展的状态设置函数
+  setIsWebsiteDialogOpen: (open: boolean) => void
+  setIsEditDialogOpen: (open: boolean) => void
+  setEditingWebsite: (website: Website | null) => void
+  setSelectedGroupId: (id: string | null) => void
+  setSelectedSecondaryGroupId: (id: string | null) => void
+  setIsGroupDialogOpen: (open: boolean) => void
+  setDialogMode: (mode: 'primary' | 'secondary' | 'website') => void
+  setIsSecondaryGroupEditDialogOpen: (open: boolean) => void
+  setEditingSecondaryGroup: (group: SecondaryGroup | null) => void
+  setIsPrimaryGroupEditDialogOpen: (open: boolean) => void
+  setEditingPrimaryGroup: (group: PrimaryGroup | null) => void
+  setConfirmDialog: (dialog: { open: boolean; websiteId: string | null }) => void
+  setSecondaryGroupConfirmDelete: (dialog: {
+    open: boolean
+    secondaryGroupId: string | null
+  }) => void
+  setPrimaryGroupConfirmDelete: (dialog: { open: boolean; primaryGroupId: string | null }) => void
+  setClearDataDialogOpen: (open: boolean) => void
+  setResetDataDialogOpen: (open: boolean) => void
+  setClearSoftwareDataDialogOpen: (open: boolean) => void
+  setClearCacheDialogOpen: (open: boolean) => void
+}
+
 export function useSidebarLogic({
   activeWebsiteId: _activeWebsiteId = null,
   onWebsiteClick
-}: UseSidebarLogicProps) {
+}: UseSidebarLogicProps): UseSidebarLogicReturn {
   // 使用对话框管理钩子
   const dialogManagement = useDialogManagement()
 
@@ -34,7 +119,7 @@ export function useSidebarLogic({
 
   // 初始化数据
   useEffect(() => {
-    const initializeData = async () => {
+    const initializeData = async (): Promise<void> => {
       const savedPrimaryGroups = await storageService.getPrimaryGroups()
 
       if (savedPrimaryGroups.length > 0) {
@@ -114,21 +199,21 @@ export function useSidebarLogic({
   )
 
   // 添加网站
-  const handleAddWebsite = (groupId: string, isSecondaryGroup: boolean) => {
+  const handleAddWebsite = (groupId: string, isSecondaryGroup: boolean): void => {
     dialogManagement.openWebsiteDialog(groupId, isSecondaryGroup)
   }
 
-  const handleAddSecondaryGroup = (primaryGroupId: string) => {
+  const handleAddSecondaryGroup = (primaryGroupId: string): void => {
     dialogManagement.openGroupDialog('secondary', primaryGroupId)
   }
 
-  const handleAddPrimaryGroup = () => {
+  const handleAddPrimaryGroup = (): void => {
     dialogManagement.openGroupDialog('primary')
   }
 
   const handleWebsiteSubmit = async (
     websiteData: Omit<Website, 'id' | 'createdAt' | 'updatedAt'>
-  ) => {
+  ): Promise<void> => {
     const { selectedGroupId, selectedSecondaryGroupId } = dialogManagement
 
     if (selectedGroupId) {
@@ -141,7 +226,7 @@ export function useSidebarLogic({
     setPrimaryGroups(updatedPrimaryGroups)
   }
 
-  const handleSaveWebsite = (updatedWebsite: Website) => {
+  const handleSaveWebsite = (updatedWebsite: Website): void => {
     const updatedPrimaryGroups = primaryGroups.map((primaryGroup) => {
       if (primaryGroup.id === activePrimaryGroup?.id) {
         // 首先检查网站是否在一级分类下
@@ -197,24 +282,24 @@ export function useSidebarLogic({
     dialogManagement.closeEditWebsiteDialog()
   }
 
-  const handleWebsiteClick = (website: Website) => {
+  const handleWebsiteClick = (website: Website): void => {
     setCurrentWebsite(website)
     if (onWebsiteClick) {
       onWebsiteClick(website)
     }
   }
 
-  const handleWebsiteUpdate = (website: Website) => {
+  const handleWebsiteUpdate = (website: Website): void => {
     dialogManagement.openEditWebsiteDialog(website)
     setContextMenuWebsite(null)
   }
 
-  const handleDeleteWebsite = (websiteId: string) => {
+  const handleDeleteWebsite = (websiteId: string): void => {
     dialogManagement.openConfirmDeleteWebsite(websiteId)
     setContextMenuWebsite(null)
   }
 
-  const confirmDeleteWebsite = () => {
+  const confirmDeleteWebsite = (): void => {
     if (!dialogManagement.confirmDialog.websiteId) return
 
     const updatedPrimaryGroups = primaryGroups.map((pg) => {
@@ -244,7 +329,7 @@ export function useSidebarLogic({
     dialogManagement.closeConfirmDeleteWebsite()
   }
 
-  const cancelDeleteWebsite = () => {
+  const cancelDeleteWebsite = (): void => {
     dialogManagement.closeConfirmDeleteWebsite()
   }
 
@@ -254,7 +339,7 @@ export function useSidebarLogic({
   }, [])
 
   // 处理右键菜单事件
-  const handleContextMenu = (e: React.MouseEvent, secondaryGroupId: string) => {
+  const handleContextMenu = (e: React.MouseEvent, secondaryGroupId: string): void => {
     e.preventDefault()
     setContextMenuSecondaryGroup(
       contextMenuSecondaryGroup === secondaryGroupId ? null : secondaryGroupId
@@ -262,7 +347,7 @@ export function useSidebarLogic({
     setContextMenuPosition({ x: e.clientX, y: e.clientY })
   }
 
-  const handleWebsiteContextMenu = (e: React.MouseEvent, websiteId: string) => {
+  const handleWebsiteContextMenu = (e: React.MouseEvent, websiteId: string): void => {
     e.preventDefault()
     setContextMenuWebsite(contextMenuWebsite === websiteId ? null : websiteId)
     setContextMenuPosition({ x: e.clientX, y: e.clientY })
@@ -287,16 +372,16 @@ export function useSidebarLogic({
   }, [contextMenuWebsite, contextMenuSecondaryGroup])
 
   // 右键菜单关闭函数
-  const handleCloseContextMenu = useCallback(() => {
+  const handleCloseContextMenu = (): void => {
     setContextMenuWebsite(null)
     setContextMenuSecondaryGroup(null)
-  }, [])
+  }
 
-  const handleClearData = () => {
+  const handleClearData = (): void => {
     dialogManagement.openClearDataDialog()
   }
 
-  const confirmClearData = () => {
+  const confirmClearData = (): void => {
     storageService.clearPrimaryGroups()
     localStorage.removeItem('hasInitialized')
     setPrimaryGroups([])
@@ -305,15 +390,15 @@ export function useSidebarLogic({
     dialogManagement.closeClearDataDialog()
   }
 
-  const cancelClearData = () => {
+  const cancelClearData = (): void => {
     dialogManagement.closeClearDataDialog()
   }
 
-  const handleResetToDefaults = () => {
+  const handleResetToDefaults = (): void => {
     dialogManagement.openResetDataDialog()
   }
 
-  const confirmResetToDefaults = async () => {
+  const confirmResetToDefaults = async (): Promise<void> => {
     await storageService.clearPrimaryGroups()
     localStorage.removeItem('hasInitialized')
     const defaultGroups = getDefaultGroups()
@@ -325,21 +410,21 @@ export function useSidebarLogic({
     dialogManagement.closeResetDataDialog()
   }
 
-  const cancelResetToDefaults = () => {
+  const cancelResetToDefaults = (): void => {
     dialogManagement.closeResetDataDialog()
   }
 
-  const handleEditSecondaryGroup = (secondaryGroup: SecondaryGroup) => {
+  const handleEditSecondaryGroup = (secondaryGroup: SecondaryGroup): void => {
     dialogManagement.openSecondaryGroupEditDialog(secondaryGroup)
     setContextMenuSecondaryGroup(null)
   }
 
-  const handleDeleteSecondaryGroup = (secondaryGroupId: string) => {
+  const handleDeleteSecondaryGroup = (secondaryGroupId: string): void => {
     dialogManagement.openConfirmDeleteSecondaryGroup(secondaryGroupId)
     setContextMenuSecondaryGroup(null)
   }
 
-  const confirmDeleteSecondaryGroup = () => {
+  const confirmDeleteSecondaryGroup = (): void => {
     if (!dialogManagement.secondaryGroupConfirmDelete.secondaryGroupId) return
 
     const updatedGroups = primaryGroups.map((pg) => ({
@@ -354,11 +439,11 @@ export function useSidebarLogic({
     dialogManagement.closeConfirmDeleteSecondaryGroup()
   }
 
-  const cancelDeleteSecondaryGroup = () => {
+  const cancelDeleteSecondaryGroup = (): void => {
     dialogManagement.closeConfirmDeleteSecondaryGroup()
   }
 
-  const handleSaveSecondaryGroup = (updatedGroup: SecondaryGroup) => {
+  const handleSaveSecondaryGroup = (updatedGroup: SecondaryGroup): void => {
     const updatedGroups = primaryGroups.map((pg) => ({
       ...pg,
       secondaryGroups: pg.secondaryGroups.map((sg) =>
@@ -372,15 +457,15 @@ export function useSidebarLogic({
   }
 
   // 主要分类编辑功能
-  const handleEditPrimaryGroup = (group: PrimaryGroup) => {
+  const handleEditPrimaryGroup = (group: PrimaryGroup): void => {
     dialogManagement.openPrimaryGroupEditDialog(group)
   }
 
-  const handleDeletePrimaryGroup = (groupId: string) => {
+  const handleDeletePrimaryGroup = (groupId: string): void => {
     dialogManagement.openConfirmDeletePrimaryGroup(groupId)
   }
 
-  const confirmDeletePrimaryGroup = () => {
+  const confirmDeletePrimaryGroup = (): void => {
     if (!dialogManagement.primaryGroupConfirmDelete.primaryGroupId) return
 
     const groupId = dialogManagement.primaryGroupConfirmDelete.primaryGroupId
@@ -403,11 +488,11 @@ export function useSidebarLogic({
     dialogManagement.closeConfirmDeletePrimaryGroup()
   }
 
-  const cancelDeletePrimaryGroup = () => {
+  const cancelDeletePrimaryGroup = (): void => {
     dialogManagement.closeConfirmDeletePrimaryGroup()
   }
 
-  const handleSavePrimaryGroup = (updatedGroup: PrimaryGroup) => {
+  const handleSavePrimaryGroup = (updatedGroup: PrimaryGroup): void => {
     const updatedPrimaryGroups = primaryGroups.map((pg) =>
       pg.id === updatedGroup.id ? updatedGroup : pg
     )
@@ -424,7 +509,7 @@ export function useSidebarLogic({
   }
 
   // 更新primaryGroups的函数
-  const updatePrimaryGroups = useCallback((newGroups: PrimaryGroup[]) => {
+  const updatePrimaryGroups = useCallback((newGroups: PrimaryGroup[]): void => {
     // 深度克隆数组以确保React检测到变化
     const updatedGroups = JSON.parse(JSON.stringify(newGroups)) as PrimaryGroup[]
     setPrimaryGroups(updatedGroups)

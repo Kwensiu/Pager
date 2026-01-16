@@ -28,13 +28,13 @@ export function ConfirmDialog({
   cancelText = '取消',
   onConfirm,
   onCancel
-}: ConfirmDialogProps) {
-  const handleConfirm = () => {
+}: ConfirmDialogProps): JSX.Element {
+  const handleConfirm = (): void => {
     onConfirm()
     onOpenChange(false)
   }
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     onCancel?.()
     onOpenChange(false)
   }
