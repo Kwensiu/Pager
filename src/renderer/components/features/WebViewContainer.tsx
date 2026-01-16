@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, forwardRef, useCallback } from 'react'
+import { useRef, useEffect, useMemo, forwardRef, useCallback, useState } from 'react'
 import { NavigationToolbar } from './NavigationToolbar'
 import { useSettings } from '@/hooks/useSettings'
 
@@ -13,6 +13,12 @@ interface WebViewElement extends HTMLWebViewElement {
   reload?: () => void
   loadURL?: (url: string) => void
   getWebContents?: () => unknown
+}
+
+// 定义 Electron WebView 事件类型
+interface WebViewNavigateEvent extends Event {
+  url: string
+  isMainFrame?: boolean
 }
 
 // 扩展 HTMLWebViewElement 接口以包含 Electron 特定属性
@@ -53,8 +59,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     },
     ref
   ) => {
-    const webviewRef = useRef<WebViewElement>(null)
     const { settings } = useSettings()
+    const webviewRef = useRef<WebViewElement>(null)
+    const [currentUrl, setCurrentUrl] = useState(url) // 跟踪实际URL
 
     // 使用固定的共享 session，以便扩展可以在所有 webview 中工作
     const partition = 'persist:webview-shared'
@@ -64,6 +71,11 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       () => `${partition}-${url}-js-${settings.enableJavaScript}-popups-${settings.allowPopups}`,
       [partition, url, settings.enableJavaScript, settings.allowPopups]
     )
+
+    // 同步URL状态
+    useEffect(() => {
+      setCurrentUrl(url)
+    }, [url])
 
     // 监听来自主进程的webview操作命令
     useEffect(() => {
@@ -513,11 +525,40 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     }, [fingerprintEnabled, fingerprintMode, applyFingerprint])
 
     // 仅保存 webview 引用
-    const webviewCallbackRef = useCallback((element: WebViewElement | null) => {
-      if (element) {
-        webviewRef.current = element
-      }
-    }, [])
+    const webviewCallbackRef = useCallback(
+      (element: WebViewElement | null) => {
+        if (element) {
+          webviewRef.current = element
+
+          // 添加导航事件监听器
+          const handleDidNavigate = (event: Event): void => {
+            const navigateEvent = event as WebViewNavigateEvent
+            if (navigateEvent.url && navigateEvent.url !== currentUrl) {
+              setCurrentUrl(navigateEvent.url)
+            }
+          }
+
+          const handleDidNavigateInPage = (event: Event): void => {
+            const navigateEvent = event as WebViewNavigateEvent
+            if (navigateEvent.url && navigateEvent.url !== currentUrl) {
+              setCurrentUrl(navigateEvent.url)
+            }
+          }
+
+          // 监听页面导航事件
+          element.addEventListener('did-navigate', handleDidNavigate)
+          element.addEventListener('did-navigate-in-page', handleDidNavigateInPage)
+
+          // 清理函数
+          return () => {
+            element.removeEventListener('did-navigate', handleDidNavigate)
+            element.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
+          }
+        }
+        return undefined
+      },
+      [currentUrl]
+    )
 
     // 处理后退 - 直接使用 webview API
     const handleGoBack = useCallback(() => {
@@ -567,7 +608,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     return (
       <div ref={ref} className="flex h-full w-full flex-col">
         <NavigationToolbar
-          url={url}
+          url={currentUrl}
           isLoading={isLoading}
           onRefresh={handleRefresh}
           onGoBack={handleGoBack}
