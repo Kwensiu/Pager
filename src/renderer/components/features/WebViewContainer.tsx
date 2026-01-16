@@ -59,8 +59,11 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     // 使用固定的共享 session，以便扩展可以在所有 webview 中工作
     const partition = 'persist:webview-shared'
 
-    // 使用 URL 作为 key 的一部分，确保 URL 变化时重新创建 webview
-    const webviewKey = useMemo(() => `${partition}-${url}`, [partition, url])
+    // 使用 URL 和设置作为 key 的一部分，确保 URL 或设置变化时重新创建 webview
+    const webviewKey = useMemo(
+      () => `${partition}-${url}-js-${settings.enableJavaScript}-popups-${settings.allowPopups}`,
+      [partition, url, settings.enableJavaScript, settings.allowPopups]
+    )
 
     // 监听来自主进程的webview操作命令
     useEffect(() => {
