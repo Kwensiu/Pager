@@ -102,6 +102,8 @@ export interface Settings {
   crashReportingEnabled?: boolean
   saveSession?: boolean
   clearCacheOnExit?: boolean
+  // 文件访问设置
+  allowLocalFileAccess?: boolean // 允许访问本地文件
 }
 
 export interface ExtensionSettings {

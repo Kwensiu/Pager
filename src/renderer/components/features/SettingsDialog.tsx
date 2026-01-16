@@ -218,6 +218,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       allowPopups: true,
       saveSession: true,
       clearCacheOnExit: false,
+      allowLocalFileAccess: false, // 重置本地文件访问为关闭
       extensionSettings: {
         enableExtensions: true,
         autoLoadExtensions: true,
@@ -561,6 +562,21 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
               <Switch
                 checked={settings.clearCacheOnExit}
                 onCheckedChange={(checked) => handleSettingChange('clearCacheOnExit', checked)}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>允许本地文件访问</Label>
+                <p className="text-sm text-muted-foreground">
+                  允许添加和访问本地文件（file://协议）
+                </p>
+              </div>
+              <Switch
+                checked={settings.allowLocalFileAccess || false}
+                onCheckedChange={(checked) => handleSettingChange('allowLocalFileAccess', checked)}
               />
             </div>
           </div>

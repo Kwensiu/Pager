@@ -5,6 +5,7 @@ import { Input } from '@/ui/input'
 import { cn } from '@/lib/utils'
 import { useMouseSideButtons } from '@/hooks/useMouseSideButtons'
 import { useI18n } from '@/core/i18n/useI18n'
+import { useSettings } from '@/hooks/useSettings'
 
 interface NavigationToolbarProps {
   /** 当前显示的 URL */
@@ -45,6 +46,7 @@ export const NavigationToolbar = ({
   onExtensionClick
 }: NavigationToolbarProps): React.ReactElement => {
   const { t } = useI18n()
+  const { settings } = useSettings()
   const [editUrl, setEditUrl] = useState(url)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -73,11 +75,29 @@ export const NavigationToolbar = ({
       let navigateUrl = editUrl.trim()
 
       // 智能添加协议前缀（如果没有协议）
-      if (!navigateUrl.startsWith('http://') && !navigateUrl.startsWith('https://')) {
-        // 对于localhost和IP地址，优先使用http
-        if (navigateUrl.startsWith('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(navigateUrl)) {
+      if (
+        !navigateUrl.startsWith('http://') &&
+        !navigateUrl.startsWith('https://') &&
+        !navigateUrl.startsWith('file://')
+      ) {
+        // 检查是否为文件路径（仅在设置允许时）
+        if (
+          settings.allowLocalFileAccess &&
+          (navigateUrl.includes('\\') || navigateUrl.startsWith('/') || navigateUrl.includes(':'))
+        ) {
+          // Windows路径或Unix路径，转换为file://
+          if (navigateUrl.includes(':') && !navigateUrl.startsWith('/')) {
+            // Windows路径: C:\path\to\file
+            navigateUrl = 'file:///' + navigateUrl.replace(/\\/g, '/').replace(/^C:/i, 'C:')
+          } else {
+            // Unix路径或已格式化的Windows路径
+            navigateUrl = 'file://' + navigateUrl
+          }
+        } else if (navigateUrl.startsWith('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(navigateUrl)) {
+          // 对于localhost和IP地址，优先使用http
           navigateUrl = 'http://' + navigateUrl
         } else {
+          // 普通域名使用https
           navigateUrl = 'https://' + navigateUrl
         }
       }

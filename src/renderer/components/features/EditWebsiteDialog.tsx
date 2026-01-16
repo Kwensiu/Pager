@@ -16,6 +16,7 @@ import { Website } from '@/types/website'
 import { Favicon } from './Favicon'
 import { Fingerprint } from 'lucide-react'
 import { useI18n } from '@/core/i18n/useI18n'
+import { useSettings } from '@/hooks/useSettings'
 
 interface EditWebsiteDialogProps {
   open: boolean
@@ -31,6 +32,7 @@ export function EditWebsiteDialog({
   onSave
 }: EditWebsiteDialogProps): JSX.Element {
   const { t } = useI18n()
+  const { settings } = useSettings()
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -62,11 +64,34 @@ export function EditWebsiteDialog({
 
     // 智能添加协议前缀（如果没有协议）
     let normalizedUrl = url.trim()
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      // 对于localhost和IP地址，优先使用http
-      if (normalizedUrl.startsWith('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)) {
+    if (
+      !normalizedUrl.startsWith('http://') &&
+      !normalizedUrl.startsWith('https://') &&
+      !normalizedUrl.startsWith('file://')
+    ) {
+      // 检查是否为文件路径（仅在设置允许时）
+      if (
+        settings.allowLocalFileAccess &&
+        (normalizedUrl.includes('\\') ||
+          normalizedUrl.startsWith('/') ||
+          normalizedUrl.includes(':'))
+      ) {
+        // Windows路径或Unix路径，转换为file://
+        if (normalizedUrl.includes(':') && !normalizedUrl.startsWith('/')) {
+          // Windows路径: C:\path\to\file
+          normalizedUrl = 'file:///' + normalizedUrl.replace(/\\/g, '/').replace(/^C:/i, 'C:')
+        } else {
+          // Unix路径或已格式化的Windows路径
+          normalizedUrl = 'file://' + normalizedUrl
+        }
+      } else if (
+        normalizedUrl.startsWith('localhost') ||
+        /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)
+      ) {
+        // 对于localhost和IP地址，优先使用http
         normalizedUrl = 'http://' + normalizedUrl
       } else {
+        // 普通域名使用https
         normalizedUrl = 'https://' + normalizedUrl
       }
     }
@@ -91,18 +116,45 @@ export function EditWebsiteDialog({
   // 验证URL是否有效
   const isValidUrl = (urlString: string): boolean => {
     let normalizedUrl = urlString.trim()
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      // 对于localhost和IP地址，优先使用http
-      if (normalizedUrl.startsWith('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)) {
+    if (
+      !normalizedUrl.startsWith('http://') &&
+      !normalizedUrl.startsWith('https://') &&
+      !normalizedUrl.startsWith('file://')
+    ) {
+      // 检查是否为文件路径（仅在设置允许时）
+      if (
+        settings.allowLocalFileAccess &&
+        (normalizedUrl.includes('\\') ||
+          normalizedUrl.startsWith('/') ||
+          normalizedUrl.includes(':'))
+      ) {
+        // Windows路径或Unix路径，转换为file://
+        if (normalizedUrl.includes(':') && !normalizedUrl.startsWith('/')) {
+          // Windows路径: C:\path\to\file
+          normalizedUrl = 'file:///' + normalizedUrl.replace(/\\/g, '/').replace(/^C:/i, 'C:')
+        } else {
+          // Unix路径或已格式化的Windows路径
+          normalizedUrl = 'file://' + normalizedUrl
+        }
+      } else if (
+        normalizedUrl.startsWith('localhost') ||
+        /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)
+      ) {
+        // 对于localhost和IP地址，优先使用http
         normalizedUrl = 'http://' + normalizedUrl
       } else {
+        // 普通域名使用https
         normalizedUrl = 'https://' + normalizedUrl
       }
     }
 
     try {
       const url = new URL(normalizedUrl)
-      return url.protocol === 'http:' || url.protocol === 'https:'
+      // 根据设置决定是否允许file协议
+      if (url.protocol === 'file:' && !settings.allowLocalFileAccess) {
+        return false
+      }
+      return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'file:'
     } catch {
       return false
     }

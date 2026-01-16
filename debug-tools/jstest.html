@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JavaScript 执行测试页面</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .test-section {
+        border: 1px solid #ddd;
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      .info {
+        color: blue;
+      }
+      button {
+        background: #007cba;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 3px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #005a87;
+      }
+      #output {
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 3px;
+        margin-top: 10px;
+        font-family: monospace;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>JavaScript 执行功能测试</h1>
+
+    <div class="test-section">
+      <h2>基础 JavaScript 功能测试</h2>
+      <p>测试基本的 JavaScript 功能是否正常工作</p>
+      <button onclick="testBasicJS()">测试基础JS</button>
+      <button onclick="testDOMManipulation()">测试DOM操作</button>
+      <button onclick="testEventHandling()">测试事件处理</button>
+    </div>
+
+    <div class="test-section">
+      <h2>高级 JavaScript 功能测试</h2>
+      <p>测试更复杂的 JavaScript 功能</p>
+      <button onclick="testAsyncJS()">测试异步JS</button>
+      <button onclick="testLocalStorage()">测试本地存储</button>
+      <button onclick="testFetchAPI()">测试网络请求</button>
+    </div>
+
+    <div class="test-section">
+      <h2>浏览器特性检测</h2>
+      <p>检测当前浏览器的 JavaScript 支持情况</p>
+      <button onclick="detectBrowserFeatures()">检测浏览器特性</button>
+    </div>
+
+    <div class="test-section">
+      <h2>测试输出</h2>
+      <div id="output">点击上方按钮开始测试...</div>
+    </div>
+
+    <script>
+      const output = document.getElementById('output')
+
+      function log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString()
+        const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info'
+        output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`
+        output.scrollTop = output.scrollHeight
+      }
+
+      function testBasicJS() {
+        log('开始基础 JavaScript 测试...', 'info')
+
+        try {
+          // 测试基本运算
+          const result = 2 + 3
+          log(`✓ 基本运算: 2 + 3 = ${result}`, 'success')
+
+          // 测试函数定义和调用
+          function greet(name) {
+            return `Hello, ${name}!`
+          }
+          const greeting = greet('World')
+          log(`✓ 函数调用: ${greeting}`, 'success')
+
+          // 测试对象操作
+          const obj = { name: 'Test', value: 42 }
+          log(`✓ 对象操作: ${JSON.stringify(obj)}`, 'success')
+
+          // 测试数组操作
+          const arr = [1, 2, 3, 4, 5]
+          const doubled = arr.map((x) => x * 2)
+          log(`✓ 数组操作: [${arr}] -> [${doubled}]`, 'success')
+
+          log('基础 JavaScript 测试完成！', 'success')
+        } catch (error) {
+          log(`✗ 基础 JavaScript 测试失败: ${error.message}`, 'error')
+        }
+      }
+
+      function testDOMManipulation() {
+        log('开始 DOM 操作测试...', 'info')
+
+        try {
+          // 创建新元素
+          const newDiv = document.createElement('div')
+          newDiv.textContent = '这是动态创建的元素'
+          newDiv.style.color = 'green'
+          newDiv.style.border = '1px solid green'
+          newDiv.style.padding = '5px'
+          newDiv.style.margin = '5px 0'
+
+          // 插入到输出区域后面
+          output.parentNode.insertBefore(newDiv, output.nextSibling)
+
+          log('✓ 成功创建并插入新元素', 'success')
+
+          // 修改现有元素
+          const h1 = document.querySelector('h1')
+          const originalText = h1.textContent
+          h1.textContent = originalText + ' (JS已启用)'
+          log(`✓ 成功修改元素文本: "${originalText}" -> "${h1.textContent}"`, 'success')
+
+          // 添加事件监听器
+          newDiv.addEventListener('click', function () {
+            this.style.backgroundColor = 'yellow'
+            log('✓ 动态元素点击事件触发成功', 'success')
+          })
+          log('✓ 成功添加事件监听器（点击绿色区域测试）', 'success')
+
+          log('DOM 操作测试完成！', 'success')
+        } catch (error) {
+          log(`✗ DOM 操作测试失败: ${error.message}`, 'error')
+        }
+      }
+
+      function testEventHandling() {
+        log('开始事件处理测试...', 'info')
+
+        try {
+          // 测试键盘事件
+          document.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+              log('✓ 键盘事件检测到 Enter 键', 'success')
+            }
+          })
+
+          // 测试鼠标事件
+          document.addEventListener('mousemove', function (e) {
+            if (Math.random() < 0.01) {
+              // 只记录部分事件避免刷屏
+              log(`✓ 鼠标移动事件: (${e.clientX}, ${e.clientY})`, 'success')
+            }
+          })
+
+          // 测试窗口事件
+          window.addEventListener('resize', function () {
+            log(`✓ 窗口大小改变: ${window.innerWidth}x${window.innerHeight}`, 'success')
+          })
+
+          log('✓ 事件监听器设置完成', 'success')
+          log('事件处理测试完成！试试移动鼠标、调整窗口大小或按Enter键', 'success')
+        } catch (error) {
+          log(`✗ 事件处理测试失败: ${error.message}`, 'error')
+        }
+      }
+
+      function testAsyncJS() {
+        log('开始异步 JavaScript 测试...', 'info')
+
+        try {
+          // 测试 Promise
+          const promise = new Promise((resolve) => {
+            setTimeout(() => resolve('Promise 成功！'), 1000)
+          })
+
+          promise
+            .then((result) => {
+              log(`✓ Promise 测试: ${result}`, 'success')
+            })
+            .catch((error) => {
+              log(`✗ Promise 测试失败: ${error.message}`, 'error')
+            })
+
+          // 测试 async/await
+          async function asyncTest() {
+            await new Promise((resolve) => setTimeout(resolve, 500))
+            return 'Async/Await 成功！'
+          }
+
+          asyncTest().then((result) => {
+            log(`✓ Async/Await 测试: ${result}`, 'success')
+          })
+
+          // 测试 setTimeout
+          setTimeout(() => {
+            log('✓ setTimeout 执行成功', 'success')
+          }, 1500)
+
+          // 测试 setInterval
+          let count = 0
+          const interval = setInterval(() => {
+            count++
+            log(`✓ setInterval 执行 #${count}`, 'success')
+            if (count >= 3) {
+              clearInterval(interval)
+              log('✓ setInterval 已停止', 'success')
+              log('异步 JavaScript 测试完成！', 'success')
+            }
+          }, 1000)
+
+          log('✓ 异步函数设置完成', 'success')
+        } catch (error) {
+          log(`✗ 异步 JavaScript 测试失败: ${error.message}`, 'error')
+        }
+      }
+
+      function testLocalStorage() {
+        log('开始本地存储测试...', 'info')
+
+        try {
+          // 测试 localStorage
+          const testData = { test: 'value', timestamp: Date.now() }
+          localStorage.setItem('jsTest', JSON.stringify(testData))
+          log('✓ localStorage 写入成功', 'success')
+
+          const retrieved = JSON.parse(localStorage.getItem('jsTest'))
+          log(`✓ localStorage 读取成功: ${JSON.stringify(retrieved)}`, 'success')
+
+          // 测试 sessionStorage
+          sessionStorage.setItem('sessionTest', 'session value')
+          log('✓ sessionStorage 写入成功', 'success')
+
+          const sessionValue = sessionStorage.getItem('sessionTest')
+          log(`✓ sessionStorage 读取成功: ${sessionValue}`, 'success')
+
+          log('本地存储测试完成！', 'success')
+        } catch (error) {
+          log(`✗ 本地存储测试失败: ${error.message}`, 'error')
+        }
+      }
+
+      function testFetchAPI() {
+        log('开始网络请求测试...', 'info')
+
+        try {
+          // 测试 fetch API
+          fetch('https://httpbin.org/get')
+            .then((response) => {
+              if (response.ok) {
+                return response.json()
+              }
+              throw new Error(`HTTP ${response.status}`)
+            })
+            .then((data) => {
+              log(`✓ Fetch 请求成功: ${JSON.stringify(data.url)}`, 'success')
+              log('网络请求测试完成！', 'success')
+            })
+            .catch((error) => {
+              log(`✗ Fetch 请求失败: ${error.message}`, 'error')
+            })
+
+          // 测试 XMLHttpRequest
+          const xhr = new XMLHttpRequest()
+          xhr.open('GET', 'https://httpbin.org/uuid', true)
+          xhr.onload = function () {
+            if (xhr.status === 200) {
+              const data = JSON.parse(xhr.responseText)
+              log(`✓ XMLHttpRequest 请求成功: UUID = ${data.uuid}`, 'success')
+            } else {
+              log(`✗ XMLHttpRequest 失败: HTTP ${xhr.status}`, 'error')
+            }
+          }
+          xhr.onerror = function () {
+            log('✗ XMLHttpRequest 网络错误', 'error')
+          }
+          xhr.send()
+
+          log('✓ 网络请求已发送', 'success')
+        } catch (error) {
+          log(`✗ 网络请求测试失败: ${error.message}`, 'error')
+        }
+      }
+
+      function detectBrowserFeatures() {
+        log('开始浏览器特性检测...', 'info')
+
+        try {
+          // 检测基本 JavaScript 支持
+          log(`✓ JavaScript 支持: ${typeof JavaScript !== 'undefined' ? '是' : '否'}`, 'success')
+
+          // 检测 ES6+ 特性
+          log(`✓ 箭头函数: ${typeof (() => {}) === 'function' ? '支持' : '不支持'}`, 'success')
+          log(`✓ Promise: ${typeof Promise !== 'undefined' ? '支持' : '不支持'}`, 'success')
+          log(
+            `✓ async/await: ${typeof async function () {} === 'function' ? '支持' : '不支持'}`,
+            'success'
+          )
+
+          // 检测 Web API
+          log(
+            `✓ localStorage: ${typeof localStorage !== 'undefined' ? '支持' : '不支持'}`,
+            'success'
+          )
+          log(
+            `✓ sessionStorage: ${typeof sessionStorage !== 'undefined' ? '支持' : '不支持'}`,
+            'success'
+          )
+          log(`✓ fetch: ${typeof fetch !== 'undefined' ? '支持' : '不支持'}`, 'success')
+          log(
+            `✓ XMLHttpRequest: ${typeof XMLHttpRequest !== 'undefined' ? '支持' : '不支持'}`,
+            'success'
+          )
+
+          // 检测 DOM API
+          log(
+            `✓ querySelector: ${typeof document.querySelector === 'function' ? '支持' : '不支持'}`,
+            'success'
+          )
+          log(
+            `✓ addEventListener: ${typeof document.addEventListener === 'function' ? '支持' : '不支持'}`,
+            'success'
+          )
+
+          // 获取浏览器信息
+          log(`✓ User Agent: ${navigator.userAgent}`, 'info')
+          log(`✓ 平台: ${navigator.platform}`, 'info')
+          log(`✓ 语言: ${navigator.language}`, 'info')
+
+          // 检测当前页面状态
+          log(`✓ 页面标题: ${document.title}`, 'info')
+          log(`✓ 页面 URL: ${window.location.href}`, 'info')
+
+          log('浏览器特性检测完成！', 'success')
+        } catch (error) {
+          log(`✗ 浏览器特性检测失败: ${error.message}`, 'error')
+        }
+      }
+
+      // 页面加载完成后的初始化
+      document.addEventListener('DOMContentLoaded', function () {
+        log('页面加载完成，JavaScript 执行环境已就绪', 'success')
+        log('点击上方按钮开始测试各项功能', 'info')
+      })
+
+      // 记录页面加载时间
+      window.addEventListener('load', function () {
+        const loadTime = performance.now()
+        log(`页面完全加载时间: ${loadTime.toFixed(2)}ms`, 'info')
+      })
+    </script>
+  </body>
+</html>

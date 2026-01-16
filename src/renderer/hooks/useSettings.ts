@@ -25,7 +25,8 @@ const defaultSettings: Settings = {
   sessionIsolationEnabled: true,
   crashReportingEnabled: true,
   saveSession: true,
-  clearCacheOnExit: false
+  clearCacheOnExit: false,
+  allowLocalFileAccess: false // 默认关闭本地文件访问
 }
 
 export function useSettings(): {
