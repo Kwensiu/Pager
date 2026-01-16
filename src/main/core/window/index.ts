@@ -11,6 +11,50 @@ interface WindowState {
 }
 
 /**
+ * 从本地存储获取弹窗设置
+ * @returns 是否允许弹窗，默认为 true
+ */
+function getAllowPopupsSetting(): boolean {
+  try {
+    const userDataPath = app.getPath('userData')
+    const storePath = join(userDataPath, 'pager-store.json')
+
+    if (existsSync(storePath)) {
+      const storeData = JSON.parse(readFileSync(storePath, 'utf-8'))
+      return storeData.settings?.allowPopups ?? true
+    }
+  } catch (error) {
+    console.error('读取弹窗设置失败:', error)
+  }
+  return true // 默认允许
+}
+
+/**
+ * 处理新窗口请求的通用逻辑
+ * @param details 新窗口详情
+ * @param webContents 目标 webContents
+ * @param windowType 窗口类型（主窗口或 WebView）
+ * @returns 新窗口处理动作
+ */
+function handleNewWindow(
+  details: Electron.HandlerDetails,
+  webContents: Electron.WebContents,
+  windowType: 'main' | 'webview'
+): { action: 'allow' | 'deny' } {
+  const allowPopups = getAllowPopupsSetting()
+
+  if (allowPopups) {
+    console.log(`${windowType} 允许弹窗，在应用内打开:`, details.url)
+    return { action: 'allow' }
+  } else {
+    console.log(`${windowType} 禁止弹窗，在当前窗口导航:`, details.url)
+    // 在当前窗口中导航到新页面
+    webContents.loadURL(details.url)
+    return { action: 'deny' }
+  }
+}
+
+/**
  * 获取窗口状态文件路径
  */
 function getWindowStateFilePath(): string {
@@ -148,8 +192,14 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
+    try {
+      return handleNewWindow(details, mainWindow.webContents, 'main')
+    } catch (error) {
+      console.error('Main window open handler error:', error)
+      // 出错时保持原有行为：外部浏览器打开
+      shell.openExternal(details.url)
+      return { action: 'deny' }
+    }
   })
 
   // 开发模式检测

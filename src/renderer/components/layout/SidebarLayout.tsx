@@ -430,7 +430,7 @@ export default function SidebarLayout({
       <SidebarLayoutInner
         activeWebsiteId={activeWebsiteId}
         onWebsiteClick={onWebsiteClick}
-        collapsedSidebarMode={collapsedSidebarMode}
+        collapsedSidebarMode={collapsedSidebarMode || 'all'}
       >
         {children}
       </SidebarLayoutInner>

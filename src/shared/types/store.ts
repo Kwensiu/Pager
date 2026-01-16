@@ -68,6 +68,30 @@ export interface Settings {
   isOpenContextMenu?: boolean // 右键菜单
   leftMenuPosition?: 'left' | 'right' // 侧边栏位置
   howLinkOpenMethod?: 'tuboshu' | 'external' // 链接打开方式
+  collapsedSidebarMode?: 'all' | 'expanded' // 侧边栏折叠模式
+  language?: string // 语言设置
+  autoUpdate?: boolean // 自动更新
+  minimizeToTray?: boolean // 最小化到托盘
+  dataPath?: string // 数据路径
+  shortcutsEnabled?: boolean // 快捷键启用
+  shortcutAlwaysOnTop?: string // 置顶快捷键
+  shortcutMiniMode?: string // 迷你模式快捷键
+  trayEnabled?: boolean // 托盘启用
+  trayShowNotifications?: boolean // 托盘通知
+  windowAlwaysOnTop?: boolean // 窗口置顶
+  windowMiniMode?: boolean // 迷你模式
+  windowAdsorptionEnabled?: boolean // 窗口吸附
+  windowAdsorptionSensitivity?: number // 吸附灵敏度
+  memoryOptimizerEnabled?: boolean // 内存优化器
+  memoryCleanInterval?: number // 清理间隔
+  maxInactiveTime?: number // 最大非活动时间
+  autoSyncEnabled?: boolean // 自动同步
+  syncInterval?: number // 同步间隔
+  proxyEnabled?: boolean // 代理启用
+  proxyRules?: string // 代理规则
+  autoCheckUpdates?: boolean // 自动检查更新
+  updateCheckInterval?: number // 更新检查间隔
+  autoRestartOnCrash?: boolean // 崩溃后自动重启
   // 扩展管理设置
   extensionSettings?: ExtensionSettings
 

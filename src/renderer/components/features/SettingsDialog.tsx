@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Slider } from '../../ui/slider'
 import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
+import { ExtensionIsolationLevel, ExtensionRiskLevel } from '../../../shared/types/store'
 import {
   Dialog,
   DialogContent,
@@ -123,7 +124,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
       // 应用自动启动
       if (api.enhanced.autoLaunch) {
-        if (settings.autoLaunchEnabled) {
+        if (settings.isAutoLaunch) {
           await api.enhanced.autoLaunch.enable()
         } else {
           await api.enhanced.autoLaunch.disable()
@@ -135,7 +136,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         if (settings.windowAdsorptionEnabled) {
           await api.enhanced.windowAdsorption.enable()
           if (api.enhanced.windowAdsorption.setSensitivity) {
-            await api.enhanced.windowAdsorption.setSensitivity(settings.windowAdsorptionSensitivity)
+            await api.enhanced.windowAdsorption.setSensitivity(
+              settings.windowAdsorptionSensitivity || 50
+            )
           }
         } else {
           await api.enhanced.windowAdsorption.disable()
@@ -203,7 +206,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       maxInactiveTime: 60,
       autoSyncEnabled: false,
       syncInterval: 24,
-      autoLaunchEnabled: false,
+      isAutoLaunch: false,
       proxyEnabled: false,
       proxyRules: '',
       autoCheckUpdates: true,
@@ -215,8 +218,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       allowPopups: true,
       saveSession: true,
       clearCacheOnExit: false,
-      enableExtensions: true,
-      autoLoadExtensions: true,
+      extensionSettings: {
+        enableExtensions: true,
+        autoLoadExtensions: true,
+        defaultIsolationLevel: ExtensionIsolationLevel.STANDARD,
+        defaultRiskTolerance: ExtensionRiskLevel.MEDIUM
+      },
       showDebugOptions: false
     })
     // 自动应用设置
@@ -231,7 +238,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         return
       }
 
-      const result = await api.enhanced.proxy.testConnection(settings.proxyRules)
+      const result = await api.enhanced.proxy.testConnection(settings.proxyRules || '')
 
       if (result.success) {
         alert(`代理连接测试成功！延迟: ${result.latency}ms`)
@@ -475,8 +482,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 <p className="text-sm text-muted-foreground">开机时自动启动应用</p>
               </div>
               <Switch
-                checked={settings.autoLaunchEnabled}
-                onCheckedChange={(checked) => handleSettingChange('autoLaunchEnabled', checked)}
+                checked={settings.isAutoLaunch}
+                onCheckedChange={(checked) => handleSettingChange('isAutoLaunch', checked)}
               />
             </div>
           </div>
@@ -602,7 +609,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 <Label>吸附灵敏度</Label>
                 <div className="flex items-center space-x-4">
                   <Slider
-                    value={[settings.windowAdsorptionSensitivity]}
+                    value={[settings.windowAdsorptionSensitivity || 50]}
                     onValueChange={([value]) =>
                       handleSettingChange('windowAdsorptionSensitivity', value)
                     }
@@ -611,7 +618,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-sm">{settings.windowAdsorptionSensitivity}</span>
+                  <span className="w-12 text-sm">{settings.windowAdsorptionSensitivity || 50}</span>
                 </div>
               </div>
             )}
@@ -805,8 +812,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                     <p className="text-sm text-muted-foreground">启用浏览器扩展功能</p>
                   </div>
                   <Switch
-                    checked={settings.enableExtensions}
-                    onCheckedChange={(checked) => handleSettingChange('enableExtensions', checked)}
+                    checked={settings.extensionSettings?.enableExtensions}
+                    onCheckedChange={(checked) =>
+                      handleSettingChange('extensionSettings', {
+                        ...settings.extensionSettings,
+                        enableExtensions: checked
+                      })
+                    }
                   />
                 </div>
 
@@ -816,9 +828,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                     <p className="text-sm text-muted-foreground">启动时自动加载已安装的扩展</p>
                   </div>
                   <Switch
-                    checked={settings.autoLoadExtensions}
+                    checked={settings.extensionSettings?.autoLoadExtensions}
                     onCheckedChange={(checked) =>
-                      handleSettingChange('autoLoadExtensions', checked)
+                      handleSettingChange('extensionSettings', {
+                        ...settings.extensionSettings,
+                        autoLoadExtensions: checked
+                      })
                     }
                   />
                 </div>

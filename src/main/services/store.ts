@@ -46,7 +46,69 @@ async function getStore(): Promise<ElectronStore> {
           maximized: false
         },
         settings: {
+          // 通用设置
           theme: 'light',
+          language: 'zh',
+          autoUpdate: true,
+          minimizeToTray: true,
+          collapsedSidebarMode: 'all',
+          dataPath: '',
+
+          // 全局快捷键
+          shortcutsEnabled: true,
+          shortcutAlwaysOnTop: 'Ctrl+Shift+T',
+          shortcutMiniMode: 'Ctrl+Shift+M',
+
+          // 系统托盘
+          trayEnabled: true,
+          trayShowNotifications: true,
+
+          // 窗口管理
+          windowAlwaysOnTop: false,
+          windowMiniMode: false,
+          windowAdsorptionEnabled: true,
+          windowAdsorptionSensitivity: 50,
+
+          // 内存优化
+          memoryOptimizerEnabled: true,
+          memoryCleanInterval: 30,
+          maxInactiveTime: 60,
+
+          // 数据同步
+          autoSyncEnabled: false,
+          syncInterval: 24,
+
+          // 自动启动
+          autoLaunchEnabled: false,
+
+          // 代理支持
+          proxyEnabled: false,
+          proxyRules: '',
+
+          // 版本检查
+          autoCheckUpdates: true,
+          updateCheckInterval: 24,
+
+          // Session 隔离
+          sessionIsolationEnabled: true,
+
+          // 进程崩溃处理
+          crashReportingEnabled: true,
+          autoRestartOnCrash: false,
+
+          // 浏览器设置
+          enableJavaScript: true,
+          allowPopups: true,
+
+          // 隐私与数据
+          saveSession: true,
+          clearCacheOnExit: false,
+
+          // 扩展设置
+          enableExtensions: true,
+          autoLoadExtensions: true,
+
+          // 调试模式
           showDebugOptions: false
         }
       }

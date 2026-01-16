@@ -1,137 +1,31 @@
 import { useState, useEffect } from 'react'
-
-interface Settings {
-  // 通用设置
-  theme: 'light' | 'dark' | 'system'
-  language: string
-  autoUpdate: boolean
-  minimizeToTray: boolean
-  collapsedSidebarMode: 'all' | 'expanded'
-  dataPath: string
-
-  // 全局快捷键
-  shortcutsEnabled: boolean
-  shortcutAlwaysOnTop: string
-  shortcutMiniMode: string
-
-  // 系统托盘
-  trayEnabled: boolean
-  trayShowNotifications: boolean
-
-  // 窗口管理
-  windowAlwaysOnTop: boolean
-  windowMiniMode: boolean
-  windowAdsorptionEnabled: boolean
-  windowAdsorptionSensitivity: number
-
-  // 内存优化
-  memoryOptimizerEnabled: boolean
-  memoryCleanInterval: number
-  maxInactiveTime: number
-
-  // 数据同步
-  autoSyncEnabled: boolean
-  syncInterval: number
-
-  // 自动启动
-  autoLaunchEnabled: boolean
-
-  // 代理支持
-  proxyEnabled: boolean
-  proxyRules: string
-
-  // 版本检查
-  autoCheckUpdates: boolean
-  updateCheckInterval: number
-
-  // Session 隔离
-  sessionIsolationEnabled: boolean
-
-  // 进程崩溃处理
-  crashReportingEnabled: boolean
-  autoRestartOnCrash: boolean
-
-  // 浏览器设置
-  enableJavaScript: boolean
-  allowPopups: boolean
-
-  // 隐私与数据
-  saveSession: boolean
-  clearCacheOnExit: boolean
-
-  // 扩展设置
-  enableExtensions: boolean
-  autoLoadExtensions: boolean
-
-  // 调试模式
-  showDebugOptions: boolean
-}
+import type { Settings } from '../../shared/types/store'
+import { ExtensionIsolationLevel, ExtensionRiskLevel } from '../../shared/types/store'
 
 const defaultSettings: Settings = {
-  // 通用设置
-  theme: 'system',
-  language: 'zh',
-  autoUpdate: true,
-  minimizeToTray: true,
-  collapsedSidebarMode: 'all',
-  dataPath: '',
-
-  // 全局快捷键
-  shortcutsEnabled: true,
-  shortcutAlwaysOnTop: 'Ctrl+Shift+T',
-  shortcutMiniMode: 'Ctrl+Shift+M',
-
-  // 系统托盘
-  trayEnabled: true,
-  trayShowNotifications: true,
-
-  // 窗口管理
-  windowAlwaysOnTop: false,
-  windowMiniMode: false,
-  windowAdsorptionEnabled: true,
-  windowAdsorptionSensitivity: 50,
-
-  // 内存优化
-  memoryOptimizerEnabled: true,
-  memoryCleanInterval: 30,
-  maxInactiveTime: 60,
-
-  // 数据同步
-  autoSyncEnabled: false,
-  syncInterval: 24,
-
-  // 自动启动
-  autoLaunchEnabled: false,
-
-  // 代理支持
-  proxyEnabled: false,
-  proxyRules: '',
-
-  // 版本检查
-  autoCheckUpdates: true,
-  updateCheckInterval: 24,
-
-  // Session 隔离
-  sessionIsolationEnabled: true,
-
-  // 进程崩溃处理
-  crashReportingEnabled: true,
-  autoRestartOnCrash: false,
-
-  // 浏览器设置
+  theme: 'light',
+  showDebugOptions: false,
+  isAutoLaunch: false,
+  isMenuVisible: true,
+  isWindowEdgeAdsorption: true,
+  isMemoryOptimizationEnabled: true,
+  isOpenDevTools: false,
+  isOpenZoom: true,
+  isOpenContextMenu: true,
+  leftMenuPosition: 'left',
+  howLinkOpenMethod: 'tuboshu',
+  extensionSettings: {
+    enableExtensions: true,
+    autoLoadExtensions: true,
+    defaultIsolationLevel: ExtensionIsolationLevel.STANDARD,
+    defaultRiskTolerance: ExtensionRiskLevel.MEDIUM
+  },
   enableJavaScript: true,
   allowPopups: true,
-
-  // 隐私与数据
+  sessionIsolationEnabled: true,
+  crashReportingEnabled: true,
   saveSession: true,
-  clearCacheOnExit: false,
-
-  // 扩展设置
-  enableExtensions: true,
-  autoLoadExtensions: true,
-
-  // 调试模式
-  showDebugOptions: false
+  clearCacheOnExit: false
 }
 
 export function useSettings(): {
@@ -150,6 +44,29 @@ export function useSettings(): {
     }
     return defaultSettings
   })
+
+  // 组件挂载时从主进程同步设置
+  useEffect(() => {
+    const loadSettingsFromMainProcess = async (): Promise<void> => {
+      try {
+        if (window.api?.store?.getSettings) {
+          const mainProcessSettings = await window.api.store.getSettings()
+          if (mainProcessSettings) {
+            setSettings((prev) => {
+              const merged = { ...defaultSettings, ...prev, ...mainProcessSettings }
+              // 同步回 localStorage
+              localStorage.setItem('settings', JSON.stringify(merged))
+              return merged
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load settings from main process:', error)
+      }
+    }
+
+    loadSettingsFromMainProcess()
+  }, [])
 
   // 监听 localStorage 的变化（来自其他标签页或窗口）
   useEffect(() => {
@@ -184,7 +101,15 @@ export function useSettings(): {
         return prev
       }
 
+      // 保存到 localStorage
       localStorage.setItem('settings', JSON.stringify(updated))
+
+      // 同步到主进程的 electron-store
+      if (window.api?.store?.updateSettings) {
+        window.api.store.updateSettings(newSettings).catch((error) => {
+          console.error('Failed to sync settings to main process:', error)
+        })
+      }
 
       // 手动触发 storage 事件，确保同一个标签页内的组件也能收到更新
       // 但避免循环触发
