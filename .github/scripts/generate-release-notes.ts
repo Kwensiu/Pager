@@ -148,7 +148,7 @@ function generateReleaseNotes(
 
   let notes = `# 🎉 Pager ${version}\n\n`
   notes += `> 📅 发布日期: ${date}\n`
-  notes += `> 🔗 比较范围: ${latestTag ? `${latestTag}...HEAD` : '初始提交'}\n\n`
+  notes += `> 🔗 比较范围: ${latestTag ? `${latestTag} → HEAD` : '初始提交'}\n\n`
 
   // Summary statistics
   const totalCommits = Object.values(categories).reduce((sum, commits) => sum + commits.length, 0)
@@ -191,6 +191,7 @@ function generateReleaseNotes(
   }
 
   // Add installation instructions
+  notes += `---\n`
   notes += `## 🚀 安装指南\n\n`
   notes += `### Windows\n`
   notes += `1. 下载 \`.exe\` 安装包\n`
@@ -203,7 +204,6 @@ function generateReleaseNotes(
 
   // Footer
   notes += `---\n`
-  notes += ``
   notes += `🎊 感谢您使用 Pager！如有问题请提交 [Issue](https://github.com/Kwensiu/Pager/issues)\n`
 
   return notes

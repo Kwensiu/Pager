@@ -1,4 +1,5 @@
 import React from 'react'
+import { marked } from 'marked'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './dialog'
 import { Button } from './button'
 
@@ -23,6 +24,16 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   error,
   isChecking = false
 }) => {
+  const processReleaseNotes = (notes: string): string => {
+    const html = marked.parse(notes, {
+      breaks: true,
+      gfm: true
+    }) as string
+    return html
+      .replace(/<blockquote/g, '<div class="border-l-2 border-muted-foreground pl-4"')
+      .replace(/<\/blockquote>/g, '</div>')
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
@@ -74,21 +85,9 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                   <h4 className="text-sm font-medium mb-2">更新内容:</h4>
                   <div className="bg-muted/50 rounded-md p-3 flex-1 overflow-y-auto max-h-[50vh]">
                     <div
-                      className="text-xs prose prose-xs max-w-none"
+                      className="text-xs prose prose-xs max-w-none prose-headings:mb-2 prose-p:mb-2 prose-li:my-1 prose-ul:my-2 prose-ol:my-2 prose-hr:my-3 prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-muted prose-pre:p-2 prose-pre:rounded prose-pre:overflow-x-auto"
                       dangerouslySetInnerHTML={{
-                        __html: releaseNotes
-                          .replace(/^# /gm, '<h1 class="text-base font-semibold mb-2">')
-                          .replace(/^## /gm, '<h2 class="text-sm font-semibold mb-2">')
-                          .replace(/^### /gm, '<h3 class="text-sm font-medium mb-1">')
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/^- (.*$)/gm, '<li class="ml-4">$1</li>')
-                          .replace(
-                            /`([^`]+)`/g,
-                            '<code class="bg-muted px-1 py-0.5 rounded text-xs">$1</code>'
-                          )
-                          .replace(/\n\n/g, '</p><p class="mb-2">')
-                          .replace(/\n/g, '<br/>')
+                        __html: processReleaseNotes(releaseNotes)
                       }}
                     />
                   </div>

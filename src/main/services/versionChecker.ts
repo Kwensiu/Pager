@@ -42,19 +42,15 @@ class VersionChecker {
           process.env.HTTP_PROXY = globalProxy
           process.env.HTTPS_PROXY = globalProxy
         }
-        console.log('Auto updater proxy configured:', globalProxy)
       }
 
       autoUpdater.autoDownload = false
       autoUpdater.autoInstallOnAppQuit = true
 
       // 监听更新事件
-      autoUpdater.on('checking-for-update', () => {
-        console.log('Checking for updates...')
-      })
+      autoUpdater.on('checking-for-update', () => {})
 
       autoUpdater.on('update-available', (info) => {
-        console.log('Update available:', info.version)
         this.updateAvailable = true
         this.latestVersion = info.version
         this.releaseNotes =
@@ -66,7 +62,6 @@ class VersionChecker {
       })
 
       autoUpdater.on('update-not-available', () => {
-        console.log('No updates available')
         this.updateAvailable = false
       })
 
@@ -74,13 +69,9 @@ class VersionChecker {
         console.error('Update error:', error)
       })
 
-      autoUpdater.on('download-progress', (progressObj) => {
-        console.log(`Download progress: ${progressObj.percent}%`)
-      })
+      autoUpdater.on('download-progress', (_progressObj) => {})
 
-      autoUpdater.on('update-downloaded', (info) => {
-        console.log('Update downloaded:', info.version)
-      })
+      autoUpdater.on('update-downloaded', (_info) => {})
     } catch (error) {
       console.error('Failed to configure auto updater:', error)
     }
@@ -113,9 +104,7 @@ class VersionChecker {
       this.lastCheckTime = now
 
       // 使用 GitHub API 检查更新（开发环境也工作）
-      console.log('开始检查GitHub更新...')
       const githubRelease = await this.checkGitHubReleases()
-      console.log('GitHub发布信息:', githubRelease)
 
       if (githubRelease) {
         const currentVersion = app.getVersion?.() || '0.0.0'
@@ -123,12 +112,8 @@ class VersionChecker {
           ? githubRelease.tag_name.slice(1)
           : githubRelease.tag_name
 
-        console.log('当前版本:', currentVersion)
-        console.log('最新版本:', latestVersion)
-
         // 比较版本号
         const isNewer = this.compareVersions(latestVersion, currentVersion) > 0
-        console.log('版本比较结果:', isNewer, '(>0表示有更新)')
 
         this.updateAvailable = isNewer
         this.latestVersion = latestVersion
@@ -143,15 +128,13 @@ class VersionChecker {
       }
 
       // GitHub API 失败时的处理
-      console.log('GitHub API检查失败，使用备用检查机制')
       const currentVersion = app.getVersion?.() || '0.0.0'
 
       // 备用：硬编码已知最新版本（临时解决方案）
-      const knownLatestVersion = '0.0.3'
+      const knownLatestVersion = 'error'
       const isNewer = this.compareVersions(knownLatestVersion, currentVersion) > 0
 
       if (isNewer) {
-        console.log('使用备用机制检测到更新:', knownLatestVersion, '>', currentVersion)
         return {
           available: true,
           currentVersion,
@@ -159,7 +142,6 @@ class VersionChecker {
           releaseNotes: 'GitHub API检查失败，但已知有新版本可用。请访问 GitHub 页面下载最新版本。'
         }
       } else {
-        console.log('备用机制：当前版本已是最新或无法确定')
         return {
           available: false,
           currentVersion,
@@ -334,7 +316,6 @@ class VersionChecker {
    */
   setCheckInterval(interval: number): void {
     this.checkInterval = interval
-    console.log(`Update check interval set to ${interval}ms`)
   }
 
   /**
@@ -343,7 +324,6 @@ class VersionChecker {
    */
   setAutoUpdate(enabled: boolean): void {
     autoUpdater.autoInstallOnAppQuit = enabled
-    console.log(`Auto update ${enabled ? 'enabled' : 'disabled'}`)
   }
 
   /**
@@ -374,9 +354,6 @@ class VersionChecker {
         fetchOptions as Record<string, unknown>
       )
 
-      console.log('GitHub API响应状态:', response.status, response.statusText)
-      console.log('GitHub API响应头:', Object.fromEntries(response.headers.entries()))
-
       if (!response.ok) {
         const errorText = await response.text()
         console.error('GitHub API错误响应:', errorText)
@@ -384,7 +361,6 @@ class VersionChecker {
       }
 
       const data = await response.json()
-      console.log('GitHub API响应数据:', data)
       return data
     } catch (error) {
       console.error('检查GitHub发布失败:', error)
@@ -476,7 +452,6 @@ class VersionChecker {
     if (!this.updateAvailable) return
 
     // 这里可以显示系统通知
-    console.log(`Update available: ${this.latestVersion}`)
 
     // 实际应用中应该显示系统通知
     // new Notification({

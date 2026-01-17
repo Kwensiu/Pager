@@ -528,7 +528,7 @@ declare global {
           downloadUpdate: () => Promise<{ success: boolean; error?: string }>
           installUpdate: () => Promise<{ success: boolean; error?: string }>
           getVersionInfo: () => Promise<{
-            currentVersion: string
+            appVersion: string
             electronVersion: string
             chromeVersion: string
             nodeVersion: string

@@ -53,6 +53,38 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     error?: string
   } | null>(null)
 
+  // 获取版本信息
+  const [versionInfo, setVersionInfo] = useState<{
+    appVersion: string
+    electronVersion: string
+    chromeVersion: string
+    nodeVersion: string
+  } | null>(null)
+
+  // 组件加载时获取版本信息
+  useEffect(() => {
+    const fetchVersionInfo = async (): Promise<void> => {
+      try {
+        const { api } = window
+
+        if (api?.enhanced?.versionChecker) {
+          const info = await api.enhanced.versionChecker.getVersionInfo()
+          setVersionInfo({
+            appVersion: info.appVersion,
+            electronVersion: info.electronVersion,
+            chromeVersion: info.chromeVersion,
+            nodeVersion: info.nodeVersion
+          })
+          return
+        }
+      } catch (error) {
+        console.error('Failed to get version info:', error)
+      }
+    }
+
+    fetchVersionInfo()
+  }, [])
+
   // 获取数据路径
   const [dataPath, setDataPath] = useState('')
 
@@ -268,7 +300,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         // 合并版本信息
         const fullUpdateInfo = {
           ...result,
-          currentVersion: versionInfo.currentVersion
+          currentVersion: versionInfo.appVersion
         }
         setUpdateInfo(fullUpdateInfo)
       } else {
@@ -1106,10 +1138,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
             </div>
 
             <div className="text-sm text-muted-foreground">
-              <p>应用版本: 0.0.2</p>
-              <p>Electron: 39.2.7</p>
-              <p>Chrome: 128.0.6613.138</p>
-              <p>Node.js: 20.17.0</p>
+              <p>Pager: {versionInfo?.appVersion || '加载中...'}</p>
+              <p>Electron: {versionInfo?.electronVersion || '加载中...'}</p>
+              <p>Chrome: {versionInfo?.chromeVersion || '加载中...'}</p>
+              <p>Node.js: {versionInfo?.nodeVersion || '加载中...'}</p>
             </div>
 
             <Separator />
@@ -1177,7 +1209,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       <UpdateDialog
         open={showUpdateDialog}
         onClose={() => setShowUpdateDialog(false)}
-        currentVersion={updateInfo?.currentVersion || ''}
+        currentVersion={updateInfo?.currentVersion || versionInfo?.appVersion || ''}
         latestVersion={updateInfo?.latestVersion}
         available={updateInfo?.available || false}
         releaseNotes={updateInfo?.releaseNotes}
