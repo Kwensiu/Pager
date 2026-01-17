@@ -78,10 +78,10 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
     }, [url, settings.sessionIsolationEnabled])
 
-    // 使用 URL 和设置作为 key 的一部分，确保 URL 或设置变化时重新创建 webview
+    // 使用 partition 和设置作为 key 的一部分，但不包含URL，避免导航时重新创建webview
     const webviewKey = useMemo(
-      () => `${partition}-${url}-js-${settings.enableJavaScript}-popups-${settings.allowPopups}`,
-      [partition, url, settings.enableJavaScript, settings.allowPopups]
+      () => `${partition}-js-${settings.enableJavaScript}-popups-${settings.allowPopups}`,
+      [partition, settings.enableJavaScript, settings.allowPopups]
     )
 
     // 同步URL状态
@@ -125,6 +125,22 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
           webview.reload()
         } else if (onRefresh) {
           onRefresh()
+        }
+      }
+
+      const handleLoadUrl = (url: string): void => {
+        const webview = webviewRef.current
+
+        if (webview && webview.loadURL) {
+          setTimeout(() => {
+            if (webview && webview.loadURL) {
+              webview.loadURL(url)
+            }
+          }, 100)
+        } else if (onNavigate) {
+          onNavigate(url)
+        } else {
+          window.api.webview.loadUrl(url)
         }
       }
 
@@ -182,6 +198,16 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         window.api.ipcRenderer.on('webview:select-all', handleSelectAll)
         window.api.ipcRenderer.on('webview:view-source', handleViewSource)
         window.api.ipcRenderer.on('webview:inspect-element', handleInspectElement)
+        window.api.ipcRenderer.on('webview:load-url', (...args: unknown[]) => {
+          // URL是第二个参数（第一个是事件对象）
+          let url = args[1] as string
+          if (typeof url !== 'string') {
+            url = args[0] as string
+          }
+          if (typeof url === 'string') {
+            handleLoadUrl(url)
+          }
+        })
 
         return () => {
           // 清理IPC监听器
@@ -194,11 +220,12 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
           window.api.ipcRenderer.removeAllListeners('webview:select-all')
           window.api.ipcRenderer.removeAllListeners('webview:view-source')
           window.api.ipcRenderer.removeAllListeners('webview:inspect-element')
+          window.api.ipcRenderer.removeAllListeners('webview:load-url')
         }
       }
 
       return undefined
-    }, [onGoBack, onGoForward, onRefresh])
+    }, [onGoBack, onGoForward, onRefresh, onNavigate])
 
     // 应用指纹伪装到 webview
     const applyFingerprint = useCallback(async (): Promise<void> => {

@@ -26,7 +26,10 @@ const defaultSettings: Settings = {
   crashReportingEnabled: true,
   saveSession: true,
   clearCacheOnExit: false,
-  allowLocalFileAccess: false // 默认关闭本地文件访问
+  allowLocalFileAccess: false, // 默认关闭本地文件访问
+  // 快速跳转网站设置
+  quickResetWebsite: true, // 默认开启快速跳转网站功能
+  resetWebsiteConfirmDialog: true // 默认开启确认弹窗
 }
 
 export function useSettings(): {

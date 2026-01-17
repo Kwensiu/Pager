@@ -282,6 +282,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       saveSession: false,
       clearCacheOnExit: false,
       allowLocalFileAccess: false,
+      // 快速跳转网站设置
+      quickResetWebsite: true,
+      resetWebsiteConfirmDialog: true,
       isOpenDevTools: false,
       isOpenZoom: false,
       isOpenContextMenu: false,
@@ -637,6 +640,36 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                 onCheckedChange={(checked) => handleSettingChange('isAutoLaunch', checked)}
               />
             </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>快速跳转网站</Label>
+                <p className="text-sm text-muted-foreground">允许左键双击网站按钮时跳转到初始URL</p>
+              </div>
+              <Switch
+                checked={settings.quickResetWebsite}
+                onCheckedChange={(checked) => handleSettingChange('quickResetWebsite', checked)}
+              />
+            </div>
+
+            {settings.quickResetWebsite && (
+              <div className="pl-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>提示弹窗</Label>
+                    <p className="text-sm text-muted-foreground">跳转网页时提示确认弹窗</p>
+                  </div>
+                  <Switch
+                    checked={settings.resetWebsiteConfirmDialog}
+                    onCheckedChange={(checked) =>
+                      handleSettingChange('resetWebsiteConfirmDialog', checked)
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 

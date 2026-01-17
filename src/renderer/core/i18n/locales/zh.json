@@ -25,7 +25,11 @@
   "confirm": "确认",
   "confirmDialog": {
     "clearDataDescription": "确定要清除所有数据吗？这将删除所有保存的网站和分组。此操作不可撤销。",
-    "clearDataTitle": "确认清除数据"
+    "clearDataTitle": "确认清除数据",
+    "websiteJumpTitle": "确认跳转",
+    "websiteJumpDescription": "确定要跳转到 \"{{name}}\" 的初始URL吗？\n\n提示：您可以在设置 > 通用中关闭此确认弹窗。",
+    "websiteJumpConfirm": "跳转",
+    "websiteJumpCancel": "取消"
   },
   "dark": "暗黑",
   "dashboard": "仪表盘",

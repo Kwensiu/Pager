@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 import { Website } from '@/types/website'
 import { DragHandle } from './DragHandle'
 import { useWebsiteDnd } from '../hooks/useWebsiteDnd'
@@ -9,6 +9,9 @@ import {
   ContextMenuContent,
   ContextMenuItem
 } from '@/ui/context-menu'
+import { useSettings } from '@/hooks/useSettings'
+import { ConfirmDialog } from '@/components/features/ConfirmDialog'
+import { useI18n } from '@/core/i18n/useI18n'
 
 interface SortableWebsiteItemProps {
   /** 网站数据 */
@@ -27,11 +30,8 @@ interface SortableWebsiteItemProps {
   onEdit?: (website: Website) => void
   /** 删除事件处理器 */
   onDelete?: (websiteId: string) => void
-  /** 自定义类名 */
   className?: string
-  /** 是否显示拖拽手柄 */
   showDragHandle?: boolean
-  /** 是否折叠状态 */
   isCollapsed?: boolean
 }
 
@@ -48,6 +48,10 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
   showDragHandle = true,
   isCollapsed = false
 }) => {
+  const { settings } = useSettings()
+  const { t } = useI18n()
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+
   const { attributes, listeners, setNodeRef, style, dragHandleStyle, isDragging, isOver } =
     useWebsiteDnd({
       id: website.id,
@@ -57,7 +61,45 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
       disabled
     })
 
-  // 处理点击事件 - 使用useCallback避免不必要的重新创建
+  const performNavigation = useCallback(async (): Promise<void> => {
+    try {
+      if (window.api?.webview?.loadUrl) {
+        window.api.webview.loadUrl(website.url)
+      } else if (window.api?.ipcRenderer?.invoke) {
+        await window.api.ipcRenderer.invoke('webview:load-url', website.url)
+      } else if (window.api?.webview?.reload) {
+        window.api.webview.reload()
+      }
+    } catch (error) {
+      console.error('跳转时发生错误:', error)
+    }
+  }, [website.url])
+
+  const handleDoubleClick = useCallback(
+    async (_e: React.MouseEvent): Promise<void> => {
+      if (!settings.quickResetWebsite) {
+        return
+      }
+
+      if (settings.resetWebsiteConfirmDialog) {
+        setConfirmDialogOpen(true)
+        return
+      }
+
+      performNavigation()
+    },
+    [settings, performNavigation]
+  )
+
+  const handleConfirmNavigation = useCallback((): void => {
+    setConfirmDialogOpen(false)
+    performNavigation()
+  }, [performNavigation])
+
+  const handleCancelNavigation = useCallback((): void => {
+    setConfirmDialogOpen(false)
+  }, [])
+
   const handleClick = useCallback((): void => {
     if (onClick && !isDragging) {
       onClick(website)
@@ -76,12 +118,13 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
   )
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          ref={setNodeRef}
-          style={style}
-          className={`
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={setNodeRef}
+            style={style}
+            className={`
             sortable-website-item
             relative
             flex
@@ -96,81 +139,94 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
             ${isOver && !isDragging ? 'bg-accent/30' : ''}
             ${className}
           `}
-          onClick={handleClick}
-          onKeyDown={handleKeyDown}
-          aria-label={`访问 ${website.name}`}
-          aria-current={active ? 'page' : undefined}
-          data-testid={`website-${website.id}`}
-          data-dragging={isDragging}
-          data-website-id={website.id}
-          {...attributes}
-        >
-          {/* 放置指示器 - 根据insertPosition显示在顶部或底部 */}
-          {isOver && !isDragging && (
-            <div className="absolute inset-0 bg-primary/10 rounded-md pointer-events-none animate-pulse" />
-          )}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            onDoubleClick={handleDoubleClick}
+            aria-label={`访问 ${website.name}`}
+            aria-current={active ? 'page' : undefined}
+            data-testid={`website-${website.id}`}
+            data-dragging={isDragging}
+            data-website-id={website.id}
+            {...attributes}
+          >
+            {/* 放置指示器 - 根据insertPosition显示在顶部或底部 */}
+            {isOver && !isDragging && (
+              <div className="absolute inset-0 bg-primary/10 rounded-md pointer-events-none animate-pulse" />
+            )}
 
-          {/* 拖拽手柄 - 折叠状态下隐藏 */}
-          {showDragHandle && !disabled && !isCollapsed && (
-            <div
-              className="mr-1.5"
-              style={dragHandleStyle}
-              {...listeners}
-              onClick={(e) => e.stopPropagation()}
-              role="button"
-              aria-label="拖拽网站"
-              tabIndex={0}
-            >
-              <DragHandle
-                isDragging={isDragging}
-                disabled={disabled}
-                size="sm"
-                showTooltip={false}
-              />
+            {/* 拖拽手柄 - 折叠状态下隐藏 */}
+            {showDragHandle && !disabled && !isCollapsed && (
+              <div
+                className="mr-1.5"
+                style={dragHandleStyle}
+                {...listeners}
+                onClick={(e) => e.stopPropagation()}
+                role="button"
+                aria-label="拖拽网站"
+                tabIndex={0}
+              >
+                <DragHandle
+                  isDragging={isDragging}
+                  disabled={disabled}
+                  size="sm"
+                  showTooltip={false}
+                />
+              </div>
+            )}
+
+            {/* 网站图标 */}
+            <div className={`${isCollapsed ? '' : 'mr-2'} flex-shrink-0`}>
+              <Favicon url={website.url} className="h-6 w-6" />
             </div>
-          )}
 
-          {/* 网站图标 */}
-          <div className={`${isCollapsed ? '' : 'mr-2'} flex-shrink-0`}>
-            <Favicon url={website.url} className="h-6 w-6" />
-          </div>
+            {/* 网站名称 - 折叠状态下隐藏 */}
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <span className="text-sm truncate block">{website.name}</span>
+                {website.description && (
+                  <span className="text-xs text-muted-foreground truncate block">
+                    {website.description}
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* 网站名称 - 折叠状态下隐藏 */}
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <span className="text-sm truncate block">{website.name}</span>
-              {website.description && (
-                <span className="text-xs text-muted-foreground truncate block">
-                  {website.description}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* 拖拽时的覆盖层效果 */}
-          {isDragging && (
-            <div
-              className="
+            {/* 拖拽时的覆盖层效果 */}
+            {isDragging && (
+              <div
+                className="
             absolute
             inset-0
             bg-primary/5
             rounded-md
             pointer-events-none
           "
-            />
-          )}
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={() => onEdit?.(website)}>修改</ContextMenuItem>
-        <ContextMenuItem
-          className="text-red-600 focus:bg-red-100 dark:focus:bg-red-900"
-          onClick={() => onDelete?.(website.id)}
-        >
-          删除
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+              />
+            )}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={() => onEdit?.(website)}>修改</ContextMenuItem>
+          <ContextMenuItem
+            className="text-red-600 focus:bg-red-100 dark:focus:bg-red-900"
+            onClick={() => onDelete?.(website.id)}
+          >
+            删除
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onOpenChange={setConfirmDialogOpen}
+        title={t('confirmDialog.websiteJumpTitle')}
+        description={t('confirmDialog.websiteJumpDescription', { name: website.name })}
+        confirmText={t('confirmDialog.websiteJumpConfirm')}
+        cancelText={t('confirmDialog.websiteJumpCancel')}
+        onConfirm={handleConfirmNavigation}
+        onCancel={handleCancelNavigation}
+      />
+    </>
   )
 }
 

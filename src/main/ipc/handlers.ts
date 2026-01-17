@@ -522,9 +522,15 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   })
 
   // WebView 导航控制
-  ipcMain.on('webview:load-url', (_, url: string) => {
-    // 发送URL加载命令到渲染进程
-    mainWindow.webContents.send('webview:load-url', url)
+  ipcMain.on('webview:load-url', async (_, url: string) => {
+    const webContents = mainWindow?.webContents
+    if (webContents) {
+      try {
+        webContents.send('webview:load-url', url)
+      } catch (error) {
+        console.error('发送webview:load-url失败:', error)
+      }
+    }
   })
 
   ipcMain.on('webview:hide', () => {

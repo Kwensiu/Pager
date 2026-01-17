@@ -25,7 +25,11 @@
   "confirm": "Confirm",
   "confirmDialog": {
     "clearDataDescription": "Are you sure you want to clear all data? This will delete all saved websites and groups. This action cannot be undone.",
-    "clearDataTitle": "Confirm Clear Data"
+    "clearDataTitle": "Confirm Clear Data",
+    "websiteJumpTitle": "Confirm Jump",
+    "websiteJumpDescription": "Are you sure you want to jump to the initial URL of \"{{name}}\"?\n\nTip: You can disable this confirmation dialog in Settings > General.",
+    "websiteJumpConfirm": "Jump",
+    "websiteJumpCancel": "Cancel"
   },
   "dark": "Dark",
   "dashboard": "Dashboard",

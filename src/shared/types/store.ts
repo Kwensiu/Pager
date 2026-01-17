@@ -104,6 +104,9 @@ export interface Settings {
   clearCacheOnExit?: boolean
   // 文件访问设置
   allowLocalFileAccess?: boolean // 允许访问本地文件
+  // 快速跳转网站设置
+  quickResetWebsite?: boolean // 允许左键双击网站按钮时跳转到初始URL
+  resetWebsiteConfirmDialog?: boolean // 跳转网页时提示确认弹窗
 }
 
 export interface ExtensionSettings {
