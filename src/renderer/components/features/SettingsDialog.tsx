@@ -205,7 +205,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
   const handleSettingChange = async (key: keyof typeof settings, value: unknown): Promise<void> => {
     // 立即更新 UI 状态
-    updateSettings({ [key]: value } as Partial<typeof settings>)
+      updateSettings({ [key]: value } as Partial<typeof settings>)
 
     // 对于某些特殊设置，延迟应用以避免状态冲突
     const settingsRequiringDelay = [
@@ -601,7 +601,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>最小化到托盘</Label>
-                <p className="text-sm text-muted-foreground">最小化时隐藏到系统托盘</p>
+                <p className="text-sm text-muted-foreground">关闭窗口时隐藏到系统托盘，最小化时正常显示在任务栏</p>
               </div>
               <Switch
                 checked={settings.minimizeToTray}

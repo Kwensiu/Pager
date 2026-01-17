@@ -66,6 +66,17 @@ app.whenReady().then(async () => {
   mainWindow = await createWindow()
   await registerIpcHandlers(mainWindow)
 
+  // 初始化托盘（如果启用最小化到托盘）
+  try {
+    const settings = await storeService.getSettings()
+    if (settings.minimizeToTray && settings.trayEnabled) {
+      const { trayService } = await import('./services/tray')
+      trayService.createTray(mainWindow)
+    }
+  } catch (error) {
+    console.error('Failed to initialize tray:', error)
+  }
+
   // 初始化扩展管理器并加载所有已启用的扩展
   const extensionManager = ExtensionManager.getInstance()
   extensionManager.initialize(app.getPath('userData'))

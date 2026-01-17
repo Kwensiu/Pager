@@ -1,31 +1,15 @@
-import { nativeTheme } from 'electron'
-
 type ThemeMode = 'light' | 'dark' // 删除 'system'
 
 /**
  * 极简主题服务
  * 1. 只支持 light/dark 两种模式
- * 2. 窗口固定为深色
+ * 2. 主题仅在应用内部生效，不影响系统原生控件
  */
 class ThemeService {
   private currentTheme: ThemeMode = 'dark' // 默认深色
 
   constructor() {
-    // 延迟设置窗口主题，确保 nativeTheme 已初始化
-    setTimeout(() => {
-      this.setWindowDark()
-    }, 100)
-  }
-
-  /**
-   * 设置窗口为深色
-   */
-  private setWindowDark(): void {
-    try {
-      nativeTheme.themeSource = 'dark' // 窗口固定深色
-    } catch (error) {
-      console.error('[ThemeService] Failed to set window theme:', error)
-    }
+    // Initialize with system theme
   }
 
   /**
@@ -33,9 +17,6 @@ class ThemeService {
    */
   setTheme(theme: ThemeMode): void {
     this.currentTheme = theme
-
-    // 窗口保持深色不变
-    this.setWindowDark()
   }
 
   /**

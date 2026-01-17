@@ -2,6 +2,17 @@ import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { app, BrowserWindow, shell } from 'electron'
 
+// 动态导入服务以避免循环依赖
+const getStoreService = async (): Promise<typeof import('../../services/store').storeService> => {
+  const { storeService } = await import('../../services/store')
+  return storeService
+}
+
+const getTrayService = async (): Promise<typeof import('../../services/tray').trayService> => {
+  const { trayService } = await import('../../services/tray')
+  return trayService
+}
+
 interface WindowState {
   width: number
   height: number
@@ -126,7 +137,6 @@ function getIconPath(): string | undefined {
 
 export async function createWindow(): Promise<Electron.BrowserWindow> {
   const icon = getIconPath()
-  console.log('Creating window with icon:', icon)
 
   // 获取保存的窗口状态
   const savedState = getSavedWindowState()
@@ -189,6 +199,54 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   mainWindow.on('unmaximize', () => {
     // 保存窗口状态
     saveWindowState(mainWindow)
+  })
+
+  // 最小化事件处理
+  mainWindow.on('minimize', async () => {
+    try {
+      const storeService = await getStoreService()
+      const settings = await storeService.getSettings()
+      
+      // 如果启用最小化到托盘，则隐藏到托盘而不是最小化到任务栏
+      if (settings.minimizeToTray) {
+        mainWindow.hide()
+        
+        // 如果托盘服务可用，确保托盘已创建
+        const trayService = await getTrayService()
+        if (!trayService.getWindowVisibility?.()) {
+          // 托盘未创建时创建托盘
+          trayService.createTray(mainWindow)
+        }
+        
+        // Window minimized to tray
+      }
+    } catch (error) {
+      console.error('Failed to handle minimize event:', error)
+    }
+  })
+
+  // 关闭事件处理
+  mainWindow.on('close', async (event: Electron.Event) => {
+    try {
+      const storeService = await getStoreService()
+      const settings = await storeService.getSettings()
+      
+      // 如果启用最小化到托盘，则隐藏到托盘而不是关闭应用
+      if (settings.minimizeToTray) {
+        event.preventDefault()
+        mainWindow.hide()
+        
+        // 确保托盘已创建
+        const trayService = await getTrayService()
+        if (!trayService.getWindowVisibility?.()) {
+          trayService.createTray(mainWindow)
+        }
+        
+        // Window hidden to tray on close
+      }
+    } catch (error) {
+      console.error('Failed to handle close event:', error)
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

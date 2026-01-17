@@ -11,7 +11,7 @@ class TrayService {
   private mainWindow: BrowserWindow | null = null
   private isWindowVisible = true
   private readonly isMac = process.platform === 'darwin'
-  private readonly websiteUrl = 'https://github.com/deepshit2025/tuboshu'
+  private readonly websiteUrl = 'https://github.com/Kwensiu/pager'
 
   /**
    * 创建托盘图标
@@ -40,14 +40,24 @@ class TrayService {
         this.tray.on('right-click', () => {
           this.tray?.popUpContextMenu()
         })
+        
+        // Mac 上双击显示窗口
+        this.tray.on('double-click', () => {
+          this.showWindow()
+        })
       } else {
-        // 其他平台点击切换窗口
+        // 其他平台单击切换窗口
         this.tray.on('click', () => {
           this.toggleWindow()
         })
+        
+        // 双击直接显示窗口
+        this.tray.on('double-click', () => {
+          this.showWindow()
+        })
       }
 
-      console.log('Tray created successfully')
+      // Tray created successfully
     } catch (error) {
       console.error('Failed to create tray:', error)
     }
@@ -87,17 +97,18 @@ class TrayService {
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: '官网',
-        click: () => this.openWebsite()
+        label: '显示窗口',
+        click: () => this.showWindow()
       },
       {
-        label: '设置',
-        click: () => this.openSettings()
+        label: '隐藏窗口',
+        click: () => this.hideWindow(),
+        visible: this.isWindowVisible
       },
       { type: 'separator' },
       {
-        label: this.isWindowVisible ? '隐藏窗口' : '显示窗口',
-        click: () => this.toggleWindow()
+        label: 'GitHub',
+        click: () => this.openWebsite()
       },
       { type: 'separator' },
       {
@@ -122,8 +133,8 @@ class TrayService {
       if (this.isMac && app.dock) {
         try {
           app.dock.hide()
-        } catch (err) {
-          console.error('隐藏 Dock 图标失败:', err)
+        } catch {
+          // Failed to hide Dock icon
         }
       }
     } else {
@@ -134,8 +145,8 @@ class TrayService {
       if (this.isMac && app.dock) {
         try {
           app.dock.show()
-        } catch (err) {
-          console.error('显示 Dock 图标失败:', err)
+        } catch {
+          // Failed to show Dock icon
         }
       }
     }
@@ -170,20 +181,9 @@ class TrayService {
    * 打开官网
    */
   private openWebsite(): void {
-    shell.openExternal(this.websiteUrl).catch((err) => {
-      console.error('打开官网链接失败:', err)
+    shell.openExternal(this.websiteUrl).catch(() => {
+      // Failed to open GitHub link
     })
-  }
-
-  /**
-   * 打开设置
-   */
-  private openSettings(): void {
-    if (!this.mainWindow) return
-
-    this.showWindow()
-    // 发送 IPC 消息打开设置对话框
-    this.mainWindow.webContents.send('open-settings-dialog')
   }
 
   /**
@@ -223,8 +223,8 @@ class TrayService {
     try {
       const icon = nativeImage.createFromPath(iconPath)
       this.tray.setImage(icon)
-    } catch (error) {
-      console.error('Failed to set tray icon:', error)
+    } catch {
+      // Failed to set tray icon
     }
   }
 
