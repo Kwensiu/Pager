@@ -269,13 +269,13 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
               }
               break
             case 'refresh-page':
-              // 发送刷新消息到主进程
+              // 发送刷新消息到主进程，由WebViewContainer处理
               if (window.electron?.ipcRenderer) {
                 window.electron.ipcRenderer.send('window-manager:refresh-page')
               }
               break
             case 'copy-url':
-              // 发送复制URL消息到主进程
+              // 发送复制URL消息到主进程，由WebViewContainer处理
               if (window.electron?.ipcRenderer) {
                 window.electron.ipcRenderer.send('window-manager:copy-url')
               }

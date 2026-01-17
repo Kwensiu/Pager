@@ -202,12 +202,17 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
   ipcMain.handle('shortcut:enable-all', async () => {
     try {
       const defaults = shortcutService.getDefaultShortcuts()
+      const storeService = await getStoreService()
       let successCount = 0
 
       for (const shortcut of defaults) {
+        // 启用快捷键：将 isOpen 设置为 true
+        const enabledShortcut = { ...shortcut, isOpen: true }
         const callback = createShortcutCallback(shortcut.id, mainWindow)
-        if (shortcutService.register(shortcut, callback)) {
+        if (shortcutService.register(enabledShortcut, callback)) {
           successCount++
+          // 保存到存储
+          await storeService.updateShortcut(enabledShortcut)
         }
       }
 
@@ -218,15 +223,31 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
         totalCount: defaults.length
       }
     } catch (error) {
-      console.error('启用所有快捷键失败:', error)
+      console.error('启动所有快捷键失败:', error)
       return { success: false, message: error instanceof Error ? error.message : '未知错误' }
     }
   })
 
   ipcMain.handle('shortcut:disable-all', async () => {
     try {
+      const storeService = await getStoreService()
+
+      // 获取当前存储的所有快捷键
+      const storedShortcuts = await storeService.getShortcuts()
+
+      // 将所有快捷键的 isOpen 设置为 false
+      const disabledShortcuts = storedShortcuts.map((shortcut) => ({
+        ...shortcut,
+        isOpen: false
+      }))
+
+      // 更新存储
+      await storeService.setShortcuts(disabledShortcuts)
+
+      // 注销所有快捷键
       shortcutService.unregisterAll()
-      return { success: true, message: '所有快捷键已注销' }
+
+      return { success: true, message: '所有快捷键已禁用' }
     } catch (error) {
       console.error('禁用所有快捷键失败:', error)
       return { success: false, message: error instanceof Error ? error.message : '未知错误' }

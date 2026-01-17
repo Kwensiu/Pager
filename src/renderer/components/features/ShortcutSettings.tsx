@@ -188,7 +188,7 @@ export function ShortcutSettings({
     }
   }, [shortcutsEnabled, loadShortcuts])
 
-  // 启用所有默认快捷键
+  // 启动所有默认快捷键
   const enableAllShortcuts = async (): Promise<void> => {
     setIsLoading(true)
     try {
@@ -268,7 +268,7 @@ export function ShortcutSettings({
           <div className="flex gap-2">
             <Button onClick={enableAllShortcuts} disabled={isLoading} variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              启用所有默认快捷键
+              启动所有快捷键
             </Button>
             <Button onClick={disableAllShortcuts} disabled={isLoading} variant="outline" size="sm">
               <RotateCcw className="h-4 w-4 mr-2" />
