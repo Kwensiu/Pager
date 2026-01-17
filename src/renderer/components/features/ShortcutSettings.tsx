@@ -31,10 +31,8 @@ export function ShortcutSettings({
         window.api.enhanced.shortcut.getAll(),
         window.api.enhanced.shortcut.getDefaults()
       ])
-      console.log('=== 加载到的快捷键列表:', current, '===')
       setShortcuts(current)
-    } catch (error) {
-      console.error('加载快捷键失败:', error)
+    } catch {
       toast.error('加载快捷键失败')
     }
   }, [])
@@ -44,19 +42,15 @@ export function ShortcutSettings({
     async (shortcut: Shortcut): Promise<void> => {
       setIsLoading(true)
       try {
-        console.log('=== 保存快捷键:', { id: shortcut.id, isOpen: shortcut.isOpen, cmd: shortcut.cmd, isGlobal: shortcut.isGlobal }, '===')
         const result = await window.api.enhanced.shortcut.update(shortcut)
-        console.log('=== 保存结果:', result, '===')
         if (result.success) {
           toast.success(result.message || '快捷键保存成功')
-          console.log('=== 保存成功，重新加载快捷键列表 ===')
           await loadShortcuts()
           setEditingShortcut(null)
         } else {
           toast.error(result.message || '快捷键保存失败')
         }
-      } catch (error) {
-        console.error('保存快捷键失败:', error)
+      } catch {
         toast.error('保存快捷键失败')
       } finally {
         setIsLoading(false)
@@ -70,8 +64,7 @@ export function ShortcutSettings({
     try {
       const result = await window.api.enhanced.shortcut.validate(cmd)
       return result.valid
-    } catch (error) {
-      console.error('验证快捷键失败:', error)
+    } catch {
       return false
     }
   }, [])
@@ -82,8 +75,7 @@ export function ShortcutSettings({
       try {
         const result = await window.api.enhanced.shortcut.checkConflict(cmd, excludeId)
         return result.conflict
-      } catch (error) {
-        console.error('检查快捷键冲突失败:', error)
+      } catch {
         return null
       }
     },
@@ -175,7 +167,6 @@ export function ShortcutSettings({
           // 保存快捷键
           await saveShortcutWithValidation(updatedShortcut)
           // 强制重新加载数据
-          console.log('Force reloading shortcuts after save...')
           await loadShortcuts()
         }
         await stopListening()
@@ -208,8 +199,7 @@ export function ShortcutSettings({
       } else {
         toast.error(result.message || '快捷键启用失败')
       }
-    } catch (error) {
-      console.error('启用快捷键失败:', error)
+    } catch {
       toast.error('启用快捷键失败')
     } finally {
       setIsLoading(false)
@@ -227,8 +217,7 @@ export function ShortcutSettings({
       } else {
         toast.error(result.message || '快捷键禁用失败')
       }
-    } catch (error) {
-      console.error('禁用快捷键失败:', error)
+    } catch {
       toast.error('禁用快捷键失败')
     } finally {
       setIsLoading(false)
@@ -343,7 +332,10 @@ export function ShortcutSettings({
                           >
                             {getShortcutTypeText(shortcut)}
                           </Button>
-                          {(shortcut.id === 'refresh-page' || shortcut.id === 'copy-url' || shortcut.id === 'toggle-sidebar' || shortcut.id === 'open-settings') && (
+                          {(shortcut.id === 'refresh-page' ||
+                            shortcut.id === 'copy-url' ||
+                            shortcut.id === 'toggle-sidebar' ||
+                            shortcut.id === 'open-settings') && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -356,10 +348,10 @@ export function ShortcutSettings({
                                     {shortcut.id === 'refresh-page'
                                       ? '刷新快捷键只能在应用内生效'
                                       : shortcut.id === 'copy-url'
-                                      ? '复制URL快捷键只能在应用内生效'
-                                      : shortcut.id === 'toggle-sidebar'
-                                      ? '侧边栏导航快捷键只能在应用内生效'
-                                      : '设置界面快捷键只能在应用内生效'}
+                                        ? '复制URL快捷键只能在应用内生效'
+                                        : shortcut.id === 'toggle-sidebar'
+                                          ? '侧边栏导航快捷键只能在应用内生效'
+                                          : '设置界面快捷键只能在应用内生效'}
                                   </p>
                                 </TooltipContent>
                               </Tooltip>

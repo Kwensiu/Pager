@@ -16,6 +16,12 @@ import { ExtensionIsolationLevel } from '../../shared/types/store'
 
 const extensionManager = ExtensionManager.getInstance()
 
+// 动态导入storeService以避免循环依赖
+const getStoreService = async (): Promise<typeof import('../services/store').storeService> => {
+  const { storeService } = await import('../services/store')
+  return storeService
+}
+
 /**
  * 从本地存储获取弹窗设置
  * @returns 是否允许弹窗，默认为 true
@@ -80,8 +86,6 @@ interface ExtensionManifest {
 }
 
 export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): Promise<void> {
-  const { storeService } = await import('../services/store')
-
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
@@ -1264,42 +1268,49 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   // ===== Store 相关 IPC 处理器 =====
 
   // 获取所有主要分组
-  ipcMain.handle('store:get-primary-groups', () => {
+  ipcMain.handle('store:get-primary-groups', async () => {
+    const storeService = await getStoreService()
     return storeService.getPrimaryGroups()
   })
 
   // 保存所有主要分组
-  ipcMain.handle('store:set-primary-groups', (_, groups: PrimaryGroup[]) => {
+  ipcMain.handle('store:set-primary-groups', async (_, groups: PrimaryGroup[]) => {
+    const storeService = await getStoreService()
     return storeService.setPrimaryGroups(groups)
   })
 
   // 清除所有主要分组
-  ipcMain.handle('store:clear-primary-groups', () => {
+  ipcMain.handle('store:clear-primary-groups', async () => {
+    const storeService = await getStoreService()
     return storeService.clearPrimaryGroups()
   })
 
   // 添加主要分组
-  ipcMain.handle('store:add-primary-group', (_, group: Partial<PrimaryGroup>) => {
+  ipcMain.handle('store:add-primary-group', async (_, group: Partial<PrimaryGroup>) => {
+    const storeService = await getStoreService()
     return storeService.addPrimaryGroup(group)
   })
 
   // 更新主要分组
   ipcMain.handle(
     'store:update-primary-group',
-    (_, groupId: string, updates: Partial<PrimaryGroup>) => {
+    async (_, groupId: string, updates: Partial<PrimaryGroup>) => {
+      const storeService = await getStoreService()
       return storeService.updatePrimaryGroup(groupId, updates)
     }
   )
 
   // 删除主要分组
-  ipcMain.handle('store:delete-primary-group', (_, groupId: string) => {
+  ipcMain.handle('store:delete-primary-group', async (_, groupId: string) => {
+    const storeService = await getStoreService()
     return storeService.deletePrimaryGroup(groupId)
   })
 
   // 添加次要分组
   ipcMain.handle(
     'store:add-secondary-group',
-    (_, primaryGroupId: string, secondaryGroup: SecondaryGroup) => {
+    async (_, primaryGroupId: string, secondaryGroup: SecondaryGroup) => {
+      const storeService = await getStoreService()
       return storeService.addSecondaryGroup(primaryGroupId, secondaryGroup)
     }
   )
@@ -1307,43 +1318,56 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   // 更新次要分组
   ipcMain.handle(
     'store:update-secondary-group',
-    (_, secondaryGroupId: string, updates: Partial<SecondaryGroup>) => {
+    async (_, secondaryGroupId: string, updates: Partial<SecondaryGroup>) => {
+      const storeService = await getStoreService()
       return storeService.updateSecondaryGroup(secondaryGroupId, updates)
     }
   )
 
   // 删除次要分组
-  ipcMain.handle('store:delete-secondary-group', (_, secondaryGroupId: string) => {
+  ipcMain.handle('store:delete-secondary-group', async (_, secondaryGroupId: string) => {
+    const storeService = await getStoreService()
     return storeService.deleteSecondaryGroup(secondaryGroupId)
   })
 
   // 在主要分组中添加网站
-  ipcMain.handle('store:add-website-to-primary', (_, primaryGroupId: string, website: Website) => {
-    return storeService.addWebsiteToPrimaryGroup(primaryGroupId, website)
-  })
+  ipcMain.handle(
+    'store:add-website-to-primary',
+    async (_, primaryGroupId: string, website: Website) => {
+      const storeService = await getStoreService()
+      return storeService.addWebsiteToPrimaryGroup(primaryGroupId, website)
+    }
+  )
 
   // 在次要分组中添加网站
   ipcMain.handle(
     'store:add-website-to-secondary',
-    (_, secondaryGroupId: string, website: Website) => {
+    async (_, secondaryGroupId: string, website: Website) => {
+      const storeService = await getStoreService()
       return storeService.addWebsiteToSecondaryGroup(secondaryGroupId, website)
     }
   )
 
   // 更新网站
-  ipcMain.handle('store:update-website', (_, websiteId: string, updates: Partial<Website>) => {
-    return storeService.updateWebsite(websiteId, updates)
-  })
+  ipcMain.handle(
+    'store:update-website',
+    async (_, websiteId: string, updates: Partial<Website>) => {
+      const storeService = await getStoreService()
+      return storeService.updateWebsite(websiteId, updates)
+    }
+  )
 
   // 删除网站
-  ipcMain.handle('store:delete-website', (_, websiteId: string) => {
+  ipcMain.handle('store:delete-website', async (_, websiteId: string) => {
+    const storeService = await getStoreService()
     return storeService.deleteWebsite(websiteId)
   })
 
   // 更新二级分组排序
   ipcMain.handle(
     'store:update-secondary-group-order',
-    (_, primaryGroupId: string, secondaryGroupIds: string[]) => {
+    async (_, primaryGroupId: string, secondaryGroupIds: string[]) => {
+      const storeService = await getStoreService()
       return storeService.updateSecondaryGroupOrder(primaryGroupId, secondaryGroupIds)
     }
   )
@@ -1351,38 +1375,45 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   // 更新网站排序
   ipcMain.handle(
     'store:update-website-order',
-    (_, secondaryGroupId: string, websiteIds: string[]) => {
+    async (_, secondaryGroupId: string, websiteIds: string[]) => {
+      const storeService = await getStoreService()
       return storeService.updateWebsiteOrder(secondaryGroupId, websiteIds)
     }
   )
 
   // 批量更新网站排序
-  ipcMain.handle('store:batch-update-website-orders', (_, updates: WebsiteOrderUpdate[]) => {
+  ipcMain.handle('store:batch-update-website-orders', async (_, updates: WebsiteOrderUpdate[]) => {
+    const storeService = await getStoreService()
     return storeService.batchUpdateWebsiteOrders(updates)
   })
 
   // 获取窗口状态
-  ipcMain.handle('store:get-window-state', () => {
+  ipcMain.handle('store:get-window-state', async () => {
+    const storeService = await getStoreService()
     return storeService.getWindowState()
   })
 
   // 设置窗口状态
-  ipcMain.handle('store:set-window-state', (_, state: Partial<WindowState>) => {
+  ipcMain.handle('store:set-window-state', async (_, state: Partial<WindowState>) => {
+    const storeService = await getStoreService()
     return storeService.setWindowState(state)
   })
 
   // 获取设置
-  ipcMain.handle('store:get-settings', () => {
+  ipcMain.handle('store:get-settings', async () => {
+    const storeService = await getStoreService()
     return storeService.getSettings()
   })
 
   // 更新设置
-  ipcMain.handle('store:update-settings', (_, updates: Partial<Settings>) => {
+  ipcMain.handle('store:update-settings', async (_, updates: Partial<Settings>) => {
+    const storeService = await getStoreService()
     return storeService.updateSettings(updates)
   })
 
   // 重置为默认值
-  ipcMain.handle('store:reset-to-defaults', (_, defaultGroups: PrimaryGroup[]) => {
+  ipcMain.handle('store:reset-to-defaults', async (_, defaultGroups: PrimaryGroup[]) => {
+    const storeService = await getStoreService()
     return storeService.resetToDefaults(defaultGroups)
   })
 

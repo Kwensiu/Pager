@@ -673,20 +673,20 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     }, [])
 
     // 创建统一的键盘事件处理器
-    const createKeyboardHandler = useCallback((
-      event: KeyboardEvent,
-      handlers: Record<string, () => void>
-    ) => {
-      if (matchesPredefinedShortcut(event, 'REFRESH_PAGE')) {
-        event.preventDefault()
-        handlers.refresh?.()
-      }
-      
-      if (matchesPredefinedShortcut(event, 'COPY_URL')) {
-        event.preventDefault()
-        handlers.copyUrl?.()
-      }
-    }, [])
+    const createKeyboardHandler = useCallback(
+      (event: KeyboardEvent, handlers: Record<string, () => void>) => {
+        if (matchesPredefinedShortcut(event, 'REFRESH_PAGE')) {
+          event.preventDefault()
+          handlers.refresh?.()
+        }
+
+        if (matchesPredefinedShortcut(event, 'COPY_URL')) {
+          event.preventDefault()
+          handlers.copyUrl?.()
+        }
+      },
+      []
+    )
 
     // 监听WebView的键盘事件（应用内模式）
     useEffect(() => {

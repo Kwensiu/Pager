@@ -28,7 +28,7 @@ export async function showErrorNotification(title: string, error: unknown): Prom
     title,
     body: error instanceof Error ? error.message : '未知错误'
   }
-  
+
   if (window.electron?.ipcRenderer) {
     try {
       await window.electron.ipcRenderer.invoke('window-manager:show-notification', config)

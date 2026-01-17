@@ -51,7 +51,6 @@ export class ShortcutService {
       const success = globalShortcut.register(refreshShortcut.cmd, callback)
       if (success) {
         this.refreshShortcutRegistered = true
-        console.log(`注册刷新快捷键 ${refreshShortcut.cmd}: 成功`)
       }
     }
   }
@@ -95,7 +94,6 @@ export class ShortcutService {
     }
   }
 
-  
   /**
    * 创建快捷键回调
    */
@@ -133,15 +131,15 @@ export class ShortcutService {
           try {
             // 直接操作窗口，不通过 windowManager
             if (!this.mainWindow) return
-            
+
             const currentState = this.mainWindow.isAlwaysOnTop()
             const newState = !currentState
             this.mainWindow.setAlwaysOnTop(newState)
-            
+
             // 发送状态变化事件到渲染进程
             this.mainWindow.webContents.send('window-manager:always-on-top-changed', newState)
-          } catch (error) {
-            console.error('窗口顶置切换出错:', error)
+          } catch {
+            // Silent fail
           }
         },
         'refresh-page': () => {
@@ -204,7 +202,7 @@ export class ShortcutService {
       if (shortcut.isGlobal) {
         // 注册全局快捷键
         const success = globalShortcut.register(shortcut.cmd, callback)
-        
+
         if (success) {
           this.shortcuts.set(shortcut.cmd, shortcut)
           this.callbacks.set(shortcut.cmd, callback)
@@ -218,8 +216,7 @@ export class ShortcutService {
         this.callbacks.set(shortcut.cmd, callback)
         return true
       }
-    } catch (error) {
-      console.error(`快捷键注册失败 ${shortcut.cmd}:`, error)
+    } catch {
       return false
     }
   }
@@ -247,10 +244,8 @@ export class ShortcutService {
       if (shortcut.isGlobal) {
         this.callbacks.delete(cmd)
       }
-      console.log(`Shortcut unregistered: ${cmd}`)
       return true
-    } catch (error) {
-      console.error(`Failed to unregister shortcut ${cmd}:`, error)
+    } catch {
       return false
     }
   }
@@ -263,9 +258,8 @@ export class ShortcutService {
       globalShortcut.unregisterAll()
       this.shortcuts.clear()
       this.callbacks.clear()
-      console.log('All shortcuts unregistered')
-    } catch (error) {
-      console.error('Failed to unregister all shortcuts:', error)
+    } catch {
+      // Silent fail
     }
   }
 
@@ -351,7 +345,7 @@ export class ShortcutService {
    */
   private handleShortcutCommandChange(oldShortcut: Shortcut, newShortcut: Shortcut): boolean {
     this.unregister(oldShortcut.cmd)
-    
+
     if (newShortcut.isOpen) {
       const callback = this.createShortcutCallback(newShortcut.id)
       return this.register(newShortcut, callback)
@@ -367,18 +361,18 @@ export class ShortcutService {
   private handleShortcutStateChange(oldShortcut: Shortcut, newShortcut: Shortcut): boolean {
     // 更新配置
     this.shortcuts.set(newShortcut.cmd, newShortcut)
-    
+
     // 从禁用变为启用
     if (newShortcut.isOpen && !oldShortcut.isOpen) {
       const callback = this.createShortcutCallback(newShortcut.id)
       return this.register(newShortcut, callback)
     }
-    
+
     // 从启用变为禁用
     if (!newShortcut.isOpen && oldShortcut.isOpen) {
       this.unregisterShortcut(newShortcut)
     }
-    
+
     return true
   }
 
@@ -401,8 +395,8 @@ export class ShortcutService {
     if (callback) {
       try {
         callback()
-      } catch (error) {
-        console.error(`Error executing shortcut ${cmd}:`, error)
+      } catch {
+        // Silent fail
       }
     }
   }

@@ -13,9 +13,15 @@ import { sessionIsolationService } from '../services/sessionIsolation'
 import { crashHandler } from '../services/crashHandler'
 import { sessionManager } from '../services/sessionManager'
 import { shortcutService } from '../services/shortcut'
-import { storeService } from '../services/store'
+import { versionChecker } from '../services/versionChecker'
 import type { ExtensionInfo } from '../extensions/types'
 import type { Shortcut } from '../../shared/types/store'
+
+// 动态导入storeService以避免循环依赖
+const getStoreService = async (): Promise<typeof import('../services/store').storeService> => {
+  const { storeService } = await import('../services/store')
+  return storeService
+}
 
 /**
  * 创建快捷键回调函数
@@ -141,19 +147,15 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
       // 注册新的快捷键
       const callback = createShortcutCallback(shortcut.id, mainWindow)
       const success = shortcutService.register(shortcut, callback)
-      console.log(`=== 快捷键注册结果: ${success}`, '===')
-      
+
       if (success) {
         // 保存到持久化存储
+        const storeService = await getStoreService()
         await storeService.updateShortcut(shortcut)
-        console.log('=== 快捷键保存到存储成功 ===', '===')
-      } else {
-        console.log('=== 快捷键注册失败，不保存到存储 ===', '===')
       }
 
       return { success, message: success ? '快捷键注册成功' : '快捷键注册失败' }
     } catch (error) {
-      console.error('注册快捷键失败:', error)
       return { success: false, message: error instanceof Error ? error.message : '未知错误' }
     }
   })
@@ -164,6 +166,7 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
 
       if (success) {
         // 从持久化存储中删除
+        const storeService = await getStoreService()
         const shortcuts = await storeService.getShortcuts()
         const shortcutToRemove = shortcuts.find((s) => s.cmd === cmd)
         if (shortcutToRemove) {
@@ -181,13 +184,14 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
   ipcMain.handle('shortcut:get-all', async () => {
     try {
       // 直接返回用户保存的快捷键配置
+      const storeService = await getStoreService()
       const storedShortcuts = await storeService.getShortcuts()
-      
+
       // 如果没有保存过配置，则返回默认配置
       if (storedShortcuts.length === 0) {
         return shortcutService.getDefaultShortcuts()
       }
-      
+
       return storedShortcuts
     } catch (error) {
       console.error('获取快捷键列表失败:', error)
@@ -231,22 +235,18 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
 
   ipcMain.handle('shortcut:update', async (_, shortcut: Shortcut) => {
     try {
-      console.log('=== 快捷键更新请求:', { id: shortcut.id, isOpen: shortcut.isOpen, cmd: shortcut.cmd, isGlobal: shortcut.isGlobal }, '===')
-      
       // 使用新的更新逻辑
       const success = shortcutService.update(shortcut)
 
       if (success) {
         // 保存到持久化存储
+        const storeService = await getStoreService()
         await storeService.updateShortcut(shortcut)
-        console.log('=== 快捷键更新保存成功 ===', '===')
         return { success: true, message: '快捷键更新成功' }
       } else {
-        console.log('=== 快捷键更新失败 ===', '===')
         return { success: false, message: '快捷键更新失败' }
       }
     } catch (error) {
-      console.error('更新快捷键失败:', error)
       return { success: false, message: error instanceof Error ? error.message : '未知错误' }
     }
   })
@@ -545,22 +545,18 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
 
   // ===== 版本检查 =====
   ipcMain.handle('version-checker:check-update', async (_, force?: boolean) => {
-    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.checkForAppUpdate(force)
   })
 
   ipcMain.handle('version-checker:download-update', async () => {
-    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.downloadUpdate()
   })
 
   ipcMain.handle('version-checker:install-update', async () => {
-    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.installUpdate()
   })
 
   ipcMain.handle('version-checker:get-version-info', async () => {
-    const { versionChecker } = await import('../services/versionChecker')
     return versionChecker.getVersionInfo()
   })
 
@@ -635,7 +631,6 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
 
   // ===== 通用功能 =====
   ipcMain.handle('services:get-stats', async () => {
-    const { versionChecker } = await import('../services/versionChecker')
     return {
       theme: themeService.getCurrentTheme(),
       windowManager: windowManager.getWindowState(),

@@ -2,10 +2,22 @@ import { app, BrowserWindow, session } from 'electron'
 import { join } from 'path'
 import { globalProxyService } from './services/proxyService'
 import { shortcutService } from './services/shortcut'
+import { windowManager } from './services/windowManager'
 import { registerIpcHandlers } from './ipc/handlers'
 import { createWindow } from './core/window/index'
+import { versionChecker } from './services/versionChecker'
+import { ExtensionManager } from './extensions/extensionManager'
+import { sessionIsolationService } from './services/sessionIsolation'
+import { extensionIsolationManager } from './services/extensionIsolation'
+import { extensionPermissionManager } from './services/extensionPermissionManager'
 
 let mainWindow: BrowserWindow | null = null
+
+// 动态导入storeService以避免循环依赖
+const getStoreService = async (): Promise<typeof import('./services/store').storeService> => {
+  const { storeService } = await import('./services/store')
+  return storeService
+}
 
 // 设置自定义用户数据路径，避免重名冲突
 if (process.platform === 'win32') {
@@ -13,12 +25,6 @@ if (process.platform === 'win32') {
 }
 
 app.whenReady().then(async () => {
-  // ===== 核心服务初始化 =====
-  const { storeService } = await import('./services/store')
-  const { versionChecker } = await import('./services/versionChecker')
-  const { ExtensionManager } = await import('./extensions/extensionManager')
-  const { extensionIsolationManager } = await import('./services/extensionIsolation')
-  const { extensionPermissionManager } = await import('./services/extensionPermissionManager')
   // 禁用软件光栅化器
   app.commandLine.appendSwitch('disable-software-rasterizer')
   // 忽略证书错误
@@ -54,22 +60,18 @@ app.whenReady().then(async () => {
 
   // 初始化快捷键服务
   try {
-    const { shortcutService } = await import('./services/shortcut')
-    const { windowManager } = await import('./services/windowManager')
-    const { storeService } = await import('./services/store')
     windowManager.setMainWindow(mainWindow)
     shortcutService.setMainWindow(mainWindow)
 
     // 获取用户保存的快捷键配置，如果没有则使用默认配置
+    const storeService = await getStoreService()
     const savedShortcuts = await storeService.getShortcuts()
-    console.log('=== 用户保存的快捷键配置:', savedShortcuts.map(s => ({ id: s.id, isOpen: s.isOpen, cmd: s.cmd })), '===')
-    
-    const shortcutsToRegister = savedShortcuts.length > 0 ? savedShortcuts : shortcutService.getDefaultShortcuts()
-    console.log('=== 将要注册的快捷键:', shortcutsToRegister.filter(s => s.isOpen).map(s => ({ id: s.id, isOpen: s.isOpen, cmd: s.cmd })), '===')
-    
+
+    const shortcutsToRegister =
+      savedShortcuts.length > 0 ? savedShortcuts : shortcutService.getDefaultShortcuts()
+
     for (const shortcut of shortcutsToRegister) {
       if (shortcut.isOpen) {
-        console.log(`=== 注册快捷键: ${shortcut.id} (${shortcut.cmd})`, '===')
         const callback = shortcutService.createShortcutCallback(shortcut.id)
         shortcutService.register(shortcut, callback)
       }
@@ -80,6 +82,7 @@ app.whenReady().then(async () => {
 
   // 初始化托盘（如果启用最小化到托盘）
   try {
+    const storeService = await getStoreService()
     const settings = await storeService.getSettings()
     if (settings.minimizeToTray && settings.trayEnabled) {
       const { trayService } = await import('./services/tray')
@@ -103,6 +106,7 @@ app.whenReady().then(async () => {
 
   // 初始化自动检查更新
   try {
+    const storeService = await getStoreService()
     const settings = await storeService.getSettings()
 
     if (settings.autoCheckUpdates) {
@@ -148,10 +152,8 @@ app.on('will-quit', () => {
 // 应用退出时清理资源
 app.on('before-quit', async () => {
   try {
-    // 动态导入storeService以避免循环依赖
-    const { storeService } = await import('./services/store')
-
     // 获取当前设置
+    const storeService = await getStoreService()
     const settings = await storeService.getSettings()
 
     // 如果启用了保存会话，保存当前会话状态
@@ -171,7 +173,6 @@ app.on('before-quit', async () => {
           options.clearStorageData !== false ||
           options.clearAuthCache !== false
         ) {
-          const { sessionIsolationService } = await import('./services/sessionIsolation')
           await sessionIsolationService.clearAllSessions(options)
         }
 
@@ -194,7 +195,6 @@ app.on('before-quit', async () => {
 
     // 销毁扩展隔离管理器
     try {
-      const { extensionIsolationManager } = await import('./services/extensionIsolation')
       extensionIsolationManager.destroy()
     } catch (error) {
       console.error('Failed to destroy extension isolation manager:', error)

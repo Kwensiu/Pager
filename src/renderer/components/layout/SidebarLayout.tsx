@@ -164,7 +164,6 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
     }
   }, [])
 
-  
   // 获取当前窗口顶置状态
   useEffect(() => {
     const getCurrentAlwaysOnTopState = async (): Promise<void> => {
@@ -235,11 +234,11 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
           }
 
           // 标记为正在执行
-          setExecutingShortcuts(prev => new Set(prev).add(registeredShortcut.id))
+          setExecutingShortcuts((prev) => new Set(prev).add(registeredShortcut.id))
 
           // 延迟清除执行标志
           setTimeout(() => {
-            setExecutingShortcuts(prev => {
+            setExecutingShortcuts((prev) => {
               const newSet = new Set(prev)
               newSet.delete(registeredShortcut.id)
               return newSet

@@ -13,10 +13,7 @@ export interface KeyboardShortcutConfig {
 /**
  * 检查键盘事件是否匹配快捷键配置
  */
-export function matchesShortcut(
-  event: KeyboardEvent,
-  config: KeyboardShortcutConfig
-): boolean {
+export function matchesShortcut(event: KeyboardEvent, config: KeyboardShortcutConfig): boolean {
   return (
     !!event.ctrlKey === !!config.ctrl &&
     !!event.altKey === !!config.alt &&
@@ -34,18 +31,18 @@ export const SHORTCUTS = {
     alt: true,
     key: 'r'
   } as KeyboardShortcutConfig,
-  
+
   COPY_URL: {
     ctrl: true,
     shift: true,
     key: 'l'
   } as KeyboardShortcutConfig,
-  
+
   TOGGLE_SIDEBAR: {
     ctrl: true,
     key: 'b'
   } as KeyboardShortcutConfig,
-  
+
   OPEN_SETTINGS: {
     ctrl: true,
     key: 's'
@@ -60,9 +57,6 @@ export type ShortcutType = keyof typeof SHORTCUTS
 /**
  * 检查事件是否匹配预定义的快捷键
  */
-export function matchesPredefinedShortcut(
-  event: KeyboardEvent,
-  type: ShortcutType
-): boolean {
+export function matchesPredefinedShortcut(event: KeyboardEvent, type: ShortcutType): boolean {
   return matchesShortcut(event, SHORTCUTS[type])
 }

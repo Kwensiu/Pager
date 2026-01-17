@@ -521,20 +521,13 @@ export const storeService = {
   // 更新单个快捷键
   async updateShortcut(shortcut: Shortcut) {
     const shortcuts = await this.getShortcuts()
-    console.log('=== updateShortcut - 当前快捷键列表:', shortcuts, '===')
-    console.log('=== updateShortcut - 要更新的快捷键:', shortcut, '===')
     const index = shortcuts.findIndex((s) => s.id === shortcut.id)
-    console.log('=== updateShortcut - 找到的索引:', index, '===')
     if (index >= 0) {
       shortcuts[index] = shortcut
-      console.log('=== updateShortcut - 更新现有快捷键 ===', '===')
     } else {
       shortcuts.push(shortcut)
-      console.log('=== updateShortcut - 添加新快捷键 ===', '===')
     }
-    console.log('=== updateShortcut - 更新后的快捷键列表:', shortcuts, '===')
     await this.setShortcuts(shortcuts)
-    console.log('=== updateShortcut - 保存完成 ===', '===')
   },
 
   // 删除快捷键
