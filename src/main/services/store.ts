@@ -86,7 +86,6 @@ async function getStore(): Promise<ElectronStore> {
 
           // 版本检查
           autoCheckUpdates: true,
-          updateCheckInterval: 24,
 
           // Session 隔离
           sessionIsolationEnabled: true,

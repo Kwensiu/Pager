@@ -97,12 +97,6 @@ app.whenReady().then(async () => {
         }
       }, 5000)
     }
-
-    // 设置更新检查间隔
-    if (settings.updateCheckInterval) {
-      const intervalMs = settings.updateCheckInterval * 60 * 60 * 1000
-      versionChecker.setCheckInterval(intervalMs)
-    }
   } catch (error) {
     console.error('Failed to initialize auto update check:', error)
   }

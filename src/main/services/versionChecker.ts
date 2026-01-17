@@ -8,10 +8,7 @@ import { globalProxyService } from './proxyService'
  */
 class VersionChecker {
   private updateAvailable: boolean = false
-  private latestVersion: string = ''
-  private releaseNotes: string = ''
   private lastCheckTime: number = 0
-  private checkInterval: number = 24 * 60 * 60 * 1000 // 24小时
 
   constructor() {
     // 延迟初始化，不在构造函数中访问 app
@@ -50,15 +47,9 @@ class VersionChecker {
       // 监听更新事件
       autoUpdater.on('checking-for-update', () => {})
 
-      autoUpdater.on('update-available', (info) => {
+      autoUpdater.on('update-available', (_info) => {
         this.updateAvailable = true
-        this.latestVersion = info.version
-        this.releaseNotes =
-          typeof info.releaseNotes === 'string'
-            ? info.releaseNotes
-            : Array.isArray(info.releaseNotes)
-              ? info.releaseNotes.map((note) => note.note).join('\n')
-              : ''
+        // Note: latestVersion and releaseNotes are handled in checkForAppUpdate
       })
 
       autoUpdater.on('update-not-available', () => {
@@ -81,7 +72,7 @@ class VersionChecker {
    * 检查应用更新
    * @param force 是否强制检查
    */
-  async checkForAppUpdate(force: boolean = false): Promise<{
+  async checkForAppUpdate(_force: boolean = false): Promise<{
     available: boolean
     currentVersion: string
     latestVersion?: string
@@ -89,16 +80,6 @@ class VersionChecker {
     error?: string
   }> {
     const now = Date.now()
-
-    // 如果不是强制检查且最近检查过，跳过
-    if (!force && now - this.lastCheckTime < this.checkInterval) {
-      return {
-        available: this.updateAvailable,
-        currentVersion: app.getVersion?.() || '0.0.0',
-        latestVersion: this.latestVersion,
-        releaseNotes: this.releaseNotes
-      }
-    }
 
     try {
       this.lastCheckTime = now
@@ -116,8 +97,6 @@ class VersionChecker {
         const isNewer = this.compareVersions(latestVersion, currentVersion) > 0
 
         this.updateAvailable = isNewer
-        this.latestVersion = latestVersion
-        this.releaseNotes = githubRelease.body
 
         return {
           available: isNewer,
@@ -308,14 +287,6 @@ class VersionChecker {
       checkCount: 0, // 可以添加计数逻辑
       autoUpdateEnabled: autoUpdater.autoInstallOnAppQuit
     }
-  }
-
-  /**
-   * 设置检查间隔
-   * @param interval 间隔时间（毫秒）
-   */
-  setCheckInterval(interval: number): void {
-    this.checkInterval = interval
   }
 
   /**

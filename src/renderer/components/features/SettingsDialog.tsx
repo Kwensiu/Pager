@@ -565,36 +565,15 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
             <Separator />
 
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>自动检查更新</Label>
-                <p className="text-sm text-muted-foreground">启动时自动检查应用更新</p>
-              </div>
-              <Switch
-                checked={settings.autoCheckUpdates}
-                onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
-              />
-            </div>
-
-            {settings.autoCheckUpdates && (
-              <div className="pl-4 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Label className="text-sm">检查间隔</Label>
-                  <Input
-                    type="number"
-                    value={settings.updateCheckInterval || 24}
-                    onChange={(e) =>
-                      handleSettingChange('updateCheckInterval', parseInt(e.target.value) || 24)
-                    }
-                    min={1}
-                    max={168}
-                    className="w-16 h-8 text-sm"
-                  />
-                  <span className="text-xs text-muted-foreground">小时</span>
+              <div className="flex items-center justify-between flex-1">
+                <div className="space-y-0.5">
+                  <Label>自动检查更新</Label>
+                  <p className="text-sm text-muted-foreground">启动时自动检查应用更新</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 ml-2"
                   onClick={handleManualUpdateCheck}
                   title="手动检查更新"
                   disabled={isCheckingUpdate}
@@ -612,7 +591,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                   </svg>
                 </Button>
               </div>
-            )}
+              <Switch
+                checked={settings.autoCheckUpdates}
+                onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
+                className="ml-4"
+              />
+            </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
