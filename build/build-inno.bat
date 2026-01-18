@@ -69,15 +69,15 @@ if defined APP_VERSION_ENV (
     echo Using version from environment: %APP_VERSION%
 ) else (
     echo Reading version from %PKG_JSON_PATH%...
-    for /f "usebackq tokens=2 delims=:," %%i in (%PKG_JSON_PATH%) do (
-        if "%%i"==" "version" (
-            set APP_VERSION=%%j
-            set APP_VERSION=!APP_VERSION:"=!
-            set APP_VERSION=!APP_VERSION: =!
-            goto :version_found
-        )
+    REM 使用Node.js解析JSON获取版本号
+    for /f "delims=" %%i in ('node -e "try { const pkg = require('./%PKG_JSON_PATH%'); console.log(pkg.version); } catch(e) { process.exit(1); }"') do (
+        set APP_VERSION=%%i
     )
-    :version_found
+    if "!APP_VERSION!"=="" (
+        echo Error: Failed to extract version from package.json
+        pause
+        exit /b 1
+    )
     echo Extracted version: !APP_VERSION!
 )
 

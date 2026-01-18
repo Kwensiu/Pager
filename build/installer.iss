@@ -73,8 +73,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopShortcut}"; GroupDescription
 Name: "launchprogram"; Description: "{cm:LaunchProgram}"; GroupDescription: "{cm:AutoStartProgramGroup}"; Flags: unchecked
 
 [Files]
-; 主应用程序文件
-Source: "dist\win-unpacked\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; 主应用程序文件 - 检查文件是否存在
+Source: "dist\win-unpacked\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Check: CheckMainExecutable
 Source: "dist\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 可选：许可证文件
@@ -386,4 +386,17 @@ end;
 function InitializeUninstall(): Boolean;
 begin
   Result := True;
+end;
+
+// 检查主可执行文件是否存在
+function CheckMainExecutable(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{src}\{#MyAppExeName}'));
+  if not Result then
+  begin
+    MsgBox('错误：找不到主可执行文件 ' + ExpandConstant('{#MyAppExeName}') + '。' + #13#10 +
+           '请确保应用程序已正确构建。' + #13#10 + #13#10 +
+           '预期路径：' + ExpandConstant('{src}\{#MyAppExeName}'), 
+           mbError, MB_OK);
+  end;
 end;

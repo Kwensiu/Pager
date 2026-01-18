@@ -23,8 +23,6 @@ win:
   target:
     - target: portable
       arch: [x64]
-portable:
-  artifactName: ${name}-${version}-portable.exe
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
