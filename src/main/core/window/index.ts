@@ -176,7 +176,7 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       // 性能优化配置
-      backgroundThrottling: false  // 防止后台节流
+      backgroundThrottling: false // 防止后台节流
     }
   })
 
@@ -190,28 +190,28 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   })
 
   // 简化的防抖函数
-let saveTimeout: NodeJS.Timeout | null = null
-let resizeNotifyTimeout: NodeJS.Timeout | null = null
+  let saveTimeout: NodeJS.Timeout | null = null
+  let resizeNotifyTimeout: NodeJS.Timeout | null = null
 
-const debouncedSaveWindowState = (window: BrowserWindow, delay: number = 500): void => {
-  if (saveTimeout) {
-    clearTimeout(saveTimeout)
+  const debouncedSaveWindowState = (window: BrowserWindow, delay: number = 500): void => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout)
+    }
+    saveTimeout = setTimeout(async () => {
+      await saveWindowState(window)
+    }, delay)
   }
-  saveTimeout = setTimeout(async () => {
-    await saveWindowState(window)
-  }, delay)
-}
 
-const debouncedNotifyResize = (window: BrowserWindow, delay: number = 200): void => {
-  if (resizeNotifyTimeout) {
-    clearTimeout(resizeNotifyTimeout)
+  const debouncedNotifyResize = (window: BrowserWindow, delay: number = 200): void => {
+    if (resizeNotifyTimeout) {
+      clearTimeout(resizeNotifyTimeout)
+    }
+    resizeNotifyTimeout = setTimeout(() => {
+      window.webContents.send('window-resized')
+    }, delay)
   }
-  resizeNotifyTimeout = setTimeout(() => {
-    window.webContents.send('window-resized')
-  }, delay)
-}
 
-mainWindow.on('resize', () => {
+  mainWindow.on('resize', () => {
     // 防抖通知渲染进程窗口大小变化
     debouncedNotifyResize(mainWindow)
     // 防抖保存窗口状态，延迟更长以减少频率
@@ -262,7 +262,7 @@ mainWindow.on('resize', () => {
     try {
       // 保存最终窗口状态
       await saveWindowState(mainWindow)
-      
+
       const storeService = await getStoreService()
       const settings = await storeService.getSettings()
 

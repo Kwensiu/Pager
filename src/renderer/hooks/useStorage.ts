@@ -52,7 +52,10 @@ export function useStorage<T>({
     const handleLocalStorageChange = (e: CustomEvent): void => {
       if (e.detail?.key === key) {
         try {
-          setValue(e.detail.value)
+          // 使用requestAnimationFrame确保在下一个渲染帧更新状态
+          requestAnimationFrame(() => {
+            setValue(e.detail.value)
+          })
         } catch (error) {
           console.error(`Failed to parse ${key} from custom storage event:`, error)
         }

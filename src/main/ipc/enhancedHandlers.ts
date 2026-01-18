@@ -201,26 +201,78 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
 
   ipcMain.handle('shortcut:enable-all', async () => {
     try {
-      const defaults = shortcutService.getDefaultShortcuts()
       const storeService = await getStoreService()
-      let successCount = 0
 
-      for (const shortcut of defaults) {
-        // 启用快捷键：将 isOpen 设置为 true
-        const enabledShortcut = { ...shortcut, isOpen: true }
-        const callback = createShortcutCallback(shortcut.id, mainWindow)
-        if (shortcutService.register(enabledShortcut, callback)) {
-          successCount++
-          // 保存到存储
-          await storeService.updateShortcut(enabledShortcut)
+      // 1. 获取用户当前配置
+      const userShortcuts = await storeService.getShortcuts()
+      const userConfigMap = new Map(userShortcuts.map((s) => [s.id, s]))
+
+      // 2. 获取默认配置
+      const defaults = shortcutService.getDefaultShortcuts()
+
+      // 3. 合并配置：保留用户的自定义，只启用默认的启用状态
+      const shortcutsToEnable = defaults.map((defaultShortcut) => {
+        const userShortcut = userConfigMap.get(defaultShortcut.id)
+
+        if (userShortcut) {
+          // 保留用户的快捷键命令，但使用默认的启用状态
+          return {
+            ...userShortcut,
+            isOpen: true // 强制启用
+          }
+        } else {
+          // 新增的快捷键，使用默认配置
+          return { ...defaultShortcut, isOpen: true }
+        }
+      })
+
+      // 4. 检查冲突
+      const conflicts = shortcutService.getAllConflicts(shortcutsToEnable)
+      if (conflicts.length > 0) {
+        return {
+          success: false,
+          message: `发现 ${conflicts.length} 个快捷键冲突，无法启用`,
+          conflicts
+        }
+      }
+
+      // 5. 注册并保存
+      let successCount = 0
+      const errors: Array<{ id: string; cmd: string; error: string }> = []
+
+      for (const shortcut of shortcutsToEnable) {
+        try {
+          const callback = createShortcutCallback(shortcut.id, mainWindow)
+          const success = shortcutService.register(shortcut, callback)
+
+          if (success) {
+            await storeService.updateShortcut(shortcut)
+            successCount++
+          } else {
+            errors.push({
+              id: shortcut.id,
+              cmd: shortcut.cmd,
+              error: '注册失败'
+            })
+          }
+        } catch (error) {
+          errors.push({
+            id: shortcut.id,
+            cmd: shortcut.cmd,
+            error: error instanceof Error ? error.message : '未知错误'
+          })
         }
       }
 
       return {
         success: successCount > 0,
-        message: `成功注册 ${successCount}/${defaults.length} 个快捷键`,
+        message:
+          errors.length > 0
+            ? `成功启用 ${successCount}/${defaults.length} 个快捷键，${errors.length} 个失败`
+            : `成功启用 ${successCount}/${defaults.length} 个快捷键`,
         successCount,
-        totalCount: defaults.length
+        totalCount: defaults.length,
+        errors
       }
     } catch (error) {
       console.error('启动所有快捷键失败:', error)

@@ -6,7 +6,7 @@ import { ScrollArea } from '../../ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui/tooltip'
 import { toast } from 'sonner'
 import type { Shortcut } from '../../../shared/types/store'
-import { Keyboard, RotateCcw, Plus, HelpCircle } from 'lucide-react'
+import { Keyboard, RotateCcw, Plus, HelpCircle, Undo } from 'lucide-react'
 
 export function ShortcutSettings(): React.ReactElement {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([])
@@ -14,9 +14,15 @@ export function ShortcutSettings(): React.ReactElement {
   const [isListening, setIsListening] = useState(false)
   const [capturedKeys, setCapturedKeys] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefreshTime, setLastRefreshTime] = useState(0)
 
   // 启动所有默认快捷键
   const enableAllShortcuts = async (): Promise<void> => {
+    // 添加确认对话框
+    const confirmed = await confirm('确定要启动所有快捷键吗？这将启用所有默认快捷键配置。')
+    if (!confirmed) return
+
     setIsLoading(true)
     try {
       const result = await window.api.enhanced.shortcut.enableAll()
@@ -26,8 +32,59 @@ export function ShortcutSettings(): React.ReactElement {
       } else {
         toast.error(result.message || '快捷键启用失败')
       }
-    } catch {
-      toast.error('启用快捷键失败')
+    } catch (error) {
+      console.error('启用快捷键失败:', error)
+      toast.error(error instanceof Error ? `启用快捷键失败: ${error.message}` : '启用快捷键失败')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 恢复默认快捷键配置
+  const resetToDefaults = async (): Promise<void> => {
+    // 添加确认对话框
+    const confirmed = await confirm('确定要恢复默认快捷键配置吗？这将覆盖所有当前的自定义设置。')
+    if (!confirmed) return
+
+    setIsLoading(true)
+    try {
+      // 获取默认快捷键配置
+      const defaults = await window.api.enhanced.shortcut.getDefaults()
+      
+      // 批量保存默认配置
+      let successCount = 0
+      const errors: Array<{ id: string; error: string }> = []
+
+      for (const shortcut of defaults) {
+        try {
+          const result = await window.api.enhanced.shortcut.update(shortcut)
+          if (result.success) {
+            successCount++
+          } else {
+            errors.push({
+              id: shortcut.id,
+              error: result.message || '保存失败'
+            })
+          }
+        } catch (error) {
+          errors.push({
+            id: shortcut.id,
+            error: error instanceof Error ? error.message : '未知错误'
+          })
+        }
+      }
+
+      if (errors.length > 0) {
+        toast.error(`部分快捷键恢复失败：${errors.length}/${defaults.length} 个失败`)
+      } else {
+        toast.success(`成功恢复 ${successCount} 个默认快捷键配置`)
+      }
+
+      // 重新加载列表
+      await loadShortcuts()
+    } catch (error) {
+      console.error('恢复默认配置失败:', error)
+      toast.error(error instanceof Error ? `恢复默认配置失败: ${error.message}` : '恢复默认配置失败')
     } finally {
       setIsLoading(false)
     }
@@ -35,17 +92,23 @@ export function ShortcutSettings(): React.ReactElement {
 
   // 禁用所有快捷键
   const disableAllShortcuts = async (): Promise<void> => {
+    // 添加确认对话框
+    const confirmed = await confirm('确定要禁用所有快捷键吗？此操作不可撤销。')
+    if (!confirmed) return
+
     setIsLoading(true)
     try {
       const result = await window.api.enhanced.shortcut.disableAll()
       if (result.success) {
         toast.success(result.message || '快捷键禁用成功')
-        setShortcuts([])
+        // 正确更新UI状态：重新加载数据而不是清空列表
+        await loadShortcuts()
       } else {
         toast.error(result.message || '快捷键禁用失败')
       }
-    } catch {
-      toast.error('禁用快捷键失败')
+    } catch (error) {
+      console.error('禁用快捷键失败:', error)
+      toast.error(error instanceof Error ? `禁用快捷键失败: ${error.message}` : '禁用快捷键失败')
     } finally {
       setIsLoading(false)
     }
@@ -53,16 +116,32 @@ export function ShortcutSettings(): React.ReactElement {
 
   // 加载快捷键列表
   const loadShortcuts = useCallback(async (): Promise<void> => {
-    try {
-      const [current] = await Promise.all([
-        window.api.enhanced.shortcut.getAll(),
-        window.api.enhanced.shortcut.getDefaults()
-      ])
-      setShortcuts(current)
-    } catch {
-      toast.error('加载快捷键失败')
+    // 防抖：如果距离上次刷新不足1秒，则忽略
+    const now = Date.now()
+    if (isRefreshing || now - lastRefreshTime < 1000) {
+      return
     }
-  }, [])
+
+    setIsRefreshing(true)
+    setLastRefreshTime(now)
+
+    try {
+      // 显示加载指示器
+      const toastId = toast.loading('正在加载快捷键列表...')
+
+      const current = await window.api.enhanced.shortcut.getAll()
+      setShortcuts(current)
+
+      // 清除加载指示器并显示成功消息
+      toast.dismiss(toastId)
+      toast.success('快捷键列表已刷新')
+    } catch (error) {
+      console.error('加载快捷键失败:', error)
+      toast.error(error instanceof Error ? `加载快捷键失败: ${error.message}` : '加载快捷键失败')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [isRefreshing, lastRefreshTime])
 
   // 保存快捷键
   const saveShortcut = useCallback(
@@ -77,8 +156,9 @@ export function ShortcutSettings(): React.ReactElement {
         } else {
           toast.error(result.message || '快捷键保存失败')
         }
-      } catch {
-        toast.error('保存快捷键失败')
+      } catch (error) {
+        console.error('保存快捷键失败:', error)
+        toast.error(error instanceof Error ? `保存快捷键失败: ${error.message}` : '保存快捷键失败')
       } finally {
         setIsLoading(false)
       }
@@ -91,7 +171,8 @@ export function ShortcutSettings(): React.ReactElement {
     try {
       const result = await window.api.enhanced.shortcut.validate(cmd)
       return result.valid
-    } catch {
+    } catch (error) {
+      console.error('验证快捷键失败:', error)
       return false
     }
   }, [])
@@ -102,7 +183,8 @@ export function ShortcutSettings(): React.ReactElement {
       try {
         const result = await window.api.enhanced.shortcut.checkConflict(cmd, excludeId)
         return result.conflict
-      } catch {
+      } catch (error) {
+        console.error('检查快捷键冲突失败:', error)
         return null
       }
     },
@@ -193,8 +275,10 @@ export function ShortcutSettings(): React.ReactElement {
           const updatedShortcut = { ...editingShortcut, cmd: shortcut }
           // 保存快捷键
           await saveShortcutWithValidation(updatedShortcut)
-          // 强制重新加载数据
-          await loadShortcuts()
+          // 延迟重新加载数据，避免在渲染过程中更新状态
+          setTimeout(() => {
+            loadShortcuts()
+          }, 0)
         }
         await stopListening()
       }
@@ -212,7 +296,8 @@ export function ShortcutSettings(): React.ReactElement {
   useEffect(() => {
     // 组件挂载时加载快捷键列表
     loadShortcuts()
-  }, [loadShortcuts])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 获取快捷键类型显示文本
   const getShortcutTypeText = (shortcut: Shortcut): React.ReactElement => {
@@ -252,7 +337,7 @@ export function ShortcutSettings(): React.ReactElement {
       </div>
 
       {/* 操作按钮 */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button onClick={enableAllShortcuts} disabled={isLoading} variant="outline" size="sm">
           <Plus className="h-4 w-4 mr-2" />
           启动所有快捷键
@@ -261,7 +346,11 @@ export function ShortcutSettings(): React.ReactElement {
           <RotateCcw className="h-4 w-4 mr-2" />
           禁用所有快捷键
         </Button>
-        <Button onClick={loadShortcuts} disabled={isLoading} variant="outline" size="sm">
+        <Button onClick={resetToDefaults} disabled={isLoading} variant="outline" size="sm">
+          <Undo className="h-4 w-4 mr-2" />
+          恢复默认配置
+        </Button>
+        <Button onClick={loadShortcuts} disabled={isLoading || isRefreshing} variant="outline" size="sm">
           <RotateCcw className="h-4 w-4 mr-2" />
           刷新列表
         </Button>
