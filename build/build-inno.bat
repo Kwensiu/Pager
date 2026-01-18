@@ -21,9 +21,25 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM 检查构建目录
-if not exist "..\build\%BUILD_DIR%\win-unpacked" (
+REM 检查构建目录 - 兼容本地和CI环境
+echo Current directory: %CD%
+echo Checking for build directory...
+
+if exist "build\%BUILD_DIR%\win-unpacked" (
+    echo Found build directory at: build\%BUILD_DIR%\win-unpacked
+    set CHECK_PATH=build\%BUILD_DIR%\win-unpacked
+    set ARTIFACT_PATH=build\%BUILD_DIR%\*.exe
+) else if exist "%BUILD_DIR%\win-unpacked" (
+    echo Found build directory at: %BUILD_DIR%\win-unpacked
+    set CHECK_PATH=%BUILD_DIR%\win-unpacked
+    set ARTIFACT_PATH=%BUILD_DIR%\*.exe
+) else (
     echo Error: Application not built. Please run 'yarn build:unpack' first.
+    echo Expected paths:
+    echo   - build\%BUILD_DIR%\win-unpacked
+    echo   - %BUILD_DIR%\win-unpacked
+    echo Current directory contents:
+    dir /b
     pause
     exit /b 1
 )
@@ -75,6 +91,6 @@ if %ERRORLEVEL% equ 0 (
 
 echo.
 echo Build artifacts:
-dir /b "..\build\%BUILD_DIR%\*.exe"
+dir /b "%ARTIFACT_PATH%"
 
 pause
