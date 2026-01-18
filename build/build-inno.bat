@@ -25,14 +25,20 @@ REM 检查构建目录 - 兼容本地和CI环境
 echo Current directory: %CD%
 echo Checking for build directory...
 
-if exist "build\%BUILD_DIR%\win-unpacked" (
-    echo Found build directory at: build\%BUILD_DIR%\win-unpacked
-    set CHECK_PATH=build\%BUILD_DIR%\win-unpacked
-    set ARTIFACT_PATH=build\%BUILD_DIR%\*.exe
-) else if exist "%BUILD_DIR%\win-unpacked" (
+if exist "%BUILD_DIR%\win-unpacked" (
     echo Found build directory at: %BUILD_DIR%\win-unpacked
     set CHECK_PATH=%BUILD_DIR%\win-unpacked
     set ARTIFACT_PATH=%BUILD_DIR%\*.exe
+    set INNO_SCRIPT=installer.iss
+    set PKG_JSON_PATH=..\package.json
+) else if exist "build\%BUILD_DIR%\win-unpacked" (
+    echo Found build directory at: build\%BUILD_DIR%\win-unpacked
+    echo Switching to build directory...
+    cd build
+    set CHECK_PATH=%BUILD_DIR%\win-unpacked
+    set ARTIFACT_PATH=%BUILD_DIR%\*.exe
+    set INNO_SCRIPT=installer.iss
+    set PKG_JSON_PATH=..\package.json
 ) else (
     echo Error: Application not built. Please run 'yarn build:unpack' first.
     echo Expected paths:
@@ -45,7 +51,9 @@ if exist "build\%BUILD_DIR%\win-unpacked" (
 )
 
 REM 检查 Inno 脚本
-if not exist "%INNO_SCRIPT%" (
+if exist "%INNO_SCRIPT%" (
+    echo Found Inno script: %INNO_SCRIPT%
+) else (
     echo Error: Inno Setup script not found: %INNO_SCRIPT%
     pause
     exit /b 1
@@ -55,7 +63,7 @@ REM 创建输出目录
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 
 REM 更新版本号（从package.json读取）
-for /f "tokens=3" %%i in ('findstr "version" ..\package.json') do (
+for /f "tokens=3" %%i in ('findstr "version" %PKG_JSON_PATH%') do (
     set APP_VERSION=%%i
     set APP_VERSION=!APP_VERSION:"=!
     set APP_VERSION=!APP_VERSION:,=!
@@ -66,18 +74,18 @@ echo Building %APP_NAME% version %APP_VERSION%...
 REM 编译 Inno Setup 安装程序
 set APP_NAME=Pager
 set APP_VERSION=%APP_VERSION%
-set OUTPUT_DIR=..\%BUILD_DIR%
+set OUTPUT_DIR=%BUILD_DIR%
 iscc "%INNO_SCRIPT%" /DAPP_NAME="%APP_NAME%" /DAPP_VERSION="%APP_VERSION%" /DOUTPUT_DIR="%OUTPUT_DIR%"
 
 if %ERRORLEVEL% equ 0 (
     echo ========================================
     echo Build completed successfully!
     echo ========================================
-    echo Output: ..\%BUILD_DIR%\%APP_NAME%-%APP_VERSION%-setup.exe
+    echo Output: %BUILD_DIR%\%APP_NAME%-%APP_VERSION%-setup.exe
     
     REM 显示文件信息
-    if exist "..\%BUILD_DIR%\%APP_NAME%-%APP_VERSION%-setup.exe" (
-        for %%F in ("..\%BUILD_DIR%\%APP_NAME%-%APP_VERSION%-setup.exe") do (
+    if exist "%BUILD_DIR%\%APP_NAME%-%APP_VERSION%-setup.exe" (
+        for %%F in ("%BUILD_DIR%\%APP_NAME%-%APP_VERSION%-setup.exe") do (
             echo Size: %%~zF bytes
         )
     )
