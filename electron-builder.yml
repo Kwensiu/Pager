@@ -7,28 +7,24 @@ publish:
   repo: Pager
 directories:
   buildResources: build
+  output: build/dist
 files:
   - '!**/.vscode/*'
+  - 'build/out/**/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,yarn.lock}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
 win:
   executableName: Pager
-nsis:
-  artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  allowElevation: true
-  perMachine: false
-  deleteAppDataOnUninstall: false
-  include: build/installer.nsh
+  target:
+    - target: portable
+      arch: [x64]
+portable:
+  artifactName: ${name}-${version}-portable.exe
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

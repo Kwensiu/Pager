@@ -1,28 +1,33 @@
-name: Release Build
+name: Release Build ${{ github.event.inputs.version }}
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+' # 正式版本 v1.0.0
-      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+' # Alpha版本 v1.0.0-alpha.1
-      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+' # Beta版本 v1.0.0-beta.1
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+' # RC版本 v1.0.0-rc.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        default: ''
+      prerelease:
+        description: 'Is this a prerelease?'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Build ${{ github.ref_name }}
+    name: Build ${{ github.event.inputs.version }}
     runs-on: windows-latest
     env:
       PLATFORM: win
       ARTIFACT_NAME: windows
 
     outputs:
-      version: ${{ steps.extract_version.outputs.version }}
-      tag: ${{ steps.extract_version.outputs.tag }}
-      prerelease: ${{ steps.extract_version.outputs.prerelease }}
+      version: ${{ steps.set_version.outputs.version }}
+      tag: ${{ steps.set_version.outputs.tag }}
+      prerelease: ${{ steps.set_version.outputs.prerelease || 'false' }}
 
     steps:
       - name: Checkout repository
@@ -56,23 +61,16 @@ jobs:
           yarn lint
           yarn typecheck
 
-      - name: Extract version from tag
-        id: extract_version
+      - name: Set version for manual trigger
+        id: set_version
         run: |
-          $TAG_NAME = "${{ github.ref }}".Replace("refs/tags/", "")
-          $VERSION = $TAG_NAME.Replace("v", "")
-          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
-          echo "tag=$TAG_NAME" >> $env:GITHUB_OUTPUT
-          # 判断是否为预发布版本
-          if ($TAG_NAME -match "-alpha\.|-beta\.|-rc\.") {
-            echo "prerelease=true" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "prerelease=false" >> $env:GITHUB_OUTPUT
-          }
+          echo "version=${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
+          echo "tag=v${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
+          echo "prerelease=${{ github.event.inputs.prerelease }}" >> $env:GITHUB_OUTPUT
 
       - name: Update package.json version
         run: |
-          $version = "${{ steps.extract_version.outputs.version }}"
+          $version = "${{ steps.set_version.outputs.version }}"
           $packageJson = Get-Content package.json | ConvertFrom-Json
           $packageJson.version = $version
           $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json -Encoding UTF8
@@ -106,9 +104,10 @@ jobs:
           if-no-files-found: error
 
   create-release:
-    name: Create Release ${{ github.ref_name }}
+    name: Create Release ${{ github.event.inputs.version }}
     needs: release
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout repository

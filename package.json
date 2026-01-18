@@ -2,7 +2,7 @@
   "name": "pager",
   "version": "0.0.9",
   "description": "A multi-website management desktop application built with Electron, React, and TypeScript featuring i18n support",
-  "main": "./out/main/index.js",
+  "main": "./build/out/main/index.js",
   "author": "Kwensiu",
   "homepage": "https://github.com/Kwensiu/Pager",
   "scripts": {
@@ -16,7 +16,9 @@
     "build": "yarn typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "yarn build && electron-builder --dir",
-    "build:win": "yarn build && electron-builder --win",
+    "build:portable": "yarn build && electron-builder --win --config.portable=true",
+    "build:inno": "yarn build:unpack && build/build-inno.bat",
+    "build:all": "yarn build:portable && yarn build:inno",
     "tailwind:init": "tailwindcss init -p",
     "release-notes": "npx tsx .github/scripts/generate-release-notes.ts"
   },

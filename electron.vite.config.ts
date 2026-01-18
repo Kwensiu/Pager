@@ -9,9 +9,15 @@ const appVersion = packageJson.version
 
 export default defineConfig({
   main: {
+    build: {
+      outDir: resolve(__dirname, 'build/out/main')
+    },
     plugins: []
   },
   preload: {
+    build: {
+      outDir: resolve(__dirname, 'build/out/preload')
+    },
     plugins: []
   },
   renderer: {
@@ -22,6 +28,7 @@ export default defineConfig({
       }
     },
     build: {
+      outDir: resolve(__dirname, 'build/out/renderer'),
       rollupOptions: {
         external: ['electron', 'fs', 'path']
       }

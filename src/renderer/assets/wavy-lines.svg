@@ -1,0 +1,29 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wave1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="wave2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#wave1)" />
+  <path d="M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z" fill="url(#wave2)" opacity="0.3">
+    <animate attributeName="d" 
+      values="M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z;
+              M0,50 Q25,70 50,50 T100,50 L100,100 L0,100 Z;
+              M0,50 Q25,30 50,50 T100,50 L100,100 L0,100 Z"
+      dur="4s" 
+      repeatCount="indefinite" />
+  </path>
+  <path d="M0,60 Q25,40 50,60 T100,60 L100,100 L0,100 Z" fill="url(#wave1)" opacity="0.2">
+    <animate attributeName="d" 
+      values="M0,60 Q25,40 50,60 T100,60 L100,100 L0,100 Z;
+              M0,60 Q25,80 50,60 T100,60 L100,100 L0,100 Z;
+              M0,60 Q25,40 50,60 T100,60 L100,100 L0,100 Z"
+      dur="3s" 
+      repeatCount="indefinite" />
+  </path>
+</svg>
