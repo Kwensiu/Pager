@@ -38,6 +38,7 @@ yarn build:win
 ### CI/CD 构建
 
 GitHub Actions 工作流会自动：
+
 1. 安装 Inno Setup
 2. 构建应用程序
 3. 生成安装程序
@@ -51,9 +52,9 @@ GitHub Actions 工作流会自动：
 win:
   executableName: Pager
   target:
-    - target: inno      # Inno Setup 安装程序
+    - target: inno # Inno Setup 安装程序
       arch: [x64]
-    - target: portable   # 便携版
+    - target: portable # 便携版
       arch: [x64]
 
 inno:
@@ -119,6 +120,7 @@ CreateDesktopShortcut=yes
 ### 调试技巧
 
 1. **详细日志**
+
    ```bash
    yarn build:inno --verbose
    ```
@@ -138,12 +140,12 @@ CreateDesktopShortcut=yes
 
 ## 对比 NSIS
 
-| 特性 | Inno Setup | NSIS |
-|------|------------|-------|
-| 脚本语言 | Pascal | NSIS脚本 |
-| 多语言 | 内置支持 | 基础支持 |
-| 自定义性 | 非常高 | 中等 |
-| 学习曲线 | 较陡峭 | 相对简单 |
-| 压缩率 | 更好 | 标准 |
+| 特性     | Inno Setup | NSIS     |
+| -------- | ---------- | -------- |
+| 脚本语言 | Pascal     | NSIS脚本 |
+| 多语言   | 内置支持   | 基础支持 |
+| 自定义性 | 非常高     | 中等     |
+| 学习曲线 | 较陡峭     | 相对简单 |
+| 压缩率   | 更好       | 标准     |
 
 Inno Setup 提供更专业的安装体验，适合需要高度自定义的项目。

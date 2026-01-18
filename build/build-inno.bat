@@ -22,7 +22,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 REM 检查构建目录
-if not exist "..\%BUILD_DIR%\win-unpacked" (
+if not exist "..\build\%BUILD_DIR%\win-unpacked" (
     echo Error: Application not built. Please run 'yarn build:unpack' first.
     pause
     exit /b 1
@@ -75,6 +75,6 @@ if %ERRORLEVEL% equ 0 (
 
 echo.
 echo Build artifacts:
-dir /b "..\%BUILD_DIR%\*.exe"
+dir /b "..\build\%BUILD_DIR%\*.exe"
 
 pause

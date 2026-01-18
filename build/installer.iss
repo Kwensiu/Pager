@@ -18,7 +18,7 @@ AppUpdatesURL={#MyAppURL}
 AppCopyright=Copyright © 2026 {#MyAppPublisher}
 
 ; 安装程序设置
-DefaultDirName={pf}\{#MyAppName}
+DefaultDirName={commonpf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=dist
@@ -70,7 +70,6 @@ english.AutoStartProgramGroup=Auto-start program group
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopShortcut}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; OnlyBelowVersion: 6.1; Flags: unchecked
 Name: "launchprogram"; Description: "{cm:LaunchProgram}"; GroupDescription: "{cm:AutoStartProgramGroup}"; Flags: unchecked
 
 [Files]
@@ -89,8 +88,8 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 ; 桌面快捷方式
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Comment: "{#MyAppName} - 多网站管理工具"
 
-; 快速启动栏（仅限 Windows 7 及以下）
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
+; 快速启动栏（已过时，现代 Windows 不再使用）
+; Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Run]
 ; 安装完成后运行程序
@@ -367,8 +366,6 @@ end;
 
 // 卸载时询问是否保留数据
 function UninstallNeedRestart(): Boolean;
-var
-  ResultCode: Integer;
 begin
   if MsgBox('是否保留应用数据和配置文件？' + #13#10 + #13#10 + '选择"是"保留数据，选择"否"完全删除。', 
              mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
