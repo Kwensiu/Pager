@@ -18,7 +18,7 @@
     "build:unpack": "yarn build && electron-builder --dir",
     "build:win": "yarn build && electron-builder --win",
     "tailwind:init": "tailwindcss init -p",
-    "release-notes": "npx tsx .github/scripts/generate-release-notes.ts"
+    "release-notes": "yarn tsx .github/scripts/generate-release-notes.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

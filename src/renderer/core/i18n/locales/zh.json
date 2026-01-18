@@ -436,7 +436,7 @@
   },
   "system": "跟随系统",
   "theme": "主题",
-  "urlPlaceholder": "https://example.com",
+  "urlPlaceholder": "google.com | https://example.com",
   "websiteDescription": "网站描述（可选）",
   "websiteDescriptionPlaceholder": "简短描述这个网站的用途",
   "websiteFaviconFrom": "网站图标，来源：",

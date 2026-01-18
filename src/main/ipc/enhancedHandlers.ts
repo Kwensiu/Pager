@@ -312,15 +312,26 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
       const success = shortcutService.update(shortcut)
 
       if (success) {
-        // 保存到持久化存储
+        // 只有在快捷键成功注册后才保存到持久化存储
         const storeService = await getStoreService()
         await storeService.updateShortcut(shortcut)
         return { success: true, message: '快捷键更新成功' }
       } else {
-        return { success: false, message: '快捷键更新失败' }
+        return { success: false, message: '快捷键注册失败，请检查快捷键是否冲突' }
       }
     } catch (error) {
+      console.error('更新快捷键失败:', error)
       return { success: false, message: error instanceof Error ? error.message : '未知错误' }
+    }
+  })
+
+  ipcMain.handle('shortcut:check-registered', async (_, shortcutId: string) => {
+    try {
+      const isRegistered = shortcutService.isShortcutRegistered(shortcutId)
+      return { registered: isRegistered }
+    } catch (error) {
+      console.error('检查快捷键注册状态失败:', error)
+      return { registered: false, error: error instanceof Error ? error.message : '未知错误' }
     }
   })
 

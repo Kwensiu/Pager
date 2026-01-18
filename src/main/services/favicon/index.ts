@@ -154,7 +154,10 @@ export class FaviconService {
       // 为每个策略创建 Promise
       const strategyPromises = strategies.map((strategy) =>
         fetchFaviconByStrategy(url, strategy, this.config.timeout).catch((error) => {
-          console.error(`Strategy ${strategy} failed for ${url}:`, error)
+          // 静默处理策略错误，避免控制台噪音
+          if (process.env.NODE_ENV === 'development') {
+            console.debug(`Strategy ${strategy} failed for ${url}:`, error)
+          }
           return null
         })
       )
@@ -167,7 +170,10 @@ export class FaviconService {
         return `${baseUrl}/favicon.ico`
       }
     } catch (error) {
-      console.error(`Error fetching favicon for ${url}:`, error)
+      // 静默处理错误，避免控制台噪音
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Error fetching favicon for ${url}:`, error)
+      }
       return null
     }
   }

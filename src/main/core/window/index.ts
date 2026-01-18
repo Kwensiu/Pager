@@ -147,7 +147,9 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   const preloadPath =
     process.env.NODE_ENV === 'development'
       ? join(appPath, 'out/preload/index.js')
-      : join(appPath, 'out/preload/index.js')
+      : process.platform === 'win32'
+        ? join(process.resourcesPath, 'app.asar.unpacked', 'out', 'preload', 'index.js')
+        : join(appPath, 'out/preload/index.js')
 
   console.log('Preload path:', preloadPath)
 
@@ -165,6 +167,13 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
     fullscreenable: true,
     frame: true,
     transparent: false,
+    // 生产环境特定配置
+    focusable: true,
+    // 确保窗口在Windows上正确工作
+    ...(process.platform === 'win32' && {
+      skipTaskbar: false,
+      alwaysOnTop: false
+    }),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: preloadPath,
@@ -176,7 +185,12 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       // 性能优化配置
-      backgroundThrottling: false // 防止后台节流
+      backgroundThrottling: false, // 防止后台节流
+      // 生产环境特定设置
+      ...(process.env.NODE_ENV === 'production' && {
+        // 确保生产环境中正确处理输入事件
+        webSecurity: true
+      })
     }
   })
 
@@ -187,19 +201,28 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // 生产环境中确保窗口获得焦点
+    if (process.env.NODE_ENV === 'production') {
+      setTimeout(() => {
+        mainWindow.focus()
+      }, 100)
+    }
   })
 
   // 简化的防抖函数
   let saveTimeout: NodeJS.Timeout | null = null
   let resizeNotifyTimeout: NodeJS.Timeout | null = null
 
-  const debouncedSaveWindowState = (window: BrowserWindow, delay: number = 500): void => {
+  const debouncedSaveWindowState = (window: BrowserWindow, delay: number = 300): void => {
     if (saveTimeout) {
       clearTimeout(saveTimeout)
     }
-    saveTimeout = setTimeout(async () => {
-      await saveWindowState(window)
-    }, delay)
+    saveTimeout = setTimeout(
+      async () => {
+        await saveWindowState(window)
+      },
+      process.env.NODE_ENV === 'production' ? Math.min(delay, 200) : delay
+    )
   }
 
   const debouncedNotifyResize = (window: BrowserWindow, delay: number = 200): void => {
@@ -214,13 +237,36 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   mainWindow.on('resize', () => {
     // 防抖通知渲染进程窗口大小变化
     debouncedNotifyResize(mainWindow)
-    // 防抖保存窗口状态，延迟更长以减少频率
+    // 防抖保存窗口状态，生产环境使用更短的延迟
     debouncedSaveWindowState(mainWindow)
+
+    // 生产环境中确保窗口保持响应
+    if (process.env.NODE_ENV === 'production') {
+      // 确保窗口不会失去焦点
+      if (mainWindow.isFocused()) {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus()
+          }
+        }, 50)
+      }
+    }
   })
 
   mainWindow.on('move', () => {
     // 移动事件不保存状态，避免拖动卡顿
     // 只在窗口关闭时保存最终位置
+
+    // 生产环境中确保窗口保持响应
+    if (process.env.NODE_ENV === 'production') {
+      if (mainWindow.isFocused()) {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus()
+          }
+        }, 50)
+      }
+    }
   })
 
   mainWindow.on('maximize', async () => {

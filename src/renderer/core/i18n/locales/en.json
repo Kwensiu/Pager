@@ -435,7 +435,7 @@
   },
   "system": "Follow System",
   "theme": "Theme",
-  "urlPlaceholder": "https://example.com",
+  "urlPlaceholder": "google.com | https://example.com",
   "websiteDescription": "Website Description (Optional)",
   "websiteDescriptionPlaceholder": "Briefly describe the purpose of this website",
   "websiteFaviconFrom": "Website icon from: ",

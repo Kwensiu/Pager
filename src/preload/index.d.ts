@@ -399,8 +399,8 @@ declare global {
           enableAll: () => Promise<{
             success: boolean
             message?: string
-            successCount?: number
-            totalCount?: number
+            enabledCount: number
+            totalCount: number
           }>
           disableAll: () => Promise<{ success: boolean; message?: string }>
           update: (
@@ -421,6 +421,10 @@ declare global {
               shortcut: import('../shared/types/store').Shortcut
               conflicts: import('../shared/types/store').Shortcut[]
             }>
+          }>
+          checkRegistered: (shortcutId: string) => Promise<{
+            registered: boolean
+            error?: string
           }>
         }
         // 系统托盘

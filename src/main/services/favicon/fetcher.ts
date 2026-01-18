@@ -31,6 +31,19 @@ export function checkUrlStatus(url: string, timeout: number = 3000): Promise<num
           resolve(response.status || 500)
         } catch (error) {
           clearTimeout(timeoutId)
+          // 静默处理常见错误，避免控制台噪音
+          if (error instanceof Error) {
+            if (
+              error.name === 'AbortError' ||
+              error.message.includes('ERR_CONNECTION_REFUSED') ||
+              error.message.includes('ERR_NAME_NOT_RESOLVED') ||
+              error.message.includes('ERR_CONNECTION_TIMED_OUT')
+            ) {
+              // 这些是预期的网络错误，不需要记录
+              resolve(500)
+              return
+            }
+          }
           reject(error)
         }
       } catch (error) {
@@ -70,6 +83,19 @@ export function fetchUrlContent(url: string, timeout: number = 5000): Promise<st
           resolve(data)
         } catch (error) {
           clearTimeout(timeoutId)
+          // 静默处理常见网络错误
+          if (error instanceof Error) {
+            if (
+              error.name === 'AbortError' ||
+              error.message.includes('ERR_CONNECTION_REFUSED') ||
+              error.message.includes('ERR_NAME_NOT_RESOLVED') ||
+              error.message.includes('ERR_CONNECTION_TIMED_OUT')
+            ) {
+              // 这些是预期的网络错误，直接返回空字符串
+              resolve('')
+              return
+            }
+          }
           reject(error)
         }
       } catch (error) {
@@ -242,7 +268,11 @@ export async function tryHtmlParsing(url: string, timeout: number = 5000): Promi
       }
     }
   } catch (error) {
-    console.error('Error fetching page to extract favicon:', error)
+    // 静默处理错误，避免控制台噪音
+    // 只在开发环境下记录详细错误
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Error fetching page to extract favicon:', error)
+    }
   }
 
   return null
@@ -273,7 +303,10 @@ export async function fetchFaviconByStrategy(
         return null
     }
   } catch (error) {
-    console.error(`Error fetching favicon with strategy ${strategy}:`, error)
+    // 静默处理错误，避免控制台噪音
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`Error fetching favicon with strategy ${strategy}:`, error)
+    }
     return null
   }
 }

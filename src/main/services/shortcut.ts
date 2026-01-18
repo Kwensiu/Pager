@@ -161,12 +161,6 @@ export class ShortcutService {
         },
         'right-mini-window': () => {
           // 已删除：屏幕右边小窗功能不存在
-        },
-        'exit-app': () => {
-          // 直接在主进程中退出应用
-          if (this.mainWindow) {
-            this.mainWindow.close()
-          }
         }
       }
 
@@ -317,6 +311,23 @@ export class ShortcutService {
   }
 
   /**
+   * 检查快捷键是否实际已注册
+   * @param shortcutId 快捷键ID
+   * @returns 是否已注册
+   */
+  isShortcutRegistered(shortcutId: string): boolean {
+    const shortcut = this.findShortcutById(shortcutId)
+    if (!shortcut) return false
+    
+    if (shortcut.isGlobal) {
+      return globalShortcut.isRegistered(shortcut.cmd)
+    } else {
+      // 应用内快捷键检查是否有回调
+      return this.callbacks.has(shortcut.cmd)
+    }
+  }
+
+  /**
    * 根据ID查找快捷键
    */
   private findShortcutById(id: string): Shortcut | undefined {
@@ -332,27 +343,44 @@ export class ShortcutService {
    * 添加新快捷键
    */
   private addNewShortcut(shortcut: Shortcut): boolean {
+    // 无论是否启用，都先存储配置
+    this.shortcuts.set(shortcut.cmd, shortcut)
+    
+    // 如果启用，立即注册
     if (shortcut.isOpen) {
-      return this.register(shortcut, this.createShortcutCallback(shortcut.id))
-    } else {
-      this.shortcuts.set(shortcut.cmd, shortcut)
-      return true
+      const callback = this.createShortcutCallback(shortcut.id)
+      return this.register(shortcut, callback)
     }
+    
+    return true
   }
 
   /**
    * 处理快捷键命令变化
    */
   private handleShortcutCommandChange(oldShortcut: Shortcut, newShortcut: Shortcut): boolean {
+    // 先注销旧的快捷键
     this.unregister(oldShortcut.cmd)
 
+    // 更新配置
+    this.shortcuts.set(newShortcut.cmd, newShortcut)
+
+    // 如果启用，注册新的快捷键
     if (newShortcut.isOpen) {
       const callback = this.createShortcutCallback(newShortcut.id)
-      return this.register(newShortcut, callback)
-    } else {
-      this.shortcuts.set(newShortcut.cmd, newShortcut)
-      return true
+      const success = this.register(newShortcut, callback)
+      if (!success) {
+        // 注册失败，恢复旧配置
+        this.shortcuts.set(oldShortcut.cmd, oldShortcut)
+        // 重新注册旧快捷键
+        if (oldShortcut.isOpen) {
+          this.register(oldShortcut, this.createShortcutCallback(oldShortcut.id))
+        }
+        return false
+      }
     }
+
+    return true
   }
 
   /**
@@ -365,7 +393,12 @@ export class ShortcutService {
     // 从禁用变为启用
     if (newShortcut.isOpen && !oldShortcut.isOpen) {
       const callback = this.createShortcutCallback(newShortcut.id)
-      return this.register(newShortcut, callback)
+      const success = this.register(newShortcut, callback)
+      if (!success) {
+        // 注册失败，恢复状态
+        this.shortcuts.set(oldShortcut.cmd, oldShortcut)
+        return false
+      }
     }
 
     // 从启用变为禁用
@@ -548,14 +581,6 @@ export class ShortcutService {
         tag: '最大化窗口',
         cmd: 'Ctrl+Shift+M',
         isGlobal: true,
-        isOpen: false // 默认关闭
-      },
-      {
-        id: 'exit-app',
-        name: 'softwareExit',
-        tag: '退出软件',
-        cmd: 'Ctrl+Shift+Q',
-        isGlobal: false,
         isOpen: false // 默认关闭
       }
     ]
