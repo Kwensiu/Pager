@@ -391,7 +391,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       theme: 'light',
       language: 'zh',
       autoCheckUpdates: true,
-      minimizeToTray: true,
+      minimizeToTray: 'exit',
       collapsedSidebarMode: 'all',
       // 快速跳转网站设置
       quickResetWebsite: true,
@@ -808,15 +808,23 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>{t('settings.minimizeToTray')}</Label>
+                <Label>{t('settings.closeMainWindow')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  {t('settings.minimizeToTrayDescription')}
+                  {t('settings.closeMainWindowDescription')}
                 </p>
               </div>
-              <Switch
-                checked={settings.minimizeToTray}
-                onCheckedChange={(checked) => handleSettingChange('minimizeToTray', checked)}
-              />
+              <Select
+                value={settings.minimizeToTray}
+                onValueChange={(value: 'tray' | 'exit') => handleSettingChange('minimizeToTray', value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tray">{t('settings.minimizeToTray')}</SelectItem>
+                  <SelectItem value="exit">{t('settings.exitApp')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between">
@@ -1074,12 +1082,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
             <Separator />
 
             {/* 快捷键设置 */}
-            <ShortcutSettings
-              shortcutsEnabled={settings.shortcutsEnabled || false}
-              onShortcutsEnabledChange={(enabled) =>
-                handleSettingChange('shortcutsEnabled', enabled)
-              }
-            />
+            <ShortcutSettings />
           </div>
         </TabsContent>
 

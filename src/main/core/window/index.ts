@@ -201,28 +201,9 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
     saveWindowState(mainWindow)
   })
 
-  // 最小化事件处理
-  mainWindow.on('minimize', async () => {
-    try {
-      const storeService = await getStoreService()
-      const settings = await storeService.getSettings()
-
-      // 如果启用最小化到托盘，则隐藏到托盘而不是最小化到任务栏
-      if (settings.minimizeToTray) {
-        mainWindow.hide()
-
-        // 如果托盘服务可用，确保托盘已创建
-        const trayService = await getTrayService()
-        if (!trayService.getWindowVisibility?.()) {
-          // 托盘未创建时创建托盘
-          trayService.createTray(mainWindow)
-        }
-
-        // Window minimized to tray
-      }
-    } catch (error) {
-      console.error('Failed to handle minimize event:', error)
-    }
+  // 最小化事件处理 - 始终最小化到任务栏
+  mainWindow.on('minimize', () => {
+    // 正常最小化行为，无需特殊处理
   })
 
   // 关闭事件处理
@@ -231,8 +212,8 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
       const storeService = await getStoreService()
       const settings = await storeService.getSettings()
 
-      // 如果启用最小化到托盘，则隐藏到托盘而不是关闭应用
-      if (settings.minimizeToTray) {
+      // 如果设置为最小化到托盘，则隐藏到托盘而不是关闭应用
+      if (settings.minimizeToTray === 'tray' && settings.trayEnabled) {
         event.preventDefault()
         mainWindow.hide()
 

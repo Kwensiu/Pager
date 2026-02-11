@@ -53,7 +53,7 @@ async function getStore(): Promise<ElectronStore> {
           // 通用设置
           theme: 'light',
           language: 'zh',
-          minimizeToTray: true,
+          minimizeToTray: 'exit',
           collapsedSidebarMode: 'all',
           dataPath: '',
 

@@ -72,7 +72,7 @@ app.whenReady().then(async () => {
   try {
     const storeService = await getStoreService()
     const settings = await storeService.getSettings()
-    if (settings.minimizeToTray && settings.trayEnabled) {
+    if (settings.minimizeToTray === 'tray' && settings.trayEnabled) {
       const { trayService } = await import('./services/tray')
       trayService.createTray(mainWindow)
     }
