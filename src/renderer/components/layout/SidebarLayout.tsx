@@ -1,28 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import {
-  SidebarProvider,
-  SidebarInset,
-  Sidebar,
-  SidebarContent as UISidebarContent,
-  SidebarFooter,
-  SidebarRail
-} from '@/ui/sidebar'
+import { SidebarProvider } from '@/ui/sidebar'
 import { useSidebar } from '@/ui/sidebar.types'
-import { Settings } from 'lucide-react'
 import { useSidebarLogic } from './sidebar/hooks/useSidebarLogic'
-import SidebarHeader from './sidebar/core/SidebarHeader'
-import SidebarContentWithDragDrop from './sidebar/dialogs/SidebarContentWithDragDrop'
-import EditSecondaryGroupDialog from './sidebar/dialogs/EditSecondaryGroupDialog'
 import AddOptionsDialog from './sidebar/dialogs/AddOptionsDialog'
-import { AddGroupDialog } from '@/components/features/AddGroupDialog'
-import { AddWebsiteDialog } from '@/components/features/AddWebsiteDialog'
-import { EditWebsiteDialog } from '@/components/features/EditWebsiteDialog'
-import { EditPrimaryGroupDialog } from '@/components/features/EditPrimaryGroupDialog'
-import { ConfirmDialog } from '@/components/features/ConfirmDialog'
-import SettingsDialog from '@/components/features/SettingsDialog'
 import { Website } from '@/types/website'
-import { useSettings } from '@/hooks/useSettings'
 import type { Shortcut } from '../../../shared/types/store'
+import { useSettings } from '@/hooks/useSettings'
+import DialogsContainer from './DialogsContainer'
+import SidebarContainer from './SidebarContainer'
+import ErrorBoundary from '@/components/common/ErrorBoundary'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface SidebarLayoutProps {
   children: (currentWebsite: Website | null) => React.ReactNode
@@ -51,8 +38,6 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false)
   // 快捷键数据
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([])
-  // 防重复触发状态
-  const [executingShortcuts, setExecutingShortcuts] = useState<Set<string>>(new Set())
 
   // 获取sidebar状态
   const { state, toggleSidebar } = useSidebar()
@@ -195,413 +180,167 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
     loadShortcuts()
   }, [])
 
-  // 监听键盘事件
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      // 检查是否是快捷键组合，且不是修饰键本身
-      if (
-        (event.ctrlKey || event.altKey) &&
-        event.key &&
-        !event.metaKey &&
-        event.key !== 'Control' &&
-        event.key !== 'Shift' &&
-        event.key !== 'Alt' &&
-        event.key !== 'Meta'
-      ) {
-        let shortcut = ''
-
-        // 构建快捷键字符串
-        if (event.ctrlKey) {
-          shortcut += 'Ctrl+'
-        }
-        if (event.altKey) {
-          shortcut += 'Alt+'
-        }
-        if (event.shiftKey) {
-          shortcut += 'Shift+'
-        }
-        shortcut += event.key.toUpperCase()
-
-        // 查找对应的快捷键 - 包括应用内和全局快捷键
-        const registeredShortcut = shortcuts.find((s) => s.cmd === shortcut && s.isOpen)
-
-        if (registeredShortcut) {
-          event.preventDefault()
-
-          // 检查是否正在执行中（防重复触发）
-          if (executingShortcuts.has(registeredShortcut.id)) {
-            return
+  // 使用键盘快捷键钩子
+  useKeyboardShortcuts({
+    shortcuts,
+    onShortcut: (shortcutId) => {
+      // 执行对应的快捷键动作
+      switch (shortcutId) {
+        case 'toggle-window':
+          // 软件窗口切换
+          if (window.api?.enhanced?.windowManager) {
+            window.api.enhanced.windowManager.toggleWindow()
           }
-
-          // 标记为正在执行
-          setExecutingShortcuts((prev) => new Set(prev).add(registeredShortcut.id))
-
-          // 延迟清除执行标志
-          setTimeout(() => {
-            setExecutingShortcuts((prev) => {
-              const newSet = new Set(prev)
-              newSet.delete(registeredShortcut.id)
-              return newSet
-            })
-          }, 100)
-
-          // 执行对应的快捷键动作
-          switch (registeredShortcut.id) {
-            case 'toggle-window':
-              // 软件窗口切换
-              if (window.api?.enhanced?.windowManager) {
-                window.api.enhanced.windowManager.toggleWindow()
-              }
-              break
-            case 'toggle-sidebar':
-              // 直接在渲染进程内执行
-              toggleSidebar()
-              break
-            case 'open-settings':
-              // 直接在渲染进程内执行
-              setShowSettings(!showSettings)
-              break
-            case 'toggle-always-on-top':
-              if (window.electron?.ipcRenderer) {
-                window.electron.ipcRenderer
-                  .invoke('window-manager:toggle-always-on-top')
-                  .then(setIsAlwaysOnTop)
-              }
-              break
-            case 'refresh-page':
-              // 发送刷新消息到主进程，由WebViewContainer处理
-              if (window.electron?.ipcRenderer) {
-                window.electron.ipcRenderer.send('window-manager:refresh-page')
-              }
-              break
-            case 'copy-url':
-              // 发送复制URL消息到主进程，由WebViewContainer处理
-              if (window.electron?.ipcRenderer) {
-                window.electron.ipcRenderer.send('window-manager:copy-url')
-              }
-              break
-            case 'minimize-window':
-              // 调用最小化窗口API
-              if (window.api?.enhanced?.windowManager) {
-                window.api.enhanced.windowManager.minimizeWindow()
-              }
-              break
-            case 'maximize-window':
-              // 调用最大化窗口API
-              if (window.api?.enhanced?.windowManager) {
-                window.api.enhanced.windowManager.maximizeWindow()
-              }
-              break
-            case 'exit-app':
-              // 退出应用
-              if (window.api?.enhanced?.windowManager) {
-                window.api.enhanced.windowManager.exitApp()
-              }
-              break
+          break
+        case 'toggle-sidebar':
+          // 直接在渲染进程内执行
+          toggleSidebar()
+          break
+        case 'open-settings':
+          // 直接在渲染进程内执行
+          setShowSettings(!showSettings)
+          break
+        case 'toggle-always-on-top':
+          if (window.electron?.ipcRenderer) {
+            window.electron.ipcRenderer
+              .invoke('window-manager:toggle-always-on-top')
+              .then(setIsAlwaysOnTop)
           }
-        }
+          break
+        case 'refresh-page':
+          // 发送刷新消息到主进程，由WebViewContainer处理
+          if (window.electron?.ipcRenderer) {
+            window.electron.ipcRenderer.send('window-manager:refresh-page')
+          }
+          break
+        case 'copy-url':
+          // 发送复制URL消息到主进程，由WebViewContainer处理
+          if (window.electron?.ipcRenderer) {
+            window.electron.ipcRenderer.send('window-manager:copy-url')
+          }
+          break
+        case 'minimize-window':
+          // 调用最小化窗口API
+          if (window.api?.enhanced?.windowManager) {
+            window.api.enhanced.windowManager.minimizeWindow()
+          }
+          break
+        case 'maximize-window':
+          // 调用最大化窗口API
+          if (window.api?.enhanced?.windowManager) {
+            window.api.enhanced.windowManager.maximizeWindow()
+          }
+          break
+        case 'exit-app':
+          // 退出应用
+          if (window.api?.enhanced?.windowManager) {
+            window.api.enhanced.windowManager.exitApp()
+          }
+          break
       }
-    }
-
-    // 添加键盘监听器
-    window.addEventListener('keydown', handleKeyDown)
-
-    return (): void => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [shortcuts, setShowSettings, toggleSidebar, showSettings, executingShortcuts])
+    },
+    enabled: true
+  })
 
   return (
     <>
-      <div className={`flex h-screen w-full ${isAlwaysOnTop ? 'border-4 border-blue-400/30' : ''}`}>
-        <Sidebar
-          collapsible="icon"
-          className="h-full border-r [&_[data-sidebar=rail]]:!hidden will-change-[width] contain-[layout]"
+      <ErrorBoundary>
+        <SidebarContainer
+          isCollapsed={isCollapsed}
+          isAlwaysOnTop={isAlwaysOnTop}
+          showSettings={showSettings}
+          collapsedSidebarMode={collapsedSidebarMode}
+          primaryGroups={primaryGroups}
+          activePrimaryGroup={activePrimaryGroup}
+          currentWebsite={currentWebsite}
+          isGroupDialogOpen={isGroupDialogOpen}
+          dialogMode={dialogMode}
+          selectedGroupId={selectedGroupId}
+          switchPrimaryGroup={switchPrimaryGroup}
+          handleAddPrimaryGroup={handleAddPrimaryGroup}
+          handleEditPrimaryGroup={handleEditPrimaryGroup}
+          handleDeletePrimaryGroup={handleDeletePrimaryGroup}
+          toggleSecondaryGroup={toggleSecondaryGroup}
+          handleWebsiteClick={handleWebsiteClick}
+          handleAddWebsite={handleAddWebsite}
+          handleWebsiteUpdate={handleWebsiteUpdate}
+          handleDeleteWebsite={handleDeleteWebsite}
+          handleEditSecondaryGroup={handleEditSecondaryGroup}
+          handleDeleteSecondaryGroup={handleDeleteSecondaryGroup}
+          contextMenuSecondaryGroup={contextMenuSecondaryGroup}
+          activeWebsiteId={activeWebsiteId}
+          onGroupsUpdate={updatePrimaryGroups}
+          onOpenAddOptionsDialog={(primaryGroupId) => {
+            setAddOptionsPrimaryGroupId(primaryGroupId)
+            setIsAddOptionsDialogOpen(true)
+          }}
+          setShowSettings={setShowSettings}
+          setIsGroupDialogOpen={setIsGroupDialogOpen}
         >
-          <SidebarHeader
-            primaryGroups={primaryGroups}
-            activePrimaryGroup={activePrimaryGroup}
-            onSwitchPrimaryGroup={switchPrimaryGroup}
-            onAddPrimaryGroup={handleAddPrimaryGroup}
-            onEditPrimaryGroup={handleEditPrimaryGroup}
-            onDeletePrimaryGroup={handleDeletePrimaryGroup}
-          />
-          <UISidebarContent className="h-full overflow-y-auto sidebar-scrollbar custom-scrollbar">
-            <SidebarContentWithDragDrop
-              activePrimaryGroup={activePrimaryGroup}
-              toggleSecondaryGroup={toggleSecondaryGroup}
-              handleWebsiteClick={handleWebsiteClick}
-              handleAddWebsite={handleAddWebsite}
-              handleWebsiteUpdate={handleWebsiteUpdate}
-              handleDeleteWebsite={handleDeleteWebsite}
-              handleEditSecondaryGroup={handleEditSecondaryGroup}
-              handleDeleteSecondaryGroup={handleDeleteSecondaryGroup}
-              contextMenuSecondaryGroup={contextMenuSecondaryGroup}
-              activeWebsiteId={activeWebsiteId}
-              primaryGroups={primaryGroups}
-              onGroupsUpdate={(updatedGroups) => {
-                // 使用updatePrimaryGroups函数更新状态和存储
-                updatePrimaryGroups(updatedGroups)
-              }}
-              onOpenAddOptionsDialog={(primaryGroupId) => {
-                setAddOptionsPrimaryGroupId(primaryGroupId)
-                setIsAddOptionsDialogOpen(true)
-              }}
-              collapsedSidebarMode={collapsedSidebarMode}
-            />
-          </UISidebarContent>
-          <SidebarFooter className={`mt-auto border-t ${isCollapsed ? 'p-1' : 'p-2'}`}>
-            <div className="flex flex-col gap-2">
-              <button
-                className={`w-full justify-start text-sm font-medium text-foreground rounded-md hover:bg-accent hover:text-accent-foreground ${
-                  isCollapsed ? 'justify-center px-1 py-2 pl-[9px]' : 'px-3 py-2'
-                }`}
-                onClick={() => setShowSettings(!showSettings)}
-              >
-                <span className="flex items-center">
-                  <Settings className={`${isCollapsed ? 'h-5 w-5' : 'h-4 w-4'}`} />
-                  {!isCollapsed && <span className="ml-2">设置</span>}
-                </span>
-              </button>
-            </div>
+          {children}
+        </SidebarContainer>
+      </ErrorBoundary>
 
-            <AddGroupDialog
-              open={isGroupDialogOpen}
-              onOpenChange={setIsGroupDialogOpen}
-              onAddGroup={(groupData) => {
-                // 处理分组添加逻辑
-                if (dialogMode === 'secondary' && selectedGroupId) {
-                  // 添加二级分组到指定的一级分组
-                  const newSecondaryGroup = {
-                    ...groupData,
-                    id: `secondary-${Date.now()}`,
-                    primaryGroupId: selectedGroupId,
-                    websites: [],
-                    order: 0,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now(),
-                    expanded: false // 默认折叠，用户需要手动展开
-                  }
-
-                  // 更新primaryGroups
-                  const updatedPrimaryGroups = primaryGroups.map((pg) => {
-                    if (pg.id === selectedGroupId) {
-                      return {
-                        ...pg,
-                        secondaryGroups: [...pg.secondaryGroups, newSecondaryGroup]
-                      }
-                    }
-                    return pg
-                  })
-
-                  // 使用updatePrimaryGroups函数更新状态和存储
-                  updatePrimaryGroups(updatedPrimaryGroups)
-                } else if (dialogMode === 'primary') {
-                  // 添加一级分组
-                  const newPrimaryGroup = {
-                    ...groupData,
-                    id: `primary-${Date.now()}`,
-                    secondaryGroups: [],
-                    order: 0,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now()
-                  }
-
-                  const updatedPrimaryGroups = [...primaryGroups, newPrimaryGroup]
-                  updatePrimaryGroups(updatedPrimaryGroups)
-                }
-
-                setIsGroupDialogOpen(false)
-              }}
-              groupType={dialogMode === 'website' ? 'secondary' : dialogMode}
-            />
-          </SidebarFooter>
-          {!isCollapsed && <SidebarRail />}
-        </Sidebar>
-        <SidebarInset className="h-screen w-full">
-          <div className="flex flex-1 flex-col overflow-hidden relative h-full">
-            {/* 网站内容 - 始终渲染，避免 WebView 重载 */}
-            <div className="flex-1 overflow-hidden">
-              {typeof children === 'function' ? children(currentWebsite) : children}
-            </div>
-
-            {/* 设置页面覆盖层 */}
-            <div
-              className={`absolute inset-0 bg-background transition-all duration-300 ease-in-out ${
-                showSettings
-                  ? 'opacity-100 pointer-events-auto z-10'
-                  : 'opacity-0 pointer-events-none -z-10'
-              }`}
-            >
-              <SettingsDialog />
-            </div>
-          </div>
-        </SidebarInset>
-      </div>
-
-      {/* 添加网站对话框 */}
-      <AddWebsiteDialog
-        open={isWebsiteDialogOpen}
-        onOpenChange={setIsWebsiteDialogOpen}
-        onAddWebsite={handleWebsiteSubmit}
-        groupId={selectedGroupId || selectedSecondaryGroupId || ''}
-      />
-
-      {/* 编辑网站对话框 */}
-      <EditWebsiteDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        website={editingWebsite}
-        onSave={handleSaveWebsite}
-      />
-
-      {/* 添加选项对话框 */}
-      <AddOptionsDialog
-        open={isAddOptionsDialogOpen}
-        onOpenChange={setIsAddOptionsDialogOpen}
-        onAddSecondaryGroup={() => {
-          if (addOptionsPrimaryGroupId) {
-            handleAddSecondaryGroup(addOptionsPrimaryGroupId)
-          }
-        }}
-        onAddWebsite={() => {
-          if (addOptionsPrimaryGroupId) {
-            handleAddWebsite(addOptionsPrimaryGroupId, false)
-          }
-        }}
-      />
-
-      {/* 编辑二级分组对话框 */}
-      <EditSecondaryGroupDialog
-        open={isSecondaryGroupEditDialogOpen}
-        onOpenChange={setIsSecondaryGroupEditDialogOpen}
-        group={editingSecondaryGroup}
-        onSave={handleSaveSecondaryGroup}
-      />
-
-      {/* 确认删除网站对话框 */}
-      <ConfirmDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            cancelDeleteWebsite()
-          }
-        }}
-        title="确认删除"
-        description="确定要删除这个网站吗？此操作不可撤销。"
-        onConfirm={confirmDeleteWebsite}
-        onCancel={cancelDeleteWebsite}
-      />
-
-      {/* 确认删除分组对话框 */}
-      <ConfirmDialog
-        open={secondaryGroupConfirmDelete.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            cancelDeleteSecondaryGroup()
-          }
-        }}
-        title="确认删除"
-        description="确定要删除这个分组吗？此操作会将分组内定义的网页一同删除，且不可撤销。"
-        confirmText="删除"
-        cancelText="取消"
-        onConfirm={confirmDeleteSecondaryGroup}
-        onCancel={cancelDeleteSecondaryGroup}
-      />
-
-      {/* 确认清空数据对话框 */}
-      <ConfirmDialog
-        open={clearDataDialogOpen}
-        onOpenChange={setClearDataDialogOpen}
-        title="确认清空数据"
-        description="确定要清除所有数据吗？此操作不可撤销。"
-        onConfirm={confirmClearData}
-        onCancel={cancelClearData}
-      />
-
-      {/* 确认重置为默认数据对话框 */}
-      <ConfirmDialog
-        open={resetDataDialogOpen}
-        onOpenChange={setResetDataDialogOpen}
-        title="确认重置数据"
-        description="确定要重置为默认数据吗？这将清除当前所有数据并恢复默认分类和网站。"
-        onConfirm={confirmResetToDefaults}
-        onCancel={cancelResetToDefaults}
-      />
-
-      {/* 确认清除软件数据对话框 */}
-      <ConfirmDialog
-        open={clearSoftwareDataDialogOpen}
-        onOpenChange={setClearSoftwareDataDialogOpen}
-        title="确认清除软件数据"
-        description="您确定要清除所有软件数据吗？此操作不可逆转！"
-        onConfirm={async () => {
-          try {
-            // 清除所有主要分组数据
-            // 注意：此处需要 storageService，但未导入。实际上 storageService 在钩子内部使用。
-            // 我们暂时保留原始逻辑，但需要调用钩子中的函数。
-            // 为了简化，我们调用 confirmClearData 和 confirmResetToDefaults 的组合。
-            // 但原始逻辑不同。我们暂时保留占位符。
-            alert('所有软件数据已清除并重置为默认值')
-          } catch (error) {
-            console.error('清除软件数据失败:', error)
-            alert('清除软件数据失败，请查看控制台日志')
-          }
-          setClearSoftwareDataDialogOpen(false)
-        }}
-        onCancel={() => setClearSoftwareDataDialogOpen(false)}
-      />
-
-      {/* 确认清除缓存对话框 */}
-      <ConfirmDialog
-        open={clearCacheDialogOpen}
-        onOpenChange={setClearCacheDialogOpen}
-        title="确认清除缓存"
-        description="您确定要清除所有缓存吗？这包括网站图标和其他临时数据。"
-        onConfirm={() => {
-          try {
-            // 清除浏览器缓存
-            if (window.electron && window.electron.ipcRenderer) {
-              window.electron.ipcRenderer.invoke('clear-cache')
-              alert('浏览器缓存已清除')
-            } else {
-              localStorage.clear()
-              sessionStorage.clear()
-              window.location.reload()
+      {/* AddOptionsDialog */}
+      <ErrorBoundary>
+        <AddOptionsDialog
+          open={isAddOptionsDialogOpen}
+          onOpenChange={setIsAddOptionsDialogOpen}
+          onAddSecondaryGroup={() => {
+            if (addOptionsPrimaryGroupId) {
+              handleAddSecondaryGroup(addOptionsPrimaryGroupId)
             }
-          } catch (error) {
-            console.error('清除缓存失败:', error)
-            alert('清除缓存失败，请查看控制台日志')
-          }
-          setClearCacheDialogOpen(false)
-        }}
-        onCancel={() => setClearCacheDialogOpen(false)}
-      />
+          }}
+          onAddWebsite={() => {
+            if (addOptionsPrimaryGroupId) {
+              handleAddWebsite(addOptionsPrimaryGroupId, false)
+            }
+          }}
+        />
+      </ErrorBoundary>
 
-      {/* 编辑主要分类对话框 */}
-      <EditPrimaryGroupDialog
-        open={isPrimaryGroupEditDialogOpen}
-        onOpenChange={setIsPrimaryGroupEditDialogOpen}
-        group={editingPrimaryGroup}
-        onSave={handleSavePrimaryGroup}
-        onDelete={handleDeletePrimaryGroup}
-      />
-
-      {/* 确认删除主要分类对话框 */}
-      <ConfirmDialog
-        open={primaryGroupConfirmDelete.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            cancelDeletePrimaryGroup()
-          }
-        }}
-        title="确认删除分类"
-        description="确定要删除这个分类吗？此操作将删除分类下的所有网站和分组，且不可撤销。"
-        confirmText="删除"
-        cancelText="取消"
-        onConfirm={confirmDeletePrimaryGroup}
-        onCancel={cancelDeletePrimaryGroup}
-      />
+      <ErrorBoundary>
+        <DialogsContainer
+          isWebsiteDialogOpen={isWebsiteDialogOpen}
+          isEditDialogOpen={isEditDialogOpen}
+          editingWebsite={editingWebsite}
+          selectedGroupId={selectedGroupId}
+          selectedSecondaryGroupId={selectedSecondaryGroupId}
+          isSecondaryGroupEditDialogOpen={isSecondaryGroupEditDialogOpen}
+          editingSecondaryGroup={editingSecondaryGroup}
+          isPrimaryGroupEditDialogOpen={isPrimaryGroupEditDialogOpen}
+          editingPrimaryGroup={editingPrimaryGroup}
+          confirmDialog={confirmDialog}
+          secondaryGroupConfirmDelete={secondaryGroupConfirmDelete}
+          primaryGroupConfirmDelete={primaryGroupConfirmDelete}
+          clearDataDialogOpen={clearDataDialogOpen}
+          resetDataDialogOpen={resetDataDialogOpen}
+          clearSoftwareDataDialogOpen={clearSoftwareDataDialogOpen}
+          clearCacheDialogOpen={clearCacheDialogOpen}
+          setIsWebsiteDialogOpen={setIsWebsiteDialogOpen}
+          setIsEditDialogOpen={setIsEditDialogOpen}
+          setIsSecondaryGroupEditDialogOpen={setIsSecondaryGroupEditDialogOpen}
+          setIsPrimaryGroupEditDialogOpen={setIsPrimaryGroupEditDialogOpen}
+          setClearDataDialogOpen={setClearDataDialogOpen}
+          setResetDataDialogOpen={setResetDataDialogOpen}
+          setClearSoftwareDataDialogOpen={setClearSoftwareDataDialogOpen}
+          setClearCacheDialogOpen={setClearCacheDialogOpen}
+          handleWebsiteSubmit={handleWebsiteSubmit}
+          handleSaveWebsite={handleSaveWebsite}
+          confirmClearData={confirmClearData}
+          cancelClearData={cancelClearData}
+          confirmResetToDefaults={confirmResetToDefaults}
+          cancelResetToDefaults={cancelResetToDefaults}
+          handleSaveSecondaryGroup={handleSaveSecondaryGroup}
+          handleSavePrimaryGroup={handleSavePrimaryGroup}
+          confirmDeleteWebsite={confirmDeleteWebsite}
+          cancelDeleteWebsite={cancelDeleteWebsite}
+          confirmDeleteSecondaryGroup={confirmDeleteSecondaryGroup}
+          cancelDeleteSecondaryGroup={cancelDeleteSecondaryGroup}
+          confirmDeletePrimaryGroup={confirmDeletePrimaryGroup}
+          cancelDeletePrimaryGroup={cancelDeletePrimaryGroup}
+        />
+      </ErrorBoundary>
     </>
   )
 }
