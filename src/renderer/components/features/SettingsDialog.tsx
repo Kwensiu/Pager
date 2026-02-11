@@ -351,15 +351,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         }
       }
 
-      // 应用自动启动
-      if (api.enhanced.autoLaunch) {
-        if (settings.isAutoLaunch) {
-          await api.enhanced.autoLaunch.enable()
-        } else {
-          await api.enhanced.autoLaunch.disable()
-        }
-      }
-
       console.log('Settings applied successfully')
     } catch (error) {
       console.error('Failed to apply settings:', error)
