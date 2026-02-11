@@ -18,9 +18,11 @@ const getStoreService = async (): Promise<typeof import('./services/store').stor
   return storeService
 }
 
-// 设置自定义用户数据路径，避免重名冲突
+// 设置自定义用户数据路径，基于安装目录
 if (process.platform === 'win32') {
-  app.setPath('userData', join(app.getPath('appData'), 'com.pager.ks'))
+  const exePath = app.getPath('exe')
+  const appDir = join(exePath, '..')
+  app.setPath('userData', join(appDir, 'UserData'))
 }
 
 app.whenReady().then(async () => {

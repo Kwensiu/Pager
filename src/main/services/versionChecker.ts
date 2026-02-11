@@ -41,6 +41,10 @@ class VersionChecker {
         }
       }
 
+      // 设置更新缓存目录为安装目录下的 updater 子目录
+      // 注意：electron-updater 的缓存目录基于 userData，无法直接设置
+      // 通过设置 userData 到安装目录，已间接改变缓存位置
+
       autoUpdater.autoDownload = false
       autoUpdater.autoInstallOnAppQuit = true
 
