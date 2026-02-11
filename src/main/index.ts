@@ -68,16 +68,22 @@ app.whenReady().then(async () => {
     console.error('初始化快捷键服务失败:', error)
   }
 
-  // 初始化托盘（如果启用最小化到托盘）
+  // 初始化自动启动状态同步
   try {
     const storeService = await getStoreService()
     const settings = await storeService.getSettings()
-    if (settings.minimizeToTray === 'tray' && settings.trayEnabled) {
-      const { trayService } = await import('./services/tray')
-      trayService.createTray(mainWindow)
+
+    // 动态导入自动启动服务
+    const { autoLaunchService } = await import('./services/autoLaunch')
+
+    // 检查系统自动启动状态与应用设置是否一致
+    const isActuallyEnabled = autoLaunchService.isEnabled()
+    if (isActuallyEnabled !== settings.isAutoLaunch) {
+      console.log('Syncing auto-launch setting on startup:', isActuallyEnabled)
+      await storeService.updateSettings({ isAutoLaunch: isActuallyEnabled })
     }
   } catch (error) {
-    console.error('Failed to initialize tray:', error)
+    console.error('Failed to sync auto-launch status on startup:', error)
   }
 
   // 初始化扩展管理器并加载所有已启用的扩展

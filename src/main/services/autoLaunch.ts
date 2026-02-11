@@ -198,8 +198,9 @@ class AutoLaunchService {
     try {
       this.initialize()
 
+      const currentSettings = this.getSettings()
       app.setLoginItemSettings({
-        openAtLogin: true,
+        openAtLogin: currentSettings.openAtLogin,
         openAsHidden: hidden
       })
       console.log(`Auto-launch hidden mode set to: ${hidden}`)

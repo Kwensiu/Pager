@@ -78,6 +78,26 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.memoryOptimizerEnabled, activeTab])
 
+  // 同步自动启动状态
+  useEffect(() => {
+    const syncAutoLaunchStatus = async (): Promise<void> => {
+      try {
+        if (window.api?.enhanced?.autoLaunch) {
+          const isActuallyEnabled = await window.api.enhanced.autoLaunch.isEnabled()
+          if (isActuallyEnabled !== settings.isAutoLaunch) {
+            console.log('Syncing auto-launch status:', isActuallyEnabled)
+            updateSettings({ isAutoLaunch: isActuallyEnabled })
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync auto-launch status:', error)
+      }
+    }
+
+    syncAutoLaunchStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // 处理清理选项设置变更
   const handleClearCacheOptionChange = (
     option: keyof NonNullable<typeof settings.clearCacheOptions>,
@@ -366,6 +386,11 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
           await saveSettings()
         } catch (error) {
           console.error('Failed to apply settings:', error)
+          // 对于自动启动，如果应用失败，恢复到之前状态
+          if (key === 'isAutoLaunch') {
+            const previousValue = !value // 恢复到相反的值
+            updateSettings({ [key]: previousValue } as Partial<typeof settings>)
+          }
           // 如果应用失败，不恢复 UI 状态，让用户看到他们选择的状态
         }
       }, 200)
