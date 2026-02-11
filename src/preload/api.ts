@@ -201,23 +201,6 @@ export const api = {
       clearCache: () => ipcRenderer.invoke('fingerprint:clear-cache'),
       getCacheStats: () => ipcRenderer.invoke('fingerprint:get-cache-stats')
     },
-    // 全局快捷键
-    shortcut: {
-      register: (shortcut: import('../shared/types/store').Shortcut) =>
-        ipcRenderer.invoke('shortcut:register', shortcut),
-      unregister: (cmd: string) => ipcRenderer.invoke('shortcut:unregister', cmd),
-      getAll: () => ipcRenderer.invoke('shortcut:get-all'),
-      enableAll: () => ipcRenderer.invoke('shortcut:enable-all'),
-      disableAll: () => ipcRenderer.invoke('shortcut:disable-all'),
-      update: (shortcut: import('../shared/types/store').Shortcut) =>
-        ipcRenderer.invoke('shortcut:update', shortcut),
-      validate: (cmd: string) => ipcRenderer.invoke('shortcut:validate', cmd),
-      getDefaults: () => ipcRenderer.invoke('shortcut:get-defaults'),
-      checkConflict: (cmd: string, excludeId?: string) =>
-        ipcRenderer.invoke('shortcut:check-conflict', cmd, excludeId),
-      getAllConflicts: (shortcuts: import('../shared/types/store').Shortcut[]) =>
-        ipcRenderer.invoke('shortcut:get-all-conflicts', shortcuts)
-    },
 
     // 系统托盘
     tray: {

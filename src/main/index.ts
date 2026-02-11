@@ -1,7 +1,6 @@
 import { app, BrowserWindow, session } from 'electron'
 import { join } from 'path'
 import { globalProxyService } from './services/proxyService'
-import { shortcutService } from './services/shortcut'
 import { windowManager } from './services/windowManager'
 import { registerIpcHandlers } from './ipc/handlers'
 import { createWindow } from './core/window/index'
@@ -61,25 +60,10 @@ app.whenReady().then(async () => {
   // 初始化快捷键服务
   try {
     windowManager.setMainWindow(mainWindow)
-    shortcutService.setMainWindow(mainWindow)
 
     // 设置内存优化器的主窗口引用
     const { memoryOptimizerService } = await import('./services')
     memoryOptimizerService.setMainWindow(mainWindow)
-
-    // 获取用户保存的快捷键配置，如果没有则使用默认配置
-    const storeService = await getStoreService()
-    const savedShortcuts = await storeService.getShortcuts()
-
-    const shortcutsToRegister =
-      savedShortcuts.length > 0 ? savedShortcuts : shortcutService.getDefaultShortcuts()
-
-    for (const shortcut of shortcutsToRegister) {
-      if (shortcut.isOpen) {
-        const callback = shortcutService.createShortcutCallback(shortcut.id)
-        shortcutService.register(shortcut, callback)
-      }
-    }
   } catch (error) {
     console.error('初始化快捷键服务失败:', error)
   }
@@ -173,16 +157,14 @@ app.on('window-all-closed', () => {
 // 应用退出时清理资源
 app.on('will-quit', () => {
   globalProxyService.destroy()
-  // 清理所有快捷键
-  shortcutService.unregisterAll()
 
   // 清理内存优化服务
   try {
-    void import('./services').then(({ memoryOptimizerService }) => {
-      memoryOptimizerService.cleanup()
+    import('./services/memoryOptimizer').then(({ memoryOptimizerService }) => {
+      memoryOptimizerService.stopCleanup()
     })
-  } catch (error) {
-    console.error('Failed to cleanup memory optimizer:', error)
+  } catch {
+    // Silent fail
   }
 })
 
