@@ -374,7 +374,7 @@
     "autoCloseSettingsOnWebsiteClick": "Auto Close Settings",
     "autoCloseSettingsOnWebsiteClickDescription": "Automatically close settings page when clicking on websites",
     "enableJavaScript": "Enable JavaScript",
-    "enableJavaScriptDescription": "Enable JavaScript execution in browser",
+    "enableJavaScriptDescription": "Changes will automatically refresh the page, please save your data",
     "sessionIsolationEnabled": "Session Isolation",
     "sessionIsolationEnabledDescription": "Create independent sessions for each website",
     "crashReportingEnabled": "Crash Reporting",

@@ -41,6 +41,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const [showClearDataConfirmDialog, setShowClearDataConfirmDialog] = useState(false)
   const [showResetToDefaultsDialog, setShowResetToDefaultsDialog] = useState(false)
 
+  // Toast 状态
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+
   // 内存统计状态
   const [memoryStats, setMemoryStats] = useState<{
     activeCount: number
@@ -930,7 +934,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
               </div>
               <Switch
                 checked={settings.enableJavaScript}
-                onCheckedChange={(checked) => handleSettingChange('enableJavaScript', checked)}
+                onCheckedChange={(checked) => {
+                  handleSettingChange('enableJavaScript', checked)
+                  setToastMessage('JavaScript 设置已更改，已自动刷新页面')
+                  setShowToast(true)
+                  setTimeout(() => setShowToast(false), 3000)
+                }}
               />
             </div>
 
@@ -1741,6 +1750,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* In-app Toast 提示 */}
+      {showToast && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-opacity duration-300">
+          {toastMessage}
+        </div>
+      )}
     </div>
   )
 }

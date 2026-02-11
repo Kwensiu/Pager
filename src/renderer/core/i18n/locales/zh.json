@@ -374,7 +374,7 @@
     "autoCloseSettingsOnWebsiteClick": "自动关闭设置",
     "autoCloseSettingsOnWebsiteClickDescription": "点击网站时自动关闭设置页面",
     "enableJavaScript": "启用 JavaScript",
-    "enableJavaScriptDescription": "在浏览器中启用 JavaScript 执行",
+    "enableJavaScriptDescription": "更改后会自动刷新页面，注意保存资料",
     "sessionIsolationEnabled": "Session 隔离",
     "sessionIsolationEnabledDescription": "为每个网站创建独立的会话",
     "crashReportingEnabled": "崩溃报告",
