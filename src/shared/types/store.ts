@@ -100,6 +100,7 @@ export interface Settings {
   allowPopups?: boolean
   sessionIsolationEnabled?: boolean
   crashReportingEnabled?: boolean
+  autoRestartOnCrash?: boolean // 崩溃时自动重启
   saveSession?: boolean
   clearCacheOnExit?: boolean
   // 清理选项配置
