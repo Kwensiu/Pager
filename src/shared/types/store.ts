@@ -92,7 +92,6 @@ export interface Settings {
   proxySoftwareOnly?: boolean // 仅代理软件本体，不代理网页内容
   autoCheckUpdates?: boolean // 自动检查更新
   updateCheckInterval?: number // 更新检查间隔
-  autoRestartOnCrash?: boolean // 崩溃后自动重启
   // 扩展管理设置
   extensionSettings?: ExtensionSettings
 

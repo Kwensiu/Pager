@@ -1510,24 +1510,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t('enhancedFeatures.crashHandler.autoRestart')}</Label>
-                <p className="text-sm text-muted-foreground">
-                  {t('enhancedFeatures.crashHandler.description')}
-                </p>
+            <div className="space-y-2">
+              <Label>应用信息</Label>
+              <div className="text-sm text-muted-foreground">
+                <p>Pager: {versionInfo?.appVersion || '加载中...'}</p>
+                <p>Electron: {versionInfo?.electronVersion || '加载中...'}</p>
+                <p>Chrome: {versionInfo?.chromeVersion || '加载中...'}</p>
+                <p>Node.js: {versionInfo?.nodeVersion || '加载中...'}</p>
               </div>
-              <Switch
-                checked={settings.autoRestartOnCrash}
-                onCheckedChange={(checked) => handleSettingChange('autoRestartOnCrash', checked)}
-              />
-            </div>
-
-            <div className="text-sm text-muted-foreground">
-              <p>Pager: {versionInfo?.appVersion || '加载中...'}</p>
-              <p>Electron: {versionInfo?.electronVersion || '加载中...'}</p>
-              <p>Chrome: {versionInfo?.chromeVersion || '加载中...'}</p>
-              <p>Node.js: {versionInfo?.nodeVersion || '加载中...'}</p>
             </div>
 
             <Separator />
