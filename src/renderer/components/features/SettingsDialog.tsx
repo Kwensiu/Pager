@@ -965,9 +965,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
               </div>
               <Switch
                 checked={settings.sessionIsolationEnabled}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked) => {
                   handleSettingChange('sessionIsolationEnabled', checked)
-                }
+                  setToastMessage('Session 隔离设置已更改，已自动刷新页面')
+                  setShowToast(true)
+                  setTimeout(() => setShowToast(false), 3000)
+                }}
               />
             </div>
 

@@ -71,7 +71,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       try {
         // 从URL提取域名作为隔离标识
         const urlObj = new URL(url)
-        const domain = urlObj.hostname.replace(/[^\w-]/g, '-')
+        const domain = urlObj.hostname.toLowerCase().replace(/[^a-z0-9.-]/g, '-')
         return `persist:website-${domain}`
       } catch (error) {
         console.warn('Invalid URL for session isolation:', url, error)
