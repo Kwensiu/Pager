@@ -55,7 +55,7 @@ describe('ErrorBoundary', () => {
   })
 
   it('renders custom fallback when provided', async (): Promise<void> => {
-    const CustomFallback = () => <div>Custom error message</div>
+    const CustomFallback = (): React.ReactElement => <div>Custom error message</div>
 
     render(
       <ErrorBoundary fallback={CustomFallback}>

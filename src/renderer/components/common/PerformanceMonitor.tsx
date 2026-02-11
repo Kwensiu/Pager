@@ -65,6 +65,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 }
 
 // 高阶组件版本，用于包装现有组件
+// eslint-disable-next-line react-refresh/only-export-components
 export function withPerformanceMonitoring<P extends object>(
   Component: React.ComponentType<P>,
   componentId: string,
