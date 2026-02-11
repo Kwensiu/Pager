@@ -195,24 +195,22 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   // 处理清除所有数据
   const handleClearData = async (): Promise<void> => {
     try {
-      if (window.api?.store?.clearAll) {
-        await window.api.store.clearAll()
-        alert(t('settings.clearAllDataSuccess'))
-        setShowClearDataConfirmDialog(false)
+      // 设置标志，在下次启动时清除数据
+      updateSettings({ clearDataOnNextStart: true })
+      setToastMessage('数据将在下次启动时清除，应用即将关闭')
+      setShowToast(true)
+      setShowClearDataConfirmDialog(false)
 
-        // 延迟关闭应用，让用户看到成功提示
-        setTimeout(() => {
-          if (window.api?.enhanced?.windowManager?.exitApp) {
-            window.api.enhanced.windowManager.exitApp()
-          }
-        }, 1500)
-      } else {
-        alert('清除数据功能不可用')
-        setShowClearDataConfirmDialog(false)
-      }
+      // 延迟关闭应用
+      setTimeout(() => {
+        if (window.api?.enhanced?.windowManager?.exitApp) {
+          window.api.enhanced.windowManager.exitApp()
+        }
+      }, 1500)
     } catch (error) {
-      console.error('清除数据失败:', error)
-      alert('清除数据失败')
+      console.error('设置清除标志失败:', error)
+      setToastMessage('设置清除标志失败')
+      setShowToast(true)
       setShowClearDataConfirmDialog(false)
     }
   }

@@ -116,6 +116,8 @@ export interface Settings {
   quickResetWebsite?: boolean // 允许左键双击网站按钮时跳转到初始URL
   resetWebsiteConfirmDialog?: boolean // 跳转网页时提示确认弹窗
   autoCloseSettingsOnWebsiteClick?: boolean // 点击网站时自动关闭设置页面
+  // 清除数据标志
+  clearDataOnNextStart?: boolean // 下次启动时清除所有数据
 }
 
 export interface ExtensionSettings {
