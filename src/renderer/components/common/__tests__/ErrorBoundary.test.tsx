@@ -51,7 +51,11 @@ describe('ErrorBoundary', () => {
     })
 
     expect(screen.getByText('重试')).toBeInTheDocument()
-    expect(consoleError).toHaveBeenCalledWith('ErrorBoundary caught an error:', expect.any(Error), expect.any(Object))
+    expect(consoleError).toHaveBeenCalledWith(
+      'ErrorBoundary caught an error:',
+      expect.any(Error),
+      expect.any(Object)
+    )
   })
 
   it('renders custom fallback when provided', async (): Promise<void> => {

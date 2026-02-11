@@ -36,7 +36,9 @@ interface DialogsContainerProps {
   setClearCacheDialogOpen: (open: boolean) => void
 
   // 数据和函数
-  handleWebsiteSubmit: (websiteData: Omit<Website, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  handleWebsiteSubmit: (
+    websiteData: Omit<Website, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<void>
   handleSaveWebsite: (updatedWebsite: Website) => void
   confirmClearData: () => void
   cancelClearData: () => void

@@ -842,7 +842,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
               </div>
               <Select
                 value={settings.minimizeToTray}
-                onValueChange={(value: 'tray' | 'exit') => handleSettingChange('minimizeToTray', value)}
+                onValueChange={(value: 'tray' | 'exit') =>
+                  handleSettingChange('minimizeToTray', value)
+                }
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />

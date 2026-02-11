@@ -43,7 +43,12 @@ export type DialogAction =
   | { type: 'CLOSE_EDIT_WEBSITE_DIALOG' }
 
   // Group dialog actions
-  | { type: 'OPEN_GROUP_DIALOG'; mode: 'primary' | 'secondary' | 'website'; groupId?: string; secondaryGroupId?: string }
+  | {
+      type: 'OPEN_GROUP_DIALOG'
+      mode: 'primary' | 'secondary' | 'website'
+      groupId?: string
+      secondaryGroupId?: string
+    }
   | { type: 'CLOSE_GROUP_DIALOG' }
 
   // Secondary group dialog actions
@@ -91,7 +96,7 @@ export const initialDialogState: DialogState = {
   clearDataDialogOpen: false,
   resetDataDialogOpen: false,
   clearSoftwareDataDialogOpen: false,
-  clearCacheDialogOpen: false,
+  clearCacheDialogOpen: false
 }
 
 // Reducer function
@@ -114,7 +119,7 @@ export function dialogReducer(state: DialogState, action: DialogAction): DialogS
         isGroupDialogOpen: true,
         dialogMode: action.mode,
         selectedGroupId: action.groupId || null,
-        selectedSecondaryGroupId: action.secondaryGroupId || null,
+        selectedSecondaryGroupId: action.secondaryGroupId || null
       }
     case 'CLOSE_GROUP_DIALOG':
       return {
@@ -122,7 +127,7 @@ export function dialogReducer(state: DialogState, action: DialogAction): DialogS
         isGroupDialogOpen: false,
         dialogMode: 'primary',
         selectedGroupId: null,
-        selectedSecondaryGroupId: null,
+        selectedSecondaryGroupId: null
       }
 
     // Secondary group dialog actions
@@ -143,11 +148,17 @@ export function dialogReducer(state: DialogState, action: DialogAction): DialogS
     case 'CLOSE_CONFIRM_DELETE_WEBSITE':
       return { ...state, confirmDialog: { open: false, websiteId: null } }
     case 'OPEN_CONFIRM_DELETE_SECONDARY_GROUP':
-      return { ...state, secondaryGroupConfirmDelete: { open: true, secondaryGroupId: action.secondaryGroupId } }
+      return {
+        ...state,
+        secondaryGroupConfirmDelete: { open: true, secondaryGroupId: action.secondaryGroupId }
+      }
     case 'CLOSE_CONFIRM_DELETE_SECONDARY_GROUP':
       return { ...state, secondaryGroupConfirmDelete: { open: false, secondaryGroupId: null } }
     case 'OPEN_CONFIRM_DELETE_PRIMARY_GROUP':
-      return { ...state, primaryGroupConfirmDelete: { open: true, primaryGroupId: action.primaryGroupId } }
+      return {
+        ...state,
+        primaryGroupConfirmDelete: { open: true, primaryGroupId: action.primaryGroupId }
+      }
     case 'CLOSE_CONFIRM_DELETE_PRIMARY_GROUP':
       return { ...state, primaryGroupConfirmDelete: { open: false, primaryGroupId: null } }
 

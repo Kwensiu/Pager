@@ -181,7 +181,6 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         }
       }
 
-
       const handleCopy = (): void => {
         const webview = webviewRef.current
         if (webview) {

@@ -243,7 +243,10 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
               aria-controls="settings-panel"
             >
               <span className="flex items-center">
-                <Settings className={`${isCollapsed ? 'h-5 w-5' : 'h-4 w-4'} shrink-0`} aria-hidden="true" />
+                <Settings
+                  className={`${isCollapsed ? 'h-5 w-5' : 'h-4 w-4'} shrink-0`}
+                  aria-hidden="true"
+                />
                 {!isCollapsed && <span className="ml-2">设置</span>}
               </span>
             </button>

@@ -12,8 +12,14 @@ export const useAddGroupDialog = ({
   selectedGroupId,
   primaryGroups,
   onGroupsUpdate
-}: UseAddGroupDialogProps): { handleAddGroup: (groupData: Omit<PrimaryGroup | SecondaryGroup, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => void } => {
-  const handleAddGroup = (groupData: Omit<PrimaryGroup | SecondaryGroup, 'id' | 'createdAt' | 'updatedAt' | 'order'>): void => {
+}: UseAddGroupDialogProps): {
+  handleAddGroup: (
+    groupData: Omit<PrimaryGroup | SecondaryGroup, 'id' | 'createdAt' | 'updatedAt' | 'order'>
+  ) => void
+} => {
+  const handleAddGroup = (
+    groupData: Omit<PrimaryGroup | SecondaryGroup, 'id' | 'createdAt' | 'updatedAt' | 'order'>
+  ): void => {
     if (dialogMode === 'secondary' && selectedGroupId) {
       // 添加二级分组到指定的一级分组
       const newSecondaryGroup: SecondaryGroup = {
