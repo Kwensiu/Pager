@@ -127,6 +127,21 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
     }, [websiteId])
 
+    // 处理导航到新 URL
+    const handleNavigate = useCallback(
+      (newUrl: string) => {
+        const webview = webviewRef.current
+        if (webview && webview.loadURL) {
+          webview.loadURL(newUrl)
+        } else if (onNavigate) {
+          onNavigate(newUrl)
+        } else {
+          window.api.webview.loadUrl(newUrl)
+        }
+      },
+      [onNavigate]
+    )
+
     // 监听来自主进程的webview操作命令
     useEffect(() => {
       const handleNavigateBack = (): void => {
@@ -166,21 +181,6 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         }
       }
 
-      const handleLoadUrl = (url: string): void => {
-        const webview = webviewRef.current
-
-        if (webview && webview.loadURL) {
-          setTimeout(() => {
-            if (webview && webview.loadURL) {
-              webview.loadURL(url)
-            }
-          }, 100)
-        } else if (onNavigate) {
-          onNavigate(url)
-        } else {
-          window.api.webview.loadUrl(url)
-        }
-      }
 
       const handleCopy = (): void => {
         const webview = webviewRef.current
@@ -237,13 +237,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         window.api.ipcRenderer.on('webview:view-source', handleViewSource)
         window.api.ipcRenderer.on('webview:inspect-element', handleInspectElement)
         window.api.ipcRenderer.on('webview:load-url', (...args: unknown[]) => {
-          // URL是第二个参数（第一个是事件对象）
-          let url = args[1] as string
-          if (typeof url !== 'string') {
-            url = args[0] as string
-          }
+          const url = args[0] as string
           if (typeof url === 'string') {
-            handleLoadUrl(url)
+            handleNavigate(url)
           }
         })
 
@@ -263,7 +259,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       return undefined
-    }, [onGoBack, onGoForward, onRefresh, onNavigate])
+    }, [onGoBack, onGoForward, onRefresh, onNavigate, handleNavigate])
 
     // 应用指纹伪装到 webview
     const applyFingerprint = useCallback(async (): Promise<void> => {
@@ -848,21 +844,6 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         }
       }
     }, [])
-
-    // 处理导航到新 URL
-    const handleNavigate = useCallback(
-      (newUrl: string) => {
-        const webview = webviewRef.current
-        if (webview && webview.loadURL) {
-          webview.loadURL(newUrl)
-        } else if (onNavigate) {
-          onNavigate(newUrl)
-        } else {
-          window.api.webview.loadUrl(newUrl)
-        }
-      },
-      [onNavigate]
-    )
 
     return (
       <div ref={ref} className="flex h-full w-full flex-col">

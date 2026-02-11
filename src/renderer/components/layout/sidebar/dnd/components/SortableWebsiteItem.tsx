@@ -67,11 +67,24 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
         window.api.webview.loadUrl(website.url)
       } else if (window.api?.ipcRenderer?.invoke) {
         await window.api.ipcRenderer.invoke('webview:load-url', website.url)
-      } else if (window.api?.webview?.reload) {
-        window.api.webview.reload()
+      } else {
+        console.error('无法加载URL：导航API不可用')
+        if (window.electron?.ipcRenderer) {
+          window.electron.ipcRenderer.invoke('window-manager:show-notification', {
+            title: '导航不可用',
+            body: '导航功能不可用，请稍后重试'
+          })
+        }
+        return
       }
     } catch (error) {
       console.error('跳转时发生错误:', error)
+      if (window.electron?.ipcRenderer) {
+        window.electron.ipcRenderer.invoke('window-manager:show-notification', {
+          title: '导航失败',
+          body: `跳转到网站失败: ${error instanceof Error ? error.message : '未知错误'}`
+        })
+      }
     }
   }, [website.url])
 
