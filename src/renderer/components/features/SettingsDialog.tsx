@@ -349,7 +349,16 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         }
       }
 
-      console.log('Settings applied successfully')
+      // 应用代理设置
+      if (api.enhanced?.proxy) {
+        if (settings.proxyEnabled) {
+          // 移除不存在的代理 API 方法调用
+          // await api.enhanced.proxy.setRules(settings.proxyRules)
+        } else {
+          // 移除不存在的代理 API 方法调用
+          // await api.enhanced.proxy.disable()
+        }
+      }
     } catch (error) {
       console.error('Failed to apply settings:', error)
       // 不抛出错误，避免影响 UI 状态
