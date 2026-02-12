@@ -106,7 +106,7 @@ git push origin v0.1.0
 
 1. **构建失败**
    - 检查 Node.js 版本（需要 20+）
-   - 确保 yarn 依赖安装正确
+   - 确保 pnpm 依赖安装正确
    - 查看 GitHub Actions 日志
 
 2. **自动更新不工作**
@@ -120,6 +120,6 @@ git push origin v0.1.0
 
 ### 调试建议
 
-- 在本地运行 `yarn build:win` 测试构建
+- 在本地运行 `pnpm build:win` 测试构建
 - 检查 GitHub Actions 的 Secrets 配置
 - 查看 electron-builder 日志

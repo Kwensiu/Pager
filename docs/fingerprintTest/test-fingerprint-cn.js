@@ -6,7 +6,7 @@
 if (typeof window === 'undefined') {
   console.error('此脚本必须在浏览器环境中运行！')
   console.log('请按以下步骤操作：')
-  console.log('1. 启动应用: yarn dev')
+  console.log('1. 启动应用: pnpm dev')
   console.log('2. 打开一个网站并启用指纹伪装')
   console.log('3. 按 F12 打开开发者工具')
   console.log('4. 在控制台中粘贴并运行此脚本')

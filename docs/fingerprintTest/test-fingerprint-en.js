@@ -6,7 +6,7 @@
 if (typeof window === 'undefined') {
   console.error('This script must be run in a browser environment!')
   console.log('Please follow these steps:')
-  console.log('1. Start the application: yarn dev')
+  console.log('1. Start the application: pnpm dev')
   console.log('2. Open a website and enable fingerprint obfuscation')
   console.log('3. Press F12 to open developer tools')
   console.log('4. Paste and run this script in the console')

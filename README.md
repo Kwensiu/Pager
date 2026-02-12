@@ -7,6 +7,7 @@
 ![React](https://img.shields.io/badge/React-19.2.1-61DAFB.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Kwensiu/Pager)
 
 **一个功能强大的多网站管理桌面应用程序**
 
@@ -122,7 +123,7 @@ pager/
 ### 系统要求
 
 - **Node.js**: >= 18.0.0
-- **yarn**: >= 1.22.0
+- **pnpm**: >= 1.22.0
 - **操作系统**: Windows 10+, macOS 10.15+, Linux
 
 ### 推荐 IDE 设置
@@ -134,59 +135,59 @@ pager/
 ### 安装依赖
 
 ```bash
-yarn install
+pnpm install
 ```
 
 ### 开发模式
 
 ```bash
 # 启动开发服务器
-yarn dev
+pnpm dev
 
 # 格式化代码（在执行主要任务前先运行）
-yarn format
+pnpm format
 ```
 
 ### 代码检查
 
 ```bash
 # 类型检查
-yarn typecheck
+pnpm typecheck
 
 # ESLint 检查
-yarn lint
+pnpm lint
 ```
 
 ### 构建应用程序
 
 ```bash
 # 构建所有平台
-yarn build
+pnpm build
 
 # Windows
-yarn build:win
+pnpm build:win
 
 # macOS
-yarn build:mac
+pnpm build:mac
 
 # Linux
-yarn build:linux
+pnpm build:linux
 ```
 
 ### 开发工作流
 
 按照以下顺序执行开发任务：
 
-1. `yarn install` - 安装依赖
-2. `yarn format` - 格式化代码（跳过检查输出）
-3. `yarn typecheck` - 类型检查
-4. `yarn build` - 构建应用
+1. `pnpm install` - 安装依赖
+2. `pnpm format` - 格式化代码（跳过检查输出）
+3. `pnpm typecheck` - 类型检查
+4. `pnpm build` - 构建应用
 
 ## 常见问题
 
-### Q: 为什么使用 yarn 而不是 npm？
+### Q: 为什么使用 pnpm 而不是 npm？
 
-A: 本项目使用 yarn 作为包管理器，所有脚本执行必须使用 `yarn` 前缀。这是项目规范的一部分，确保依赖管理的一致性。
+A: 本项目使用 pnpm 作为包管理器，所有脚本执行必须使用 `pnpm` 前缀。这是项目规范的一部分，确保依赖管理的一致性。
 
 ### Q: 如何切换主题？
 
@@ -220,7 +221,7 @@ A: 在设置页面中，使用"导出配置"功能将当前设置导出为 JSON 
 
 - 使用 TypeScript 编写代码
 - 遵循 ESLint 和 Prettier 配置
-- 提交前运行 `yarn format` 和 `yarn typecheck`
+- 提交前运行 `pnpm format` 和 `pnpm typecheck`
 - 提交信息使用英文，遵循现有格式（`git log --oneline -5`）
 
 ### 报告问题

@@ -171,7 +171,7 @@ sudo snap install pager --classic
 ### 前提条件
 
 - **Node.js**: >= 18.0.0
-- **Yarn**: >= 1.22.0（必须使用 yarn，不支持 npm）
+- **pnpm**: >= 1.22.0
 - **Git**: 最新版本
 - **Python**: >= 3.6（用于构建原生模块）
 
@@ -187,15 +187,15 @@ cd Pager
 #### 2. 安装依赖
 
 ```bash
-# 使用 yarn 安装依赖（必须使用 yarn）
-yarn install
+# 使用 pnpm 安装依赖（必须使用 pnpm）
+pnpm install
 ```
 
 #### 3. 开发模式
 
 ```bash
 # 启动开发服务器
-yarn dev
+pnpm dev
 ```
 
 开发模式会启动热重载，您可以实时查看代码更改的效果。
@@ -204,13 +204,13 @@ yarn dev
 
 ```bash
 # 格式化代码
-yarn format
+pnpm format
 
 # 类型检查
-yarn typecheck
+pnpm typecheck
 
 # ESLint 检查
-yarn lint
+pnpm lint
 ```
 
 ### 构建应用程序
@@ -219,20 +219,20 @@ yarn lint
 
 ```bash
 # 构建应用程序（包含类型检查）
-yarn build
+pnpm build
 ```
 
 #### 构建特定平台
 
 ```bash
 # Windows
-yarn build:win
+pnpm build:win
 
 # macOS
-yarn build:mac
+pnpm build:mac
 
 # Linux
-yarn build:linux
+pnpm build:linux
 ```
 
 构建完成后，安装包将位于 `dist/` 目录中。
@@ -252,10 +252,10 @@ yarn build:linux
 
 按照以下顺序执行构建任务：
 
-1. `yarn install` - 安装依赖
-2. `yarn format` - 格式化代码
-3. `yarn typecheck` - 类型检查
-4. `yarn build` - 构建应用
+1. `pnpm install` - 安装依赖
+2. `pnpm format` - 格式化代码
+3. `pnpm typecheck` - 类型检查
+4. `pnpm build` - 构建应用
 
 ---
 

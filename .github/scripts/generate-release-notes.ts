@@ -93,7 +93,7 @@ function categorizeCommits(commits: string[]): Categories {
   const securityKeywords = ['security', 'auth', 'permission', 'vulnerability', 'secure']
   const testKeywords = ['test', 'spec', 'unit', 'e2e', 'coverage']
   const refactorKeywords = ['refactor', 'cleanup', 'organize', 'structure', 'improve']
-  const depsKeywords = ['dep', 'dependency', 'package', 'npm', 'yarn', 'update', 'upgrade']
+  const depsKeywords = ['dep', 'dependency', 'package', 'npm', 'pnpm', 'update', 'upgrade']
   const removeKeywords = ['remove', 'delete', 'drop', 'deprecate']
   const mergeKeywords = ['merge', 'pr', 'pull request']
 

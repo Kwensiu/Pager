@@ -15,7 +15,7 @@ A beautiful release notes generator that:
 ### Usage
 
 ```bash
-yarn release-notes <version>
+pnpm release-notes <version>
 ```
 
 ### Features
@@ -38,7 +38,7 @@ yarn release-notes <version>
 - 🔒 Security (security, auth, permission, vulnerability, secure)
 - 🧪 Testing (test, spec, unit, e2e, coverage)
 - 🔄 Refactoring (refactor, cleanup, organize, structure, improve)
-- 📦 Dependencies (dep, dependency, package, npm, yarn, update, upgrade)
+- 📦 Dependencies (dep, dependency, package, npm, pnpm, update, upgrade)
 - 🗑️ Removed (remove, delete, drop, deprecate)
 - 🔀 Merged (merge, pr, pull request)
 - 📋 Other (fallback category)

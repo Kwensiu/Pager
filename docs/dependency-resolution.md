@@ -22,7 +22,7 @@
 
 2. **避免过度约束**：移除可能导致问题的 `resolutions` 配置，让包管理器自动解决依赖关系。
 
-3. **利用嵌套依赖机制**：充分利用 npm/yarn 的嵌套依赖机制，允许不同包使用各自所需的依赖版本。
+3. **利用嵌套依赖机制**：充分利用 npm/pnpm 的嵌套依赖机制，允许不同包使用各自所需的依赖版本。
 
 4. **验证解决方案**：通过构建和运行时测试验证解决方案的有效性。
 
@@ -30,7 +30,7 @@
 
 ### 第一步：分析依赖关系
 
-通过检查 `yarn.lock` 文件和各包的 `package.json`，我们确定了以下关键依赖关系：
+通过检查 `pnpm.lock` 文件和各包的 `package.json`，我们确定了以下关键依赖关系：
 
 - `electron-store@^11.0.2` → `conf@^15.0.2` → 需要 `ajv@^8.17.1` 和 `env-paths@^3.0.0`
 - `@electron/get@^2.0.0` → 需要 `env-paths@^2.2.0`
@@ -42,19 +42,19 @@
 
 ### 第三步：重新生成依赖树
 
-删除 `yarn.lock` 文件并重新运行 `yarn install`，让 Yarn 自动生成正确的依赖树：
+删除 `pnpm.lock` 文件并重新运行 `pnpm install`，让 pnpm 自动生成正确的依赖树：
 
 ```bash
-# 删除 yarn.lock 文件
-rm yarn.lock
+# 删除 pnpm.lock 文件
+rm pnpm.lock
 
 # 重新安装依赖
-yarn install
+pnpm install
 ```
 
 ### 第四步：验证依赖版本
 
-通过检查生成的 `yarn.lock` 文件和 `node_modules` 目录结构，确认依赖版本正确分配：
+通过检查生成的 `pnpm.lock` 文件和 `node_modules` 目录结构，确认依赖版本正确分配：
 
 - 主项目使用 `ajv@6.12.6`（满足 `@develar/schema-utils` 的需求）
 - `conf` 包使用 `ajv@8.17.1`（满足其自身需求，包含所需的 `2020.js` 文件）
@@ -74,10 +74,10 @@ ls node_modules/conf/node_modules/ajv/dist/2020.js
 
 通过以上解决方案，我们成功解决了依赖冲突问题：
 
-1. `yarn install` 成功执行完成
+1. `pnpm install` 成功执行完成
 2. `conf` 包现在正确使用 `ajv@8.17.1` 版本
 3. `node_modules/conf/node_modules/ajv/dist/2020.js` 文件存在
-4. `yarn build` 成功完成
+4. `pnpm build` 成功完成
 5. 原始的 `Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'E:\System\Documents\GitHub\pager\node_modules\ajv\dist\2020.js'` 错误已解决
 
 ## 经验总结
