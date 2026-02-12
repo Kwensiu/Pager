@@ -1,6 +1,7 @@
-import { ipcMain, Menu, shell, app } from 'electron'
+import { ipcMain, Menu, shell, app, session, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
+import { readdir, stat } from 'fs/promises'
 import type {
   PrimaryGroup,
   SecondaryGroup,
@@ -20,6 +21,55 @@ const extensionManager = ExtensionManager.getInstance()
 const getStoreService = async (): Promise<typeof import('../services/store').storeService> => {
   const { storeService } = await import('../services/store')
   return storeService
+}
+
+// 输入验证函数
+function validateExtensionId(extensionId: string): boolean {
+  // 扩展ID应该是非空的字符串，包含字母数字字符和连字符
+  return (
+    typeof extensionId === 'string' &&
+    extensionId.length > 0 &&
+    extensionId.length <= 100 &&
+    /^[a-zA-Z0-9_-]+$/.test(extensionId)
+  )
+}
+
+function validateUrl(url: string): boolean {
+  // URL应该是非空的字符串，且是有效的URL格式
+  if (typeof url !== 'string' || url.length === 0 || url.length > 2000) {
+    return false
+  }
+  try {
+    const urlObj = new URL(url)
+    // 只允许 http, https, chrome-extension 协议
+    return ['http:', 'https:', 'chrome-extension:'].includes(urlObj.protocol)
+  } catch {
+    return false
+  }
+}
+
+function validateFilePath(filePath: string): boolean {
+  // 基本输入验证
+  if (typeof filePath !== 'string' || filePath.length === 0 || filePath.length > 1000) {
+    return false
+  }
+
+  // 检查路径遍历模式
+  if (filePath.includes('..')) {
+    return false
+  }
+
+  // 检查空字节
+  if (filePath.includes('\0')) {
+    return false
+  }
+
+  return true
+}
+
+function validateTitle(title: string): boolean {
+  // 标题应该是非空的字符串，不超过合理长度
+  return typeof title === 'string' && title.length > 0 && title.length <= 200
 }
 
 /**
@@ -106,6 +156,7 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
         success: true,
         extensions: extensions.map((ext) => ({
           id: ext.id,
+          realId: ext.realId,
           name: ext.name,
           version: ext.version,
           path: ext.path,
@@ -564,9 +615,76 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
     }
   })
 
+  // 在新窗口中打开扩展页面（不受弹窗设置限制）
+  ipcMain.handle('window:open-extension-in-new-window', async (_, url: string, title?: string) => {
+    try {
+      // 输入验证
+      if (!validateUrl(url)) {
+        return { success: false, error: 'Invalid URL format' }
+      }
+      if (title && !validateTitle(title)) {
+        return { success: false, error: 'Invalid title format' }
+      }
+
+      console.log(`Opening extension in new window: ${url}`)
+
+      // 解析扩展ID
+      const urlObj = new URL(url)
+      const extensionId = urlObj.hostname
+
+      // 验证扩展ID
+      if (!validateExtensionId(extensionId)) {
+        return { success: false, error: 'Invalid extension ID format' }
+      }
+
+      // 获取扩展信息
+      const extension = extensionManager.getExtension(extensionId)
+      if (!extension) {
+        throw new Error(`Extension not found: ${extensionId}`)
+      }
+
+      // 使用扩展session而不是主session，因为扩展加载在扩展session中
+      const extensionSession = session.fromPartition('persist:extensions')
+      console.log(`Using extension session for extension window`)
+
+      const extensionWindow = new BrowserWindow({
+        width: 900,
+        height: 700,
+        title: title || 'Extension Options',
+        show: false,
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          webviewTag: false,
+          session: extensionSession
+        }
+      })
+
+      extensionWindow.on('ready-to-show', () => {
+        extensionWindow.show()
+      })
+
+      await extensionWindow.loadURL(url)
+
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to open extension in new window:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  })
+
   // 在主窗口中加载扩展页面
   ipcMain.handle('window:load-extension-url', async (_, url: string) => {
     try {
+      // 输入验证
+      if (!validateUrl(url)) {
+        return { success: false, error: 'Invalid URL format' }
+      }
+
       if (mainWindow) {
         console.log(`Loading extension URL in main window: ${url}`)
         await mainWindow.webContents.loadURL(url)
@@ -593,11 +711,23 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
       extensionPath: string,
       manifest: ExtensionManifest
     ) => {
-      const { BrowserWindow } = await import('electron')
-
-      console.log(`Creating config page for extension: ${extensionName}`)
-
       try {
+        // 输入验证
+        if (!validateExtensionId(extensionId)) {
+          return { success: false, error: 'Invalid extension ID format' }
+        }
+        if (!validateFilePath(extensionPath)) {
+          return { success: false, error: 'Invalid file path format' }
+        }
+        if (
+          typeof extensionName !== 'string' ||
+          extensionName.length === 0 ||
+          extensionName.length > 200
+        ) {
+          return { success: false, error: 'Invalid extension name format' }
+        }
+
+        console.log(`Creating config page for extension: ${extensionName}`)
         // 创建一个简单的配置页面
         const configHtml = `
 <!DOCTYPE html>
@@ -884,9 +1014,14 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
 
   // 打开文件或文件夹
   ipcMain.handle('shell:openPath', async (_, path: string) => {
-    const { shell } = await import('electron')
-
     try {
+      // 输入验证
+      if (!validateFilePath(path)) {
+        return { success: false, error: 'Invalid file path format' }
+      }
+
+      const { shell } = await import('electron')
+
       await shell.openPath(path)
       return { success: true }
     } catch (error) {
@@ -902,12 +1037,16 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   ipcMain.handle(
     'extension:inspect-structure',
     async (_, extensionId: string, extensionPath: string) => {
-      const { readdir, stat } = await import('fs/promises')
-      const { join } = await import('path')
-
-      console.log(`Inspecting extension structure for: ${extensionId} at ${extensionPath}`)
-
       try {
+        // 输入验证
+        if (!validateExtensionId(extensionId)) {
+          return { success: false, error: 'Invalid extension ID format' }
+        }
+        if (!validateFilePath(extensionPath)) {
+          return { success: false, error: 'Invalid file path format' }
+        }
+
+        console.log(`Inspecting extension structure for: ${extensionId} at ${extensionPath}`)
         const structure: ExtensionStructure = {
           id: extensionId,
           path: extensionPath,
@@ -975,16 +1114,24 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   ipcMain.handle(
     'window:open-extension-options-in-main',
     async (_, extensionId: string, optionsPath?: string) => {
-      console.log(`Opening extension options in main window for: ${extensionId}`)
-
-      if (!mainWindow) {
-        return {
-          success: false,
-          error: 'Main window not available'
-        }
-      }
-
       try {
+        // 输入验证
+        if (!validateExtensionId(extensionId)) {
+          return { success: false, error: 'Invalid extension ID format' }
+        }
+        if (optionsPath && typeof optionsPath !== 'string') {
+          return { success: false, error: 'Invalid options path format' }
+        }
+
+        console.log(`Opening extension options in main window for: ${extensionId}`)
+
+        if (!mainWindow) {
+          return {
+            success: false,
+            error: 'Main window not available'
+          }
+        }
+
         // 使用 Chrome 扩展 API 来打开选项页面
         const script = `
         console.log('Attempting to open extension options for:', '${extensionId}');
@@ -1070,7 +1217,7 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
         return {
           success: true
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`Failed to open extension options in main window: ${extensionId}`, error)
         return {
           success: false,

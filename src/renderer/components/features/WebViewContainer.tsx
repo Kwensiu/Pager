@@ -1,8 +1,10 @@
 import { useRef, useEffect, useMemo, forwardRef, useCallback, useState } from 'react'
 import { NavigationToolbar } from './NavigationToolbar'
+import { PROTOCOL_CONSTANTS } from '../../../shared/constants/extensionConstants'
 import { useSettings } from '@/hooks/useSettings'
 import { matchesPredefinedShortcut } from '@/utils/keyboardShortcuts'
 import { showSuccessNotification, showErrorNotification } from '@/utils/notifications'
+import { generateChromePolyfillCode } from '../../../shared/utils/chromePolyfill'
 
 // 定义 Electron WebView 元素的类型
 interface WebViewElement extends HTMLWebViewElement {
@@ -63,22 +65,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
     // 根据设置和URL动态生成partition
     const partition = useMemo(() => {
-      if (!settings.sessionIsolationEnabled) {
-        // 如果未启用Session隔离，使用共享session以便扩展工作
-        return 'persist:webview-shared'
-      }
-
-      try {
-        // 从URL提取域名作为隔离标识
-        const urlObj = new URL(url)
-        const domain = urlObj.hostname.toLowerCase().replace(/[^a-z0-9.-]/g, '-')
-        return `persist:website-${domain}`
-      } catch (error) {
-        console.warn('Invalid URL for session isolation:', url, error)
-        // URL解析失败时回退到共享session
-        return 'persist:webview-shared'
-      }
-    }, [url, settings.sessionIsolationEnabled])
+      // 使用专门的扩展session，让扩展只在webview中工作，不污染主窗口
+      return PROTOCOL_CONSTANTS.EXTENSION_PARTITION
+    }, [])
 
     // 使用 partition 和设置作为 key 的一部分，但不包含URL，避免导航时重新创建webview
     const webviewKey = useMemo(
@@ -392,13 +381,17 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         // 应用指纹伪装
         applyFingerprint()
 
-        // 设置右键菜单监听器
+        // 注入Chrome扩展polyfill
         try {
-          // 右键菜单现在通过主进程的 did-attach-webview 事件处理
-          // 不需要在渲染进程中设置监听器
-        } catch (error) {
-          console.error('设置webview右键菜单监听器失败:', error)
+          const polyfillCode = generateChromePolyfillCode()
+          webview.executeJavaScript(polyfillCode)
+          // Chrome storage polyfill injected successfully
+        } catch {
+          // Failed to inject chrome storage polyfill
         }
+
+        // 右键菜单现在通过主进程的 did-attach-webview 事件处理
+        // 不需要在渲染进程中设置监听器
 
         // 注入鼠标侧键处理脚本到 webview
         try {

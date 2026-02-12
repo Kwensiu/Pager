@@ -20,6 +20,7 @@ import type { ExtensionManifest } from '../../../shared/types/store'
 
 interface Extension {
   id: string
+  realId?: string
   name: string
   version: string
   path?: string
@@ -321,7 +322,50 @@ Manifest 信息:
     try {
       console.log(`Attempting to open options for extension: ${extension.name}`)
 
-      // 优先使用我们创建的配置页面
+      // 优先尝试使用 chrome-extension:// URL 打开扩展自己的选项页面
+      if (extension.manifest?.options_page) {
+        const extensionId = extension.realId || extension.id
+        const chromeExtensionUrl = `chrome-extension://${extensionId}/${extension.manifest.options_page}`
+        console.log(`Opening extension options: ${chromeExtensionUrl}`)
+
+        const result = await window.api.window.openExtensionInNewWindow(
+          chromeExtensionUrl,
+          `${extension.name} - Options`
+        )
+        if (result.success) {
+          console.log(`Extension options opened in new window successfully`)
+          return
+        } else {
+          console.log(`Failed to open in new window:`, result.error)
+        }
+      }
+
+      // 尝试其他可能的页面，使用 chrome-extension:// URL
+      const possiblePages = ['options.html', 'popup.html', 'index.html']
+
+      for (const page of possiblePages) {
+        try {
+          const extensionId = extension.realId || extension.id
+          const chromeExtensionUrl = `chrome-extension://${extensionId}/${page}`
+          console.log(`Trying page: ${chromeExtensionUrl}`)
+
+          const result = await window.api.window.openExtensionInNewWindow(
+            chromeExtensionUrl,
+            `${extension.name} - ${page}`
+          )
+          if (result.success) {
+            console.log(`Page ${page} opened in new window successfully`)
+            return
+          } else {
+            console.log(`Failed to open ${page}:`, result.error)
+          }
+        } catch (error) {
+          console.log(`Failed to open ${page}:`, error)
+          continue
+        }
+      }
+
+      // 如果 chrome-extension:// 都失败，回退到我们创建的配置页面
       if (extension.path && extension.manifest) {
         const result = await window.api.extension.createConfigPage(
           extension.id,
@@ -338,43 +382,22 @@ Manifest 信息:
         }
       }
 
-      // 如果配置页面失败，回退到 file:// URL
+      // 最后回退到 file:// URL
       if (extension.manifest?.options_page && extension.path) {
         const optionsPath = `${extension.path}/${extension.manifest.options_page}`
         const fileUrl = `file://${optionsPath.replace(/\\/g, '/')}`
-        console.log(`Opening extension options: ${fileUrl}`)
+        console.log(`Falling back to file URL: ${fileUrl}`)
 
-        const result = await window.api.window.loadExtensionUrl(fileUrl)
+        const result = await window.api.window.openExtensionInNewWindow(
+          fileUrl,
+          `${extension.name} - Options`
+        )
         if (result.success) {
-          console.log(`Extension options loaded successfully`)
+          console.log(`Extension options opened successfully (file URL)`)
         } else {
           throw new Error(result.error || 'Failed to load extension options')
         }
         return
-      }
-
-      // 尝试其他可能的页面
-      const possiblePages = ['options.html', 'popup.html', 'index.html']
-
-      for (const page of possiblePages) {
-        if (extension.path) {
-          try {
-            const pagePath = `${extension.path}/${page}`
-            const fileUrl = `file://${pagePath.replace(/\\/g, '/')}`
-            console.log(`Trying page: ${fileUrl}`)
-
-            const result = await window.api.window.loadExtensionUrl(fileUrl)
-            if (result.success) {
-              console.log(`Page ${page} loaded successfully`)
-              return
-            } else {
-              console.log(`Failed to load ${page}:`, result.error)
-            }
-          } catch (error) {
-            console.log(`Failed to open ${page}:`, error)
-            continue
-          }
-        }
       }
 
       console.log('No suitable page found')

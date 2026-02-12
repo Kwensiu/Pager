@@ -84,15 +84,17 @@ export function useSettings(): {
       if (e.key === 'settings' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue)
-          // 避免覆盖当前状态，只合并新设置
-          setSettings((prev) => {
-            const merged = { ...prev, ...parsed }
-            // 防止循环更新：如果新旧设置相同，不更新状态
-            if (JSON.stringify(prev) === JSON.stringify(merged)) {
-              return prev
-            }
-            return merged
-          })
+          // 使用 setTimeout 延迟状态更新，避免在渲染期间调用 setState
+          setTimeout(() => {
+            setSettings((prev) => {
+              const merged = { ...prev, ...parsed }
+              // 防止循环更新：如果新旧设置相同，不更新状态
+              if (JSON.stringify(prev) === JSON.stringify(merged)) {
+                return prev
+              }
+              return merged
+            })
+          }, 0)
         } catch (error) {
           console.error('Failed to parse settings from storage event:', error)
         }

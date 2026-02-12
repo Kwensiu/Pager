@@ -236,6 +236,13 @@ declare global {
           success: boolean
           error?: string
         }>
+        openExtensionInNewWindow: (
+          url: string,
+          title?: string
+        ) => Promise<{
+          success: boolean
+          error?: string
+        }>
       }
       dialog: {
         openDirectory: (

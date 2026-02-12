@@ -1,13 +1,22 @@
-import { join } from 'path'
+import { join, resolve, relative, sep } from 'path'
 import {
   existsSync,
   readFileSync,
   mkdirSync,
   writeFileSync,
   rmSync,
-  readFileSync as fsReadFileSync
+  readFileSync as fsReadFileSync,
+  realpathSync
 } from 'fs'
+import * as os from 'os'
 import type { ExtensionInfo, ExtensionManifest, ExtensionConfig } from './types'
+import {
+  PROTOCOL_CONSTANTS,
+  CRX_CONSTANTS,
+  ERROR_CODES,
+  STORAGE_CONSTANTS,
+  LOG_PREFIXES
+} from '../../shared/constants/extensionConstants'
 import { extensionIsolationManager } from '../services/extensionIsolation'
 import { extensionPermissionManager } from '../services/extensionPermissionManager'
 import { extensionErrorManager } from '../services/extensionErrorManager'
@@ -16,6 +25,11 @@ import {
   ExtensionIsolationLevel,
   ExtensionRiskLevel
 } from '../../shared/types/store'
+import type { Session } from 'electron'
+import {
+  generateChromePolyfillCode,
+  CHROME_POLYFILL_INJECTED
+} from '../../shared/utils/chromePolyfill'
 
 // 动态导入 adm-zip 以避免在模块顶层导入
 let AdmZip: typeof import('adm-zip').default | null = null
@@ -29,7 +43,6 @@ async function getAdmZip(): Promise<typeof import('adm-zip').default> {
 // 解析 CRX 文件
 function parseCrxFile(crxPath: string): Buffer {
   const data = fsReadFileSync(crxPath)
-  console.log(`[DEBUG] Parsing CRX file: ${crxPath}, total size: ${data.length} bytes`)
 
   // 检查文件大小
   if (data.length < 16) {
@@ -38,7 +51,6 @@ function parseCrxFile(crxPath: string): Buffer {
 
   // 检查 CRX 魔数
   const magic = data.toString('ascii', 0, 4)
-  console.log(`[DEBUG] CRX magic number: "${magic}"`)
 
   if (magic !== 'Cr24') {
     throw new Error(`Invalid CRX file: magic number mismatch (expected "Cr24", got "${magic}")`)
@@ -46,7 +58,6 @@ function parseCrxFile(crxPath: string): Buffer {
 
   // 读取版本号
   const version = data.readUInt32LE(4)
-  console.log(`[DEBUG] CRX version: ${version}`)
 
   if (version !== 2 && version !== 3) {
     throw new Error(`Unsupported CRX version: ${version} (only version 2 and 3 are supported)`)
@@ -63,18 +74,10 @@ function parseCrxFile(crxPath: string): Buffer {
 
     // v3 格式: [magic(4)][version(4)][headerLength(4)][pubkeyOffset(4)][pubkeyLength(4)][sigLength(4)]
     const headerLength = data.readUInt32LE(8)
-    const pubkeyOffset = data.readUInt32LE(12)
-    const publicKeyLength = data.readUInt32LE(16)
-    const signatureLength = data.readUInt32LE(20)
-
-    console.log(`[DEBUG] CRX v3 header length: ${headerLength}`)
-    console.log(`[DEBUG] Public key offset: ${pubkeyOffset}`)
-    console.log(`[DEBUG] Public key length: ${publicKeyLength} bytes`)
-    console.log(`[DEBUG] Signature length: ${signatureLength} bytes`)
+    const pubkeyOffset = headerLength + 12
 
     // 验证参数的合理性 - CRX v3 的偏移和长度可能很大，需要更宽松的检查
     if (headerLength > data.length || pubkeyOffset > data.length) {
-      console.log(`[DEBUG] Invalid header parameters, trying fallback...`)
       // 尝试搜索 ZIP 魔数
       return parseCrxV2Format(data)
     }
@@ -84,7 +87,6 @@ function parseCrxFile(crxPath: string): Buffer {
 
     // 验证这个偏移是否有效
     if (zipDataOffset >= data.length) {
-      console.log(`[DEBUG] Invalid ZIP offset, trying fallback...`)
       return parseCrxV2Format(data)
     }
 
@@ -92,36 +94,29 @@ function parseCrxFile(crxPath: string): Buffer {
     if (zipDataOffset + 4 <= data.length) {
       const zipMagic = data.toString('ascii', zipDataOffset, zipDataOffset + 4)
       if (zipMagic !== 'PK\x03\x04' && zipMagic !== 'PK\x05\x06' && zipMagic !== 'PK\x07\x08') {
-        console.log(`[DEBUG] No ZIP magic at offset ${zipDataOffset}, trying fallback...`)
         return parseCrxV2Format(data)
       }
     }
-
-    console.log(`[DEBUG] ZIP data offset: ${zipDataOffset}`)
   } else {
     // CRX v2 格式
     const publicKeyLength = data.readUInt32LE(8)
     const signatureLength = data.readUInt32LE(12)
-    console.log(`[DEBUG] Public key length: ${publicKeyLength} bytes`)
-    console.log(`[DEBUG] Signature length: ${signatureLength} bytes`)
 
     // 验证公钥和签名长度的合理性
-    if (publicKeyLength > 10000) {
+    if (publicKeyLength > CRX_CONSTANTS.MAX_PUBLIC_KEY_LENGTH) {
       throw new Error(
-        `Invalid CRX file: public key length too large (${publicKeyLength} bytes, max 10000)`
+        `Invalid CRX file: public key length too large (${publicKeyLength} bytes, max ${CRX_CONSTANTS.MAX_PUBLIC_KEY_LENGTH})`
       )
     }
 
-    if (signatureLength > 1000000) {
+    if (signatureLength > CRX_CONSTANTS.MAX_SIGNATURE_LENGTH) {
       throw new Error(
-        `Invalid CRX file: signature length too large (${signatureLength} bytes, max 1000000)`
+        `Invalid CRX file: signature length too large (${signatureLength} bytes, max ${CRX_CONSTANTS.MAX_SIGNATURE_LENGTH})`
       )
     }
 
     headerSize = 16 + publicKeyLength + signatureLength
     zipDataOffset = headerSize
-    console.log(`[DEBUG] Header size: ${headerSize} bytes`)
-    console.log(`[DEBUG] ZIP data starts at offset: ${headerSize}`)
   }
 
   // 检查是否有足够的数据
@@ -131,77 +126,190 @@ function parseCrxFile(crxPath: string): Buffer {
     )
   }
 
-  const zipDataSize = data.length - zipDataOffset
-  console.log(`[DEBUG] ZIP data size: ${zipDataSize} bytes`)
-
   // 返回 ZIP 数据
   return data.subarray(zipDataOffset)
 }
 
 // 回退到 v2 格式解析
 function parseCrxV2Format(data: Buffer): Buffer {
-  console.log(`[DEBUG] Trying v2 format fallback...`)
-
   const publicKeyLength = data.readUInt32LE(8)
   const signatureLength = data.readUInt32LE(12)
 
+  console.log(
+    `${LOG_PREFIXES.DEBUG} CRX v2 format - publicKeyLength: ${publicKeyLength}, signatureLength: ${signatureLength}`
+  )
+
   // 如果长度不合理，尝试搜索 ZIP 魔数
-  if (publicKeyLength > 10000 || signatureLength > 1000000) {
-    console.log(`[DEBUG] Searching for ZIP magic in file...`)
-
-    // 搜索 ZIP 魔数 - 扩大搜索范围
-    const maxSearchOffset = Math.min(data.length - 4, 10000) // 扩大到 10000 字节
-    console.log(`[DEBUG] Searching ZIP magic in range 16-${maxSearchOffset}`)
-    for (let i = 16; i < maxSearchOffset; i++) {
-      if (data.toString('ascii', i, i + 4) === 'PK\x03\x04') {
-        console.log(`[DEBUG] Found ZIP magic at offset: ${i}`)
-        return data.subarray(i)
-      }
-    }
-
-    // 如果没找到 PK\x03\x04，尝试其他 ZIP 魔数
-    console.log(`[DEBUG] Trying other ZIP magic numbers...`)
-    for (let i = 16; i < maxSearchOffset; i++) {
-      const magic = data.toString('ascii', i, i + 4)
-      if (magic === 'PK\x05\x06' || magic === 'PK\x07\x08') {
-        console.log(`[DEBUG] Found ZIP magic "${magic}" at offset: ${i}`)
-        return data.subarray(i)
-      }
-    }
-
-    throw new Error('Could not find valid ZIP data in CRX file')
+  if (
+    publicKeyLength > CRX_CONSTANTS.MAX_PUBLIC_KEY_LENGTH ||
+    signatureLength > CRX_CONSTANTS.MAX_SIGNATURE_LENGTH
+  ) {
+    console.log(`${LOG_PREFIXES.DEBUG} Invalid lengths, searching for ZIP magic...`)
+    return searchForZipData(data)
   }
 
   const headerSize = 16 + publicKeyLength + signatureLength
   if (headerSize >= data.length) {
+    console.log(`${LOG_PREFIXES.DEBUG} Header size too large, searching for ZIP magic...`)
+    return searchForZipData(data)
+  }
+
+  const zipData = data.subarray(headerSize)
+
+  // 验证是否是有效的ZIP数据
+  if (zipData.length < 4) {
+    throw new Error('Could not find valid ZIP data in CRX file')
+  }
+
+  const zipMagic = zipData.toString('ascii', 0, 4)
+  if (zipMagic !== 'PK\x03\x04' && zipMagic !== 'PK\x05\x06' && zipMagic !== 'PK\x07\x08') {
+    console.log(`${LOG_PREFIXES.DEBUG} Invalid ZIP magic at header offset, searching...`)
+    return searchForZipData(data)
+  }
+
+  return zipData
+}
+
+// 搜索ZIP数据的辅助函数
+function searchForZipData(data: Buffer): Buffer {
+  console.log(`${LOG_PREFIXES.DEBUG} Searching for ZIP magic in ${data.length} bytes...`)
+
+  // 输入验证
+  if (!data || data.length < 4) {
+    throw new Error('Invalid data buffer for ZIP search')
+  }
+
+  // 首先尝试更广泛的搜索范围
+  const maxSearchOffset = Math.min(data.length - 4, CRX_CONSTANTS.MAX_SEARCH_OFFSET)
+  console.log(
+    `${LOG_PREFIXES.DEBUG} Searching in range ${CRX_CONSTANTS.SEARCH_START_OFFSET}-${maxSearchOffset}`
+  )
+
+  // 验证搜索范围合理性
+  if (CRX_CONSTANTS.SEARCH_START_OFFSET >= maxSearchOffset) {
     throw new Error(
-      `Invalid CRX file: header size (${headerSize}) exceeds file size (${data.length})`
+      `Invalid search range: start=${CRX_CONSTANTS.SEARCH_START_OFFSET}, end=${maxSearchOffset}`
     )
   }
 
-  return data.subarray(headerSize)
+  // 搜索所有可能的ZIP魔数
+  for (let i = CRX_CONSTANTS.SEARCH_START_OFFSET; i < maxSearchOffset; i++) {
+    for (const pattern of CRX_CONSTANTS.ZIP_MAGIC_PATTERNS) {
+      // 边界检查
+      if (i + pattern.length > data.length) {
+        continue
+      }
+
+      const magic = data.toString('ascii', i, i + pattern.length)
+      if (magic === pattern) {
+        console.log(`${LOG_PREFIXES.DEBUG} Found ZIP magic "${pattern}" at offset: ${i}`)
+
+        // 验证找到的ZIP数据
+        const potentialZip = data.subarray(i)
+
+        // 检查ZIP数据长度是否合理
+        if (potentialZip.length < 22) {
+          // ZIP文件最小长度
+          console.log(
+            `${LOG_PREFIXES.DEBUG} ZIP data too small (${potentialZip.length} bytes), skipping`
+          )
+          continue
+        }
+
+        // 验证ZIP头结构（检查中央目录记录结束标志）
+        if (potentialZip.length >= 22) {
+          const endOfCentralDirSignature = potentialZip.readUInt32LE(potentialZip.length - 22)
+          if (endOfCentralDirSignature === 0x06054b50) {
+            // 'PK\x05\x06'
+            console.log(`${LOG_PREFIXES.DEBUG} Valid ZIP EOCD signature found`)
+            return potentialZip
+          } else {
+            console.log(`${LOG_PREFIXES.DEBUG} EOCD signature not found, might be partial ZIP`)
+            // 仍然返回，但记录警告
+            console.warn(`${LOG_PREFIXES.DEBUG} Potential incomplete ZIP data at offset ${i}`)
+            return potentialZip
+          }
+        }
+
+        console.log(`${LOG_PREFIXES.DEBUG} ZIP data size: ${potentialZip.length} bytes`)
+        return potentialZip
+      }
+    }
+  }
+
+  // 如果标准搜索失败，尝试字节级搜索
+  console.log(`${LOG_PREFIXES.DEBUG} Standard search failed, trying byte-level search...`)
+
+  // 搜索PK字节序列
+  for (let i = CRX_CONSTANTS.SEARCH_START_OFFSET; i < maxSearchOffset; i++) {
+    if (data[i] === 0x50 && data[i + 1] === 0x4b) {
+      // 'PK'
+      // 验证有足够的数据进行检查
+      if (i + 3 >= data.length) {
+        continue
+      }
+
+      const thirdByte = data[i + 2]
+      const fourthByte = data[i + 3]
+
+      // 常见的ZIP第三、四字节组合
+      if (
+        (thirdByte === 0x03 && fourthByte === 0x04) || // PK\x03\x04 (本地文件头)
+        (thirdByte === 0x05 && fourthByte === 0x06) || // PK\x05\x06 (中央目录结束)
+        (thirdByte === 0x07 && fourthByte === 0x08) || // PK\x07\x08 (数据描述符)
+        (thirdByte === 0x01 && fourthByte === 0x02)
+      ) {
+        // PK\x01\x02 (中央目录文件头)
+
+        console.log(
+          `${LOG_PREFIXES.DEBUG} Valid ZIP signature found at offset: ${i} (${thirdByte.toString(16)} ${fourthByte.toString(16)})`
+        )
+
+        const potentialZip = data.subarray(i)
+
+        // 最终验证：确保数据长度合理
+        if (potentialZip.length >= 22) {
+          return potentialZip
+        } else {
+          console.log(`${LOG_PREFIXES.DEBUG} ZIP data too small after byte-level search, skipping`)
+        }
+      }
+    }
+  }
+
+  // 最后的尝试：显示文件头部的十六进制数据用于调试
+  console.log(
+    `${LOG_PREFIXES.DEBUG} File header (first ${CRX_CONSTANTS.DEBUG_HEADER_BYTES} bytes):`
+  )
+  const headerBytes = data.subarray(0, Math.min(CRX_CONSTANTS.DEBUG_HEADER_BYTES, data.length))
+  for (let i = 0; i < headerBytes.length; i += 16) {
+    const chunk = headerBytes.subarray(i, Math.min(i + 16, headerBytes.length))
+    const hex = Array.from(chunk)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(' ')
+    const ascii = Array.from(chunk)
+      .map((b) => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.'))
+      .join('')
+    console.log(`${LOG_PREFIXES.DEBUG} ${i.toString(16).padStart(4, '0')}: ${hex} ${ascii}`)
+  }
+
+  throw new Error(
+    `Could not find valid ZIP data in CRX file. Searched ${maxSearchOffset - CRX_CONSTANTS.SEARCH_START_OFFSET} bytes.`
+  )
 }
 
 // 检查是否是有效的 CRX 文件
 function isValidCrxFile(crxPath: string): boolean {
   try {
     const data = fsReadFileSync(crxPath)
-    console.log(`[DEBUG] Checking CRX file: ${crxPath}, size: ${data.length} bytes`)
 
     if (data.length < 4) {
-      console.log(`[DEBUG] File too small to be a CRX file`)
       return false
     }
 
     const magic = data.toString('ascii', 0, 4)
-    console.log(`[DEBUG] File magic number: "${magic}"`)
-
-    const isValid = magic === 'Cr24'
-    console.log(`[DEBUG] CRX file valid: ${isValid}`)
-
-    return isValid
-  } catch (error) {
-    console.error(`[DEBUG] Error checking CRX file:`, error)
+    return magic === 'Cr24'
+  } catch {
     return false
   }
 }
@@ -221,6 +329,8 @@ export class ExtensionManager {
     string,
     import('../services/extensionIsolation').ExtensionSession
   > = new Map()
+  private tempFiles: Set<string> = new Set() // 跟踪所有临时文件
+  private extensionIdLocks: Map<string, Promise<unknown>> = new Map() // 扩展ID更新锁
 
   static getInstance(): ExtensionManager {
     if (!ExtensionManager.instance) {
@@ -230,8 +340,123 @@ export class ExtensionManager {
   }
 
   initialize(userDataPath: string): void {
-    this.configPath = join(userDataPath, 'extensions', 'extensions.json')
+    this.configPath = join(userDataPath, 'extensions', STORAGE_CONSTANTS.CONFIG_FILE_NAME)
     this.loadConfig()
+
+    // 注册 chrome-extension:// 协议处理器
+    this.registerChromeExtensionProtocol()
+  }
+
+  /**
+   * 注册 chrome-extension:// 协议处理器
+   * 支持解析扩展资源 URL，如 chrome-extension://extensionId/options.html
+   */
+  private async registerChromeExtensionProtocol(): Promise<void> {
+    try {
+      const { protocol } = await import('electron')
+
+      // 注册 chrome-extension:// 协议
+      protocol.registerFileProtocol(
+        PROTOCOL_CONSTANTS.CHROME_EXTENSION_SCHEME,
+        (request, callback) => {
+          const url = new URL(request.url)
+          const extensionId = url.hostname
+
+          // 查找扩展
+          const extension = this.extensions.get(extensionId)
+
+          if (!extension) {
+            console.error(`Extension not found: ${extensionId}`)
+            callback({ error: ERROR_CODES.FILE_NOT_FOUND })
+            return
+          }
+
+          // 验证扩展是否已启用
+          if (!extension.enabled) {
+            console.error(`Extension not enabled: ${extensionId}`)
+            callback({ error: ERROR_CODES.FILE_NOT_FOUND })
+            return
+          }
+
+          // 解析文件路径
+          const requestedPath = url.pathname.substring(1)
+
+          // 路径遍历安全检查：在解析路径之前验证
+          if (
+            !requestedPath ||
+            requestedPath.includes('..') ||
+            requestedPath.includes('\\') ||
+            (requestedPath.includes('/') &&
+              requestedPath.split('/').some((segment) => segment === '..'))
+          ) {
+            console.error(`[Security] Path traversal attempt blocked: ${url.pathname}`)
+            callback({ error: ERROR_CODES.FILE_NOT_FOUND })
+            return
+          }
+
+          // 检查是否尝试使用绝对路径
+          if (
+            requestedPath.startsWith('/') ||
+            requestedPath.startsWith('\\') ||
+            /^[a-zA-Z]:/.test(requestedPath)
+          ) {
+            console.error(`[Security] Absolute path attempt blocked: ${url.pathname}`)
+            callback({ error: ERROR_CODES.FILE_NOT_FOUND })
+            return
+          }
+
+          const filePath = resolve(extension.path, requestedPath)
+
+          // 确保路径在扩展目录内（安全检查）
+          // 使用更严格的路径验证
+          if (!this.isPathSafe(extension.path, filePath)) {
+            console.error(`Invalid path traversal attempt: ${url.pathname} -> ${filePath}`)
+            callback({ error: ERROR_CODES.FILE_NOT_FOUND })
+            return
+          }
+
+          // 检查文件是否存在
+          if (!existsSync(filePath)) {
+            console.error(`File not found: ${filePath}`)
+            callback({ error: ERROR_CODES.FILE_NOT_FOUND })
+            return
+          }
+
+          // 只对扩展自己的JS文件注入polyfill，而非所有通过chrome-extension://协议提供的JS文件
+          // 检查文件是否在扩展目录内
+          if (filePath.toLowerCase().endsWith('.js') && this.isPathSafe(extension.path, filePath)) {
+            const jsContent = readFileSync(filePath, 'utf-8')
+
+            // 检查是否已经注入了polyfill，避免重复注入
+            if (jsContent.includes(CHROME_POLYFILL_INJECTED)) {
+              console.log(
+                `${LOG_PREFIXES.POLYFILL} Polyfill already injected, skipping: ${filePath}`
+              )
+              callback(filePath)
+              return
+            }
+
+            const polyfillCode = generateChromePolyfillCode()
+
+            const modifiedJs = polyfillCode + jsContent
+
+            // 创建临时文件并跟踪它
+            const tempJsPath = this.createTempFile(modifiedJs, '.js', extension.id)
+
+            console.log(`[Polyfill] Injected polyfill into extension JS file: ${filePath}`)
+            callback(tempJsPath)
+            return
+          }
+
+          // 返回文件路径
+          callback(filePath)
+        }
+      )
+
+      console.log('Chrome extension protocol registered successfully')
+    } catch (error) {
+      console.error('Failed to register chrome extension protocol:', error)
+    }
   }
 
   private loadConfig(): void {
@@ -514,13 +739,21 @@ export class ExtensionManager {
 
       // 创建解压目录
       const extractDir = join(this.configPath, '..', 'extracted', extensionId)
-      if (existsSync(extractDir)) {
-        rmSync(extractDir, { recursive: true, force: true })
-      }
-      mkdirSync(extractDir, { recursive: true })
+      try {
+        if (existsSync(extractDir)) {
+          rmSync(extractDir, { recursive: true, force: true })
+        }
+        mkdirSync(extractDir, { recursive: true })
 
-      // 解压 ZIP 文件
-      zip.extractAllTo(extractDir, true)
+        // 解压 ZIP 文件
+        zip.extractAllTo(extractDir, true)
+      } catch (fileError) {
+        console.error(`Failed to extract extension to ${extractDir}:`, fileError)
+        return {
+          success: false,
+          error: `Failed to extract extension: ${fileError instanceof Error ? fileError.message : String(fileError)}`
+        }
+      }
 
       const extension: ExtensionInfo = {
         id: extensionId,
@@ -594,13 +827,21 @@ export class ExtensionManager {
 
       // 创建解压目录
       const extractDir = join(this.configPath, '..', 'extracted', extensionId)
-      if (existsSync(extractDir)) {
-        rmSync(extractDir, { recursive: true, force: true })
-      }
-      mkdirSync(extractDir, { recursive: true })
+      try {
+        if (existsSync(extractDir)) {
+          rmSync(extractDir, { recursive: true, force: true })
+        }
+        mkdirSync(extractDir, { recursive: true })
 
-      // 解压 ZIP 数据
-      zip.extractAllTo(extractDir, true)
+        // 解压 ZIP 数据
+        zip.extractAllTo(extractDir, true)
+      } catch (fileError) {
+        console.error(`Failed to extract extension to ${extractDir}:`, fileError)
+        return {
+          success: false,
+          error: `Failed to extract extension: ${fileError instanceof Error ? fileError.message : String(fileError)}`
+        }
+      }
 
       const extension: ExtensionInfo = {
         id: extensionId,
@@ -723,6 +964,9 @@ export class ExtensionManager {
         await this.unloadExtension(extensionId)
       }
 
+      // 清理扩展数据
+      await this.cleanupExtensionData(extension)
+
       this.extensions.delete(extensionId)
       this.saveConfig()
 
@@ -730,6 +974,19 @@ export class ExtensionManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return { success: false, error: `Failed to remove extension: ${errorMessage}` }
+    }
+  }
+
+  /**
+   * 清理扩展数据
+   */
+  private async cleanupExtensionData(_extension: ExtensionInfo): Promise<void> {
+    try {
+      // 清理提取的扩展文件
+      // 暂时不需要额外的清理逻辑
+    } catch (error) {
+      console.error('Failed to clean up extension data:', error)
+      // 不抛出错误，因为清理失败不应该阻止删除操作
     }
   }
 
@@ -814,51 +1071,37 @@ export class ExtensionManager {
         )
       }
 
-      // 创建扩展会话
-      const isolationLevel = this.settings.defaultIsolationLevel
-      const extensionSession = await extensionIsolationManager.createExtensionSession(
-        extension,
-        isolationLevel
-      )
+      // 使用扩展专用 session 加载扩展（用于webview）
+      console.log('[DEBUG] Loading extension from path:', extension.path)
 
-      // 存储会话信息
-      this.extensionSessions.set(extension.id, extensionSession)
+      const extensionSession = await this.getExtensionSession()
 
-      // 使用隔离的 session 加载扩展
-      const isolationSession = extensionIsolationManager.getExtensionSession(extension.id)
-      if (!isolationSession) {
-        throw new Error('Failed to create extension session')
-      }
-
-      // 同时加载扩展到主窗口的 session 中，以便访问扩展页面
-      try {
-        const { session } = await import('electron')
-        if (session.defaultSession.extensions && session.defaultSession.extensions.loadExtension) {
-          await session.defaultSession.extensions.loadExtension(extension.path)
-          console.log(`Extension ${extension.name} also loaded in main session`)
-        } else {
-          await session.defaultSession.loadExtension(extension.path)
-          console.log(`Extension ${extension.name} also loaded in main session (legacy API)`)
-        }
-      } catch (mainSessionError) {
-        console.warn(
-          `Failed to load extension ${extension.name} in main session:`,
-          mainSessionError
+      // 在扩展session中加载扩展
+      if (extensionSession.extensions && extensionSession.extensions.loadExtension) {
+        console.log(
+          `[DEBUG] Attempting to load extension with new API from path: ${extension.path}`
         )
-        // 不抛出错误，因为隔离 session 加载已经成功
-        // 但记录错误以便调试
-        console.log('Main session loading failed, but extension still works in isolation')
-      }
+        const loadedExtension = await extensionSession.extensions.loadExtension(extension.path)
 
-      // 使用新的 API (session.extensions.loadExtension) 如果可用
-      if (
-        isolationSession.session.extensions &&
-        isolationSession.session.extensions.loadExtension
-      ) {
-        await isolationSession.session.extensions.loadExtension(extension.path)
+        console.log(`[DEBUG] loadedExtension result:`, loadedExtension)
+
+        // 更新扩展ID和realId
+        if (loadedExtension) {
+          console.log(`Loaded extension with ID: ${loadedExtension.id}`)
+
+          // 使用安全的ID更新方法
+          await this.updateExtensionIdSafely(extension, loadedExtension.id, loadedExtension.id)
+        } else {
+          console.log(
+            `${LOG_PREFIXES.DEBUG} loadedExtension is undefined/null, extension loading may have failed`
+          )
+        }
       } else {
+        console.log(
+          `${LOG_PREFIXES.DEBUG} session.extensions.loadExtension not available, using legacy API`
+        )
         // 回退到旧的 API
-        await isolationSession.session.loadExtension(extension.path)
+        await extensionSession.loadExtension(extension.path)
       }
     } catch (error) {
       console.error(`Failed to load extension ${extension.name}:`, error)
@@ -872,16 +1115,27 @@ export class ExtensionManager {
 
   private async unloadExtension(extensionId: string): Promise<void> {
     try {
-      // 销毁扩展会话
-      await this.destroyExtensionSession(extensionId)
+      // 注意：Electron 的 Extensions API 可能没有 unloadExtension 方法
+      // 扩展一旦加载就很难完全卸载，这里只是记录操作
+      console.log(`[DEBUG] Attempting to unload extension ${extensionId} from extension session`)
 
-      const extension = this.extensions.get(extensionId)
-      if (extension) {
-        console.log(`Extension unloaded: ${extension.name}`)
+      // 检查是否有 unloadExtension 方法
+      const extensionSession = await this.getExtensionSession()
+      const extensionsAPI = extensionSession.extensions as
+        | { unloadExtension?: (id: string) => Promise<void> }
+        | undefined
+
+      if (extensionsAPI?.unloadExtension) {
+        await extensionsAPI.unloadExtension(extensionId)
+        console.log(`[DEBUG] Extension ${extensionId} unloaded from extension session`)
+      } else {
+        console.warn(
+          `[DEBUG] unloadExtension method not available, extension ${extensionId} may remain loaded`
+        )
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error(`Failed to unload extension ${extensionId}:`, errorMessage)
+      console.error(`Failed to unload extension ${extensionId}:`, error)
+      // 不抛出错误，因为卸载失败不应该阻止其他操作
     }
   }
 
@@ -899,9 +1153,17 @@ export class ExtensionManager {
   }
 
   private generateExtensionId(name: string, version: string): string {
-    // 简单的 ID 生成逻辑
-    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '-')
-    return `${cleanName}-${version}`
+    // 生成URL安全的ID：移除非字母数字字符，用单横线替换，移除首尾横线
+    const cleanName = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/^-+|-+$/g, '') // 移除首尾横线
+      .replace(/-+/g, '-') // 将多个横线替换为单个
+    const cleanVersion = version
+      .replace(/[^a-z0-9.-]/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-+/g, '-')
+    return `${cleanName}-${cleanVersion}`
   }
 
   getLoadedExtensions(): string[] {
@@ -975,13 +1237,21 @@ export class ExtensionManager {
         const extractDir = join(this.configPath, '..', 'extracted', extensionId)
         console.log('[DEBUG] Extracting to:', extractDir)
 
-        if (existsSync(extractDir)) {
-          rmSync(extractDir, { recursive: true, force: true })
-        }
-        mkdirSync(extractDir, { recursive: true })
+        try {
+          if (existsSync(extractDir)) {
+            rmSync(extractDir, { recursive: true, force: true })
+          }
+          mkdirSync(extractDir, { recursive: true })
 
-        // 解压 ZIP 文件
-        zip.extractAllTo(extractDir, true)
+          // 解压 ZIP 文件
+          zip.extractAllTo(extractDir, true)
+        } catch (fileError) {
+          console.error(`Failed to extract extension to ${extractDir}:`, fileError)
+          return {
+            success: false,
+            error: `Failed to extract extension: ${fileError instanceof Error ? fileError.message : String(fileError)}`
+          }
+        }
         actualPath = extractDir
         console.log('[DEBUG] Extraction complete, actual path:', actualPath)
       }
@@ -995,9 +1265,9 @@ export class ExtensionManager {
         manifest
       }
 
-      // 创建扩展会话
+      // 创建扩展会话（仅用于权限管理）
       const level = isolationLevel || undefined
-      const extensionSession = await extensionIsolationManager.createExtensionSession(
+      const isolationSession = await extensionIsolationManager.createExtensionSession(
         extension,
         level
       )
@@ -1021,37 +1291,35 @@ export class ExtensionManager {
       this.extensions.set(extensionId, extension)
       this.saveConfig()
 
-      // 使用隔离的 session 加载扩展
+      // 使用扩展专用 session 加载扩展（用于webview）
       console.log('[DEBUG] Loading extension from path:', actualPath)
 
-      // 同时加载扩展到主窗口的 session 中，以便访问扩展页面
+      const extensionSession = await this.getExtensionSession()
+
+      // 在扩展session中加载扩展
       try {
-        const { session } = await import('electron')
-        if (session.defaultSession.extensions && session.defaultSession.extensions.loadExtension) {
-          await session.defaultSession.extensions.loadExtension(actualPath)
-          console.log(`[DEBUG] Extension ${extension.name} also loaded in main session`)
+        if (extensionSession.extensions && extensionSession.extensions.loadExtension) {
+          const loadedExtension = await extensionSession.extensions.loadExtension(actualPath)
+          console.log(`[DEBUG] Extension ${extension.name} loaded in extension session`)
+
+          // 设置真实ID
+          if (loadedExtension) {
+            console.log(`[DEBUG] Loaded extension with real ID: ${loadedExtension.id}`)
+            // 使用安全的ID更新方法
+            await this.updateExtensionIdSafely(extension, loadedExtension.id, loadedExtension.id)
+          }
         } else {
-          await session.defaultSession.loadExtension(actualPath)
+          await extensionSession.loadExtension(actualPath)
           console.log(
-            `[DEBUG] Extension ${extension.name} also loaded in main session (legacy API)`
+            `[DEBUG] Extension ${extension.name} loaded in extension session (legacy API)`
           )
         }
-      } catch (mainSessionError) {
-        console.warn(
-          `[DEBUG] Failed to load extension ${extension.name} in main session:`,
-          mainSessionError
+      } catch (extensionSessionError) {
+        console.error(
+          `[DEBUG] Failed to load extension ${extension.name} in extension session:`,
+          extensionSessionError
         )
-        // 不抛出错误，因为隔离 session 加载已经成功
-        console.log('[DEBUG] Main session loading failed, but extension still works in isolation')
-      }
-
-      if (
-        extensionSession.session.extensions &&
-        extensionSession.session.extensions.loadExtension
-      ) {
-        await extensionSession.session.extensions.loadExtension(actualPath)
-      } else {
-        await extensionSession.session.loadExtension(actualPath)
+        throw extensionSessionError
       }
       console.log('[DEBUG] Extension loaded successfully')
 
@@ -1063,7 +1331,7 @@ export class ExtensionManager {
           version: extension.version,
           enabled: true
         },
-        sessionId: extensionSession.id
+        sessionId: isolationSession.id
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1152,6 +1420,15 @@ export class ExtensionManager {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return { success: false, error: `Failed to get extension with permissions: ${errorMessage}` }
     }
+  }
+
+  /**
+   * 获取扩展专用session（用于webview）
+   */
+  private async getExtensionSession(): Promise<Session> {
+    const { session } = await import('electron')
+    const extensionSession = session.fromPartition(PROTOCOL_CONSTANTS.EXTENSION_PARTITION)
+    return extensionSession
   }
 
   // 新增方法：更新权限设置
@@ -1247,6 +1524,201 @@ export class ExtensionManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       return { success: false, error: `Failed to clear error history: ${errorMessage}` }
+    }
+  }
+
+  /**
+   * 安全地更新扩展ID（防止竞态条件）
+   */
+  private async updateExtensionIdSafely(
+    extension: ExtensionInfo,
+    newId: string,
+    realId: string
+  ): Promise<void> {
+    const oldId = extension.id
+    const lockTimeout = 30000 // 30秒超时
+
+    // 如果没有变化，直接返回
+    if (oldId === newId) {
+      extension.realId = realId
+      this.saveConfig()
+      return
+    }
+
+    // 创建更新操作的promise
+    const performUpdate = async (): Promise<void> => {
+      try {
+        console.log(`[ID Update] Starting atomic ID update from ${oldId} to ${newId}`)
+
+        // 原子性地更新所有相关的映射
+        const extensionCopy = { ...extension }
+        extensionCopy.id = newId
+        extensionCopy.realId = realId
+
+        // 更新extensions map
+        this.extensions.delete(oldId)
+        this.extensions.set(newId, extensionCopy)
+
+        // 更新extensionSessions map
+        if (this.extensionSessions.has(oldId)) {
+          const session = this.extensionSessions.get(oldId)!
+          this.extensionSessions.delete(oldId)
+          this.extensionSessions.set(newId, session)
+        }
+
+        // 更新配置
+        this.saveConfig()
+
+        console.log(`[ID Update] Successfully updated extension ID from ${oldId} to ${newId}`)
+      } catch (error) {
+        console.error(`[ID Update] Failed to update extension ID from ${oldId} to ${newId}:`, error)
+        throw error
+      }
+    }
+
+    // 使用带有超时的互斥锁
+    const acquireLock = async (): Promise<void> => {
+      const startTime = Date.now()
+
+      while (Date.now() - startTime < lockTimeout) {
+        const existingLock = this.extensionIdLocks.get(oldId)
+
+        if (!existingLock) {
+          // 尝试获取锁
+          const lockPromise = performUpdate().finally(() => {
+            // 总是清理锁
+            this.extensionIdLocks.delete(oldId)
+            console.log(`[ID Update] Lock released for extension ID update: ${oldId}`)
+          })
+
+          // 原子性地设置锁
+          if (!this.extensionIdLocks.has(oldId)) {
+            this.extensionIdLocks.set(oldId, lockPromise)
+            await lockPromise
+            return
+          }
+          // 如果设置锁失败，继续循环
+        } else {
+          // 等待现有锁完成，但有超时保护
+          try {
+            await Promise.race([
+              existingLock,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Lock timeout')), 5000))
+            ])
+          } catch (error) {
+            console.warn(`[ID Update] Lock wait failed for ${oldId}, retrying:`, error)
+            // 继续循环，锁可能已被释放
+          }
+        }
+
+        // 短暂延迟避免忙等待
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+
+      throw new Error(
+        `Failed to acquire lock for extension ID update after ${lockTimeout}ms timeout`
+      )
+    }
+
+    await acquireLock()
+  }
+
+  /**
+   * 检查路径是否安全（防止路径遍历攻击）
+   */
+  private isPathSafe(basePath: string, targetPath: string): boolean {
+    try {
+      // 输入验证
+      if (!basePath || !targetPath) {
+        console.error('[Security] Invalid input paths for safety check')
+        return false
+      }
+
+      // 规范化基础路径和目标路径
+      const normalizedBase = resolve(basePath)
+      const normalizedTarget = resolve(targetPath)
+
+      // 解析符号链接并获取绝对路径
+      const resolvedBasePath = realpathSync(normalizedBase)
+      const resolvedTargetPath = realpathSync(normalizedTarget)
+
+      // 确保基础路径以路径分隔符结尾，以便正确检查子路径
+      const normalizedBasePath = resolvedBasePath.endsWith(sep)
+        ? resolvedBasePath
+        : resolvedBasePath + sep
+
+      // 基本检查：目标路径必须在基础路径内
+      if (!resolvedTargetPath.startsWith(normalizedBasePath)) {
+        console.error(
+          `[Security] Path traversal detected: ${resolvedTargetPath} is outside ${resolvedBasePath}`
+        )
+        return false
+      }
+
+      // 计算相对路径并验证没有向上遍历
+      const relativePath = relative(resolvedBasePath, resolvedTargetPath)
+
+      // 检查相对路径是否包含向上遍历模式
+      if (
+        relativePath.startsWith('..') ||
+        relativePath.includes('..' + sep) ||
+        relativePath.includes(sep + '..') ||
+        relativePath === '..'
+      ) {
+        console.error(`[Security] Relative path traversal detected: ${relativePath}`)
+        return false
+      }
+
+      // 验证原始输入路径不包含危险模式
+      const originalRelative = relative(normalizedBase, normalizedTarget)
+      if (originalRelative.includes('..')) {
+        console.error(`[Security] Original path contains traversal: ${originalRelative}`)
+        return false
+      }
+
+      // 确保路径长度合理，防止DOS攻击
+      if (resolvedTargetPath.length > 4096) {
+        console.error(`[Security] Path too long: ${resolvedTargetPath.length} characters`)
+        return false
+      }
+
+      // 验证解析后的路径没有发生意外变化
+      // （realpathSync应该已经解析了符号链接，这里是额外验证）
+      const doubleResolved = realpathSync(resolvedTargetPath)
+      if (doubleResolved !== resolvedTargetPath) {
+        console.error(`[Security] Path resolution inconsistency detected`)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('[Security] Error checking path safety:', error)
+      // 出错时拒绝访问，确保安全
+      return false
+    }
+  }
+
+  /**
+   * 创建临时文件并跟踪它（按扩展ID）
+   */
+  private createTempFile(
+    content: string,
+    suffix: string = STORAGE_CONSTANTS.TEMP_FILE_SUFFIX,
+    _extensionId?: string
+  ): string {
+    const tempPath = `${os.tmpdir()}/${STORAGE_CONSTANTS.TEMP_FILE_PREFIX}${Date.now()}-${Math.random().toString(36).substring(2)}${suffix}`
+    try {
+      writeFileSync(tempPath, content, 'utf-8')
+
+      // 跟踪临时文件
+      this.tempFiles.add(tempPath)
+
+      return tempPath
+    } catch (error) {
+      console.error(`Failed to create temp file: ${tempPath}`, error)
+      throw new Error(
+        `Failed to create temp file: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 }

@@ -97,7 +97,9 @@ export const api = {
   window: {
     resize: () => ipcRenderer.send('window:resize'),
     openDevTools: () => ipcRenderer.send('window:open-dev-tools'),
-    loadExtensionUrl: (url: string) => ipcRenderer.invoke('window:load-extension-url', url)
+    loadExtensionUrl: (url: string) => ipcRenderer.invoke('window:load-extension-url', url),
+    openExtensionInNewWindow: (url: string, title?: string) =>
+      ipcRenderer.invoke('window:open-extension-in-new-window', url, title)
   },
 
   // 对话框 API

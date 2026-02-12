@@ -1,4 +1,4 @@
-import { session, Session } from 'electron'
+import { session, type Session } from 'electron'
 import { ExtensionIsolationLevel, ExtensionInfo } from '../../shared/types/store'
 
 // 向后兼容的导出
@@ -529,10 +529,13 @@ export class ExtensionIsolationManager {
 
     // 如果池为空，创建新会话 - 使用持久化分区
     const partitionName = `persist:extension-${this.sessionCounter++}`
-    const newSession = session.fromPartition(partitionName, { cache: false })
-    return newSession
-  }
+    const sess = session.fromPartition(partitionName, {
+      cache: true
+    })
 
+    // 不添加到池中，因为这是一个新的专用会话
+    return sess
+  }
   /**
    * 将会话返回到池中
    */

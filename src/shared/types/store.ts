@@ -187,6 +187,8 @@ export interface ExtensionManifest {
 export interface ExtensionInfo {
   /** 扩展 ID（由 Electron 分配） */
   id: string
+  /** 扩展真实 ID（由 Electron 加载时返回） */
+  realId?: string
   /** 扩展名称 */
   name: string
   /** 扩展版本 */

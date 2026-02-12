@@ -1,6 +1,24 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 import { api } from './api'
+
+// 尝试导入 @electron-toolkit/preload，如果不可用则使用空对象
+let electronAPI: Record<string, unknown> = {}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  electronAPI = require('@electron-toolkit/preload').electronAPI
+} catch (error) {
+  console.warn('@electron-toolkit/preload not available, using fallback:', error)
+  // 提供基本的 electronAPI 回退
+  electronAPI = {
+    ipcRenderer: {
+      invoke: ipcRenderer.invoke.bind(ipcRenderer),
+      on: ipcRenderer.on.bind(ipcRenderer),
+      once: ipcRenderer.once.bind(ipcRenderer),
+      removeListener: ipcRenderer.removeListener.bind(ipcRenderer),
+      removeAllListeners: ipcRenderer.removeAllListeners.bind(ipcRenderer)
+    }
+  }
+}
 
 if (process.contextIsolated) {
   try {

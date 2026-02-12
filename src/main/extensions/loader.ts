@@ -1,7 +1,8 @@
 import path from 'path'
 import fs from 'fs/promises'
 import { session } from 'electron'
-import { ExtensionInfo, ExtensionManifest, ExtensionLoadResult } from './types'
+import type { ExtensionManifest, ExtensionInfo, ExtensionLoadResult } from './types'
+import { PROTOCOL_CONSTANTS } from '../../shared/constants/extensionConstants'
 
 /**
  * 扩展加载器类
@@ -50,10 +51,21 @@ export class ExtensionLoader {
     // 验证扩展
     const manifest = await this.validateExtension(extensionPath)
 
-    // 加载扩展到默认 session
-    const { id } = await session.defaultSession.loadExtension(extensionPath)
+    // 加载扩展到专用 session（而不是主session）
+    const extensionSession = session.fromPartition(PROTOCOL_CONSTANTS.EXTENSION_PARTITION)
+    const { id } = await extensionSession.loadExtension(extensionPath)
 
     const extensionInfo: ExtensionInfo = {
+      id,
+      name: manifest.name,
+      version: manifest.version,
+      path: extensionPath,
+      enabled: true,
+      manifest
+    }
+
+    // 返回符合 ExtensionLoadResult 接口的结果
+    const result: ExtensionLoadResult = {
       id,
       name: manifest.name,
       version: manifest.version,
@@ -66,14 +78,7 @@ export class ExtensionLoader {
 
     console.log(`Extension loaded: ${manifest.name} (${id})`)
 
-    return {
-      id,
-      name: manifest.name,
-      version: manifest.version,
-      path: extensionPath,
-      enabled: true,
-      manifest
-    }
+    return result
   }
 
   /**
@@ -82,7 +87,9 @@ export class ExtensionLoader {
    */
   async unloadExtension(extensionId: string): Promise<void> {
     try {
-      await session.defaultSession.removeExtension(extensionId)
+      // 使用专用session卸载扩展
+      const extensionSession = session.fromPartition(PROTOCOL_CONSTANTS.EXTENSION_PARTITION)
+      await extensionSession.removeExtension(extensionId)
       this.loadedExtensions.delete(extensionId)
       console.log(`Extension unloaded: ${extensionId}`)
     } catch (error) {
