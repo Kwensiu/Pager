@@ -126,35 +126,35 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     tooltip: string
     defaultChecked: boolean
   }> = [
-    {
-      key: 'clearStorageData',
-      label: t('settings.clearStorageData'),
-      description: t('settings.clearStorageDataDescription'),
-      tooltip: t('settings.clearStorageDataTooltip'),
-      defaultChecked: false
-    },
-    {
-      key: 'clearAuthCache',
-      label: t('settings.clearAuthCache'),
-      description: t('settings.clearAuthCacheDescription'),
-      tooltip: t('settings.clearAuthCacheTooltip'),
-      defaultChecked: false
-    },
-    {
-      key: 'clearSessionCache',
-      label: t('settings.clearSessionCache'),
-      description: t('settings.clearSessionCacheDescription'),
-      tooltip: t('settings.clearSessionCacheTooltip'),
-      defaultChecked: true
-    },
-    {
-      key: 'clearDefaultSession',
-      label: t('settings.clearDefaultSession'),
-      description: t('settings.clearDefaultSessionDescription'),
-      tooltip: t('settings.clearDefaultSessionTooltip'),
-      defaultChecked: true
-    }
-  ]
+      {
+        key: 'clearStorageData',
+        label: t('settings.clearStorageData'),
+        description: t('settings.clearStorageDataDescription'),
+        tooltip: t('settings.clearStorageDataTooltip'),
+        defaultChecked: false
+      },
+      {
+        key: 'clearAuthCache',
+        label: t('settings.clearAuthCache'),
+        description: t('settings.clearAuthCacheDescription'),
+        tooltip: t('settings.clearAuthCacheTooltip'),
+        defaultChecked: false
+      },
+      {
+        key: 'clearSessionCache',
+        label: t('settings.clearSessionCache'),
+        description: t('settings.clearSessionCacheDescription'),
+        tooltip: t('settings.clearSessionCacheTooltip'),
+        defaultChecked: true
+      },
+      {
+        key: 'clearDefaultSession',
+        label: t('settings.clearDefaultSession'),
+        description: t('settings.clearDefaultSessionDescription'),
+        tooltip: t('settings.clearDefaultSessionTooltip'),
+        defaultChecked: true
+      }
+    ]
 
   // 渲染清理设置选项
   const renderClearCacheOption = (config: (typeof clearCacheOptionsConfig)[0]): JSX.Element => (
@@ -799,42 +799,6 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
             </div>
 
             <Separator />
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-between flex-1">
-                <div className="space-y-0.5">
-                  <Label>{t('settings.autoCheckUpdates')}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('settings.autoCheckUpdatesDescription')}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 ml-2"
-                  onClick={handleManualUpdateCheck}
-                  title="手动检查更新"
-                  disabled={isCheckingUpdate}
-                >
-                  <svg
-                    className={`h-4 w-4 ${isCheckingUpdate ? 'animate-spin' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  >
-                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </Button>
-              </div>
-              <Switch
-                checked={settings.autoCheckUpdates}
-                onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
-                className="ml-4"
-              />
-            </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -1560,11 +1524,48 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
 
             <div className="space-y-2">
               <Label>应用信息</Label>
-              <div className="text-sm text-muted-foreground">
-                <p>Pager: {versionInfo?.appVersion || '加载中...'}</p>
-                <p>Electron: {versionInfo?.electronVersion || '加载中...'}</p>
-                <p>Chrome: {versionInfo?.chromeVersion || '加载中...'}</p>
-                <p>Node.js: {versionInfo?.nodeVersion || '加载中...'}</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>{t('settings.autoCheckUpdates')}</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {t('settings.autoCheckUpdatesDescription')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={handleManualUpdateCheck}
+                      title="手动检查更新"
+                      disabled={isCheckingUpdate}
+                    >
+                      <svg
+                        className={`h-4 w-4 ${isCheckingUpdate ? 'animate-spin' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      >
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </Button>
+                    <Switch
+                      checked={settings.autoCheckUpdates}
+                      onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
+                    />
+                  </div>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  <p>Pager: {versionInfo?.appVersion || '加载中...'}</p>
+                  <p>Electron: {versionInfo?.electronVersion || '加载中...'}</p>
+                  <p>Chrome: {versionInfo?.chromeVersion || '加载中...'}</p>
+                  <p>Node.js: {versionInfo?.nodeVersion || '加载中...'}</p>
+                </div>
               </div>
             </div>
 

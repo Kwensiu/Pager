@@ -31,7 +31,8 @@ export const api = {
 
   // Shell 相关 API
   shell: {
-    openPath: (path: string) => ipcRenderer.invoke('shell:openPath', path)
+    openPath: (path: string) => ipcRenderer.invoke('shell:openPath', path),
+    openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url)
   },
 
   // 扩展相关 API

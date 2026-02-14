@@ -75,8 +75,7 @@ jobs:
           $VERSION = $TAG_NAME.Replace("v", "")
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
           echo "tag=$TAG_NAME" >> $env:GITHUB_OUTPUT
-          # 判断是否为预发布版本
-          if ($TAG_NAME -match "-alpha\.|-beta\.|-rc\.") {
+          if ($TAG_NAME -match "-alpha\\.|-beta\\.|-rc\.") {
             echo "prerelease=true" >> $env:GITHUB_OUTPUT
           } else {
             echo "prerelease=false" >> $env:GITHUB_OUTPUT
@@ -101,23 +100,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pnpm build:win
+          pnpm build && electron-builder --win --publish always
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}-build
-          path: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.snap
-            dist/*.zip
-            dist/*.tar.gz
-          if-no-files-found: error
-
-  create-release:
+  update-release-notes:
     needs: release
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -142,11 +127,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
       - name: Generate Release Notes
         id: release_notes
         run: |
@@ -160,15 +140,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create GitHub Release
+      - name: Update GitHub Release Notes
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release.outputs.tag || format('v{0}', github.event.inputs.version) }}
           name: Release ${{ needs.release.outputs.version || github.event.inputs.version }}
           body: ${{ steps.release_notes.outputs.release_notes }}
-          files: |
-            artifacts/**/*
           draft: false
           prerelease: ${{ needs.release.outputs.prerelease == 'true' }}
-          generate_release_notes: false
           token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

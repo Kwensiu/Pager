@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { marked } from 'marked'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './dialog'
 import { Button } from './button'
+import { Loader2, Download, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
 
 interface UpdateDialogProps {
   open: boolean
@@ -24,6 +25,10 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   error,
   isChecking = false
 }) => {
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadSuccess, setDownloadSuccess] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
   const processReleaseNotes = (notes: string): string => {
     const html = marked.parse(notes, {
       breaks: true,
@@ -32,6 +37,52 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
     return html
       .replace(/<blockquote/g, '<div class="border-l-2 border-muted-foreground pl-4"')
       .replace(/<\/blockquote>/g, '</div>')
+  }
+
+  const handleDownloadUpdate = async (): Promise<void> => {
+    if (!window.api?.enhanced?.versionChecker) {
+      setDownloadError('更新功能不可用')
+      return
+    }
+
+    setIsDownloading(true)
+    setDownloadError(null)
+    setDownloadSuccess(false)
+
+    try {
+      // 调用下载 API
+      const result = await window.api.enhanced.versionChecker.downloadUpdate()
+
+      if (result.success) {
+        setDownloadSuccess(true)
+
+        // 3秒后自动关闭应用并安装更新
+        setTimeout(() => {
+          if (window.api?.enhanced?.windowManager?.exitApp) {
+            window.api.enhanced.windowManager.exitApp()
+          }
+        }, 3000)
+      } else {
+        // 如果是开发环境的错误，提供 GitHub 链接
+        if (result.error?.includes('开发环境')) {
+          setDownloadError(result.error)
+        } else {
+          setDownloadError(result.error || '下载失败')
+        }
+      }
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : '未知错误')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const handleOpenGitHub = async (): Promise<void> => {
+    try {
+      await window.api.shell.openExternal('https://github.com/Kwensiu/Pager/releases/latest')
+    } catch (err) {
+      console.error('Failed to open external link:', err)
+    }
   }
 
   return (
@@ -60,6 +111,25 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
               <p className="text-sm text-destructive">检查更新失败: {error}</p>
+            </div>
+          )}
+
+          {downloadError && (
+            <div className="bg-amber-600/10 border border-amber-600/20 rounded-md p-3">
+              <p className="text-sm text-amber-600 flex items-center gap-2">
+                <XCircle className="h-4 w-4" />
+                {downloadError}
+              </p>
+
+            </div>
+          )}
+
+          {downloadSuccess && (
+            <div className="bg-green-600/10 border border-green-600/20 rounded-md p-3">
+              <p className="text-sm text-green-600 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                更新下载完成！应用将在 3 秒后关闭并安装更新。
+              </p>
             </div>
           )}
 
@@ -100,14 +170,38 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
             <Button variant="outline" onClick={onClose}>
               {isChecking ? '取消' : '关闭'}
             </Button>
-            {available && !isChecking && (
-              <Button
-                onClick={() => {
-                  // 这里可以添加下载更新的逻辑
-                  window.open('https://github.com/Kwensiu/Pager/releases/latest', '_blank')
-                }}
-              >
-                下载更新
+            {available && !isChecking && !downloadSuccess && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleOpenGitHub}
+                  disabled={isDownloading}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  前往 GitHub
+                </Button>
+                <Button
+                  onClick={handleDownloadUpdate}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      下载中...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      下载更新
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+            {downloadSuccess && (
+              <Button className="bg-green-600 hover:bg-green-700 text-white">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                下载完成，即将安装
               </Button>
             )}
           </div>

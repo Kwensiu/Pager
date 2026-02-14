@@ -115,7 +115,7 @@ declare global {
         }>
       }
     }
-    api: {
+      api: {
       ipcRenderer: {
         on: (channel: string, listener: (...args: unknown[]) => void) => void
         removeAllListeners: (channel: string) => void
@@ -124,6 +124,10 @@ declare global {
       }
       shell: {
         openPath: (path: string) => Promise<{
+          success: boolean
+          error?: string
+        }>
+        openExternal: (url: string) => Promise<{
           success: boolean
           error?: string
         }>

@@ -9,8 +9,12 @@ import { globalProxyService } from './proxyService'
 class VersionChecker {
   private updateAvailable: boolean = false
   private lastCheckTime: number = 0
+  private isDevelopment: boolean = false
 
   constructor() {
+    // 检查是否为开发环境
+    this.isDevelopment = !app.isPackaged
+
     // 延迟初始化，不在构造函数中访问 app
     setTimeout(() => {
       this.configureAutoUpdater()
@@ -150,14 +154,37 @@ class VersionChecker {
       return { success: false, error: 'No update available' }
     }
 
+    // 开发环境不支持自动更新
+    if (this.isDevelopment) {
+      return {
+        success: false,
+        error: '开发环境不支持自动更新，请访问 GitHub 下载最新版本'
+      }
+    }
+
     try {
-      await autoUpdater.downloadUpdate()
+      // 先调用 checkForUpdates 来初始化更新器并获取更新信息
+      const updateCheckResult = await autoUpdater.checkForUpdates()
+
+      if (!updateCheckResult || !updateCheckResult.downloadPromise) {
+        return { success: false, error: '无法获取更新信息' }
+      }
+
+      // 等待下载完成
+      await updateCheckResult.downloadPromise
       return { success: true }
     } catch (error) {
       console.error('Failed to download update:', error)
+      const errMsg = error instanceof Error ? error.message : 'Unknown error'
+      if (errMsg.includes('ENOENT') && errMsg.includes('app-update.yml')) {
+        return {
+          success: false,
+          error: '当前版本未配置自动更新，请前往 GitHub 手动下载最新版本'
+        }
+      }
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errMsg
       }
     }
   }

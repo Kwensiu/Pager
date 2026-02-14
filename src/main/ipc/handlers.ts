@@ -1033,6 +1033,27 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
     }
   })
 
+  // 在外部浏览器中打开 URL
+  ipcMain.handle('shell:openExternal', async (_, url: string) => {
+    try {
+      // 验证 URL 格式
+      const urlObj = new URL(url)
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        return { success: false, error: 'Invalid URL protocol, only http and https are allowed' }
+      }
+
+      const { shell } = await import('electron')
+      await shell.openExternal(url)
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to open external URL:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  })
+
   // 检查扩展文件结构
   ipcMain.handle(
     'extension:inspect-structure',
