@@ -1,6 +1,8 @@
-import { autoUpdater } from 'electron-updater'
 import { app } from 'electron'
 import { globalProxyService } from './proxyService'
+import * as fs from 'fs/promises'
+import * as path from 'path'
+import { spawn } from 'child_process'
 
 /**
  * 版本检查服务
@@ -10,70 +12,15 @@ class VersionChecker {
   private updateAvailable: boolean = false
   private lastCheckTime: number = 0
   private isDevelopment: boolean = false
+  private checkCount: number = 0
+  private downloadedInstallerPath: string | null = null
 
   constructor() {
     // 检查是否为开发环境
     this.isDevelopment = !app.isPackaged
-
-    // 延迟初始化，不在构造函数中访问 app
-    setTimeout(() => {
-      this.configureAutoUpdater()
-    }, -1)
-  }
-
-  /**
-   * 配置自动更新器
-   */
-  private configureAutoUpdater(): void {
-    // 确保 app 已准备就绪
-    if (!app || !app.getVersion) {
-      console.warn('App not ready, skipping auto updater configuration')
-      return
-    }
-
-    try {
-      // 配置代理设置
-      const globalProxy = this.getGlobalProxySettings()
-      if (globalProxy) {
-        // electron-updater 支持通过环境变量设置代理
-        if (globalProxy.includes('https://')) {
-          process.env.HTTPS_PROXY = globalProxy
-          process.env.HTTP_PROXY = globalProxy
-        } else {
-          process.env.HTTP_PROXY = globalProxy
-          process.env.HTTPS_PROXY = globalProxy
-        }
-      }
-
-      // 设置更新缓存目录为安装目录下的 updater 子目录
-      // 注意：electron-updater 的缓存目录基于 userData，无法直接设置
-      // 通过设置 userData 到安装目录，已间接改变缓存位置
-
-      autoUpdater.autoDownload = false
-      autoUpdater.autoInstallOnAppQuit = true
-
-      // 监听更新事件
-      autoUpdater.on('checking-for-update', () => {})
-
-      autoUpdater.on('update-available', (_info) => {
-        this.updateAvailable = true
-        // Note: latestVersion and releaseNotes are handled in checkForAppUpdate
-      })
-
-      autoUpdater.on('update-not-available', () => {
-        this.updateAvailable = false
-      })
-
-      autoUpdater.on('error', (error) => {
-        console.error('Update error:', error)
-      })
-
-      autoUpdater.on('download-progress', (_progressObj) => {})
-
-      autoUpdater.on('update-downloaded', (_info) => {})
-    } catch (error) {
-      console.error('Failed to configure auto updater:', error)
-    }
+    console.log(
+      `[VersionChecker] 初始化版本检查服务，环境: ${this.isDevelopment ? '开发' : '生产'}`
+    )
   }
 
   /**
@@ -88,40 +35,57 @@ class VersionChecker {
     error?: string
   }> {
     const now = Date.now()
+    this.checkCount++
+    console.log(
+      `[VersionChecker] 开始第 ${this.checkCount} 次检查更新, force=${_force}, 上次检查时间: ${this.lastCheckTime}`
+    )
 
     try {
       this.lastCheckTime = now
 
+      // 获取当前版本
+      const currentVersion = app.getVersion?.() || '0.0.0'
+      console.log(`[VersionChecker] 当前版本: ${currentVersion}`)
+
       // 使用 GitHub API 检查更新（开发环境也工作）
+      console.log('[VersionChecker] 开始查询 GitHub Releases')
       const githubRelease = await this.checkGitHubReleases()
 
       if (githubRelease) {
-        const currentVersion = app.getVersion?.() || '0.0.0'
+        console.log(
+          `[VersionChecker] GitHub API 返回发布信息: tag=${githubRelease.tag_name}, name=${githubRelease.name}`
+        )
         const latestVersion = githubRelease.tag_name.startsWith('v')
           ? githubRelease.tag_name.slice(1)
           : githubRelease.tag_name
 
+        console.log(
+          `[VersionChecker] 解析版本号: latest=${latestVersion}, current=${currentVersion}`
+        )
+
         // 比较版本号
         const isNewer = this.compareVersions(latestVersion, currentVersion) > 0
+        console.log(`[VersionChecker] 版本比较结果: ${isNewer ? '有新版本' : '已是最新'}`)
 
         this.updateAvailable = isNewer
 
-        return {
+        const result = {
           available: isNewer,
           currentVersion,
           latestVersion,
           releaseNotes: githubRelease.body
         }
+        console.log(`[VersionChecker] 检查更新完成:`, result)
+        return result
       }
 
       // GitHub API 失败时的处理
-      const currentVersion = app.getVersion?.() || '0.0.0'
-
-      // 备用：硬编码已知最新版本（临时解决方案）
+      console.warn('[VersionChecker] GitHub API 查询失败，使用备用方案')
       const knownLatestVersion = 'error'
       const isNewer = this.compareVersions(knownLatestVersion, currentVersion) > 0
 
       if (isNewer) {
+        console.log('[VersionChecker] 备用方案检测到新版本')
         return {
           available: true,
           currentVersion,
@@ -129,6 +93,7 @@ class VersionChecker {
           releaseNotes: 'GitHub API检查失败，但已知有新版本可用。请访问 GitHub 页面下载最新版本。'
         }
       } else {
+        console.log('[VersionChecker] 备用方案未检测到新版本')
         return {
           available: false,
           currentVersion,
@@ -137,7 +102,7 @@ class VersionChecker {
         }
       }
     } catch (error) {
-      console.error('检查更新失败:', error)
+      console.error('[VersionChecker] 检查更新失败:', error)
       return {
         available: false,
         currentVersion: app.getVersion?.() || '0.0.0',
@@ -147,15 +112,18 @@ class VersionChecker {
   }
 
   /**
-   * 下载更新
+   * 下载更新（半自动模式）
    */
-  async downloadUpdate(): Promise<{ success: boolean; error?: string }> {
+  async downloadUpdate(): Promise<{ success: boolean; error?: string; progress?: number }> {
+    console.log('[VersionChecker] 开始半自动下载更新流程')
     if (!this.updateAvailable) {
+      console.warn('[VersionChecker] 下载失败: 没有可用更新')
       return { success: false, error: 'No update available' }
     }
 
     // 开发环境不支持自动更新
     if (this.isDevelopment) {
+      console.warn('[VersionChecker] 开发环境不支持自动更新')
       return {
         success: false,
         error: '开发环境不支持自动更新，请访问 GitHub 下载最新版本'
@@ -163,28 +131,98 @@ class VersionChecker {
     }
 
     try {
-      // 先调用 checkForUpdates 来初始化更新器并获取更新信息
-      const updateCheckResult = await autoUpdater.checkForUpdates()
+      console.log('[VersionChecker] 获取最新发布信息以确定下载链接')
+      const githubRelease = await this.checkGitHubReleases()
 
-      if (!updateCheckResult || !updateCheckResult.downloadPromise) {
-        return { success: false, error: '无法获取更新信息' }
-      }
-
-      // 等待下载完成
-      await updateCheckResult.downloadPromise
-      return { success: true }
-    } catch (error) {
-      console.error('Failed to download update:', error)
-      const errMsg = error instanceof Error ? error.message : 'Unknown error'
-      if (errMsg.includes('ENOENT') && errMsg.includes('app-update.yml')) {
+      if (!githubRelease) {
         return {
           success: false,
-          error: '当前版本未配置自动更新，请前往 GitHub 手动下载最新版本'
+          error: '无法获取下载链接，请访问 GitHub Releases 页面手动下载'
         }
       }
+
+      // 从 GitHub Release 中查找 Windows 安装包
+      const assets = githubRelease.assets || []
+      const windowsAsset = assets.find(
+        (asset) => asset.name && (asset.name.endsWith('.exe') || asset.name.includes('Setup'))
+      )
+
+      if (!windowsAsset) {
+        console.log('[VersionChecker] 未在 Release 中找到 Windows 安装包，引导用户到页面')
+        return {
+          success: false,
+          error: '未找到适合的安装包，请访问 GitHub Releases 页面手动下载'
+        }
+      }
+
+      const downloadUrl = windowsAsset.browser_download_url
+      const fileName = windowsAsset.name
+      console.log(`[VersionChecker] 找到安装包: ${fileName}`)
+      console.log(`[VersionChecker] 下载链接: ${downloadUrl}`)
+
+      // 准备下载目录（使用用户临时目录）
+      const tempDir = path.join(app.getPath('temp'), 'Pager-updates')
+      await fs.mkdir(tempDir, { recursive: true })
+      const downloadPath = path.join(tempDir, fileName)
+
+      console.log(`[VersionChecker] 开始下载到: ${downloadPath}`)
+
+      // 下载文件
+      const softwareSession = globalProxyService.getSoftwareSession()
+      const response = await softwareSession.fetch(downloadUrl)
+
+      if (!response.ok) {
+        throw new Error(`下载失败: ${response.status} ${response.statusText}`)
+      }
+
+      // 获取文件大小
+      const contentLength = response.headers.get('content-length')
+      const totalBytes = contentLength ? parseInt(contentLength, 10) : 0
+      console.log(`[VersionChecker] 文件大小: ${totalBytes} bytes`)
+
+      // 写入文件流
+      const fileStream = await fs.open(downloadPath, 'w')
+      let downloadedBytes = 0
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('无法获取下载流')
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        await fileStream.write(value)
+        downloadedBytes += value.length
+
+        // 计算并打印进度
+        if (totalBytes > 0) {
+          const progress = Math.round((downloadedBytes / totalBytes) * 100)
+          if (progress % 10 === 0) {
+            // 每10%打印一次
+            console.log(
+              `[VersionChecker] 下载进度: ${progress}% (${downloadedBytes}/${totalBytes})`
+            )
+          }
+        }
+      }
+
+      await fileStream.close()
+      console.log('[VersionChecker] 下载完成')
+
+      // 保存下载路径供安装使用
+      this.downloadedInstallerPath = downloadPath
+
+      return {
+        success: true,
+        error: '下载完成，点击"立即安装"按钮开始安装更新'
+      }
+    } catch (error) {
+      console.error('[VersionChecker] 下载失败:', error)
       return {
         success: false,
-        error: errMsg
+        error: error instanceof Error ? error.message : '下载失败，请重试或手动下载'
       }
     }
   }
@@ -193,18 +231,50 @@ class VersionChecker {
    * 安装更新
    */
   installUpdate(): { success: boolean; error?: string } {
+    console.log('[VersionChecker] 开始安装更新流程')
+
     if (!this.updateAvailable) {
+      console.warn('[VersionChecker] 安装失败: 没有可用更新')
       return { success: false, error: 'No update available' }
     }
 
+    if (!this.downloadedInstallerPath) {
+      console.warn('[VersionChecker] 安装失败: 未找到下载的安装包')
+      return { success: false, error: '请先下载更新' }
+    }
+
     try {
-      autoUpdater.quitAndInstall()
+      console.log(`[VersionChecker] 启动安装程序: ${this.downloadedInstallerPath}`)
+
+      // 启动安装程序
+      // 不使用静默参数，显示安装界面
+      const installer = spawn(this.downloadedInstallerPath, [], {
+        detached: true,
+        stdio: 'ignore'
+      })
+
+      // 监听进程启动事件
+      installer.on('spawn', () => {
+        console.log('[VersionChecker] 安装程序进程已启动')
+      })
+
+      // 监听进程错误
+      installer.on('error', (err) => {
+        console.error('[VersionChecker] 安装程序启动失败:', err)
+      })
+
+      // 分离进程，使其独立于父进程运行
+      installer.unref()
+
+      console.log('[VersionChecker] 安装程序已启动')
+      console.log('[VersionChecker] 安装界面将显示，用户可以看到安装进度')
+
       return { success: true }
     } catch (error) {
-      console.error('Failed to install update:', error)
+      console.error('[VersionChecker] 安装更新失败:', error)
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : '安装失败，请手动运行下载的安装程序'
       }
     }
   }
@@ -312,11 +382,14 @@ class VersionChecker {
     checkCount: number
     autoUpdateEnabled: boolean
   } {
+    console.log(
+      `[VersionChecker] 获取更新统计: checkCount=${this.checkCount}, lastCheck=${this.lastCheckTime}, updateAvailable=${this.updateAvailable}`
+    )
     return {
       lastCheck: this.lastCheckTime,
       updateAvailable: this.updateAvailable,
-      checkCount: 0, // 可以添加计数逻辑
-      autoUpdateEnabled: autoUpdater.autoInstallOnAppQuit
+      checkCount: this.checkCount,
+      autoUpdateEnabled: false // 半自动模式不需要自动安装
     }
   }
 
@@ -325,7 +398,8 @@ class VersionChecker {
    * @param enabled 是否启用
    */
   setAutoUpdate(enabled: boolean): void {
-    autoUpdater.autoInstallOnAppQuit = enabled
+    // 半自动模式下不需要此功能
+    console.log(`[VersionChecker] setAutoUpdate(${enabled}) - 半自动模式下忽略此设置`)
   }
 
   /**
@@ -337,6 +411,10 @@ class VersionChecker {
     body: string
     published_at: string
     html_url: string
+    assets: Array<{
+      name: string
+      browser_download_url: string
+    }>
   } | null> {
     try {
       // 获取软件专用session
@@ -381,26 +459,6 @@ class VersionChecker {
       return null
     }
   }
-
-  /**
-   * 获取全局代理设置
-   * @returns 代理规则或 null
-   */
-  private getGlobalProxySettings(): string | null {
-    // 尝试从多个来源获取代理设置
-    // 1. 从环境变量获取
-    const httpProxy = process.env.HTTP_PROXY || process.env.http_proxy
-    const httpsProxy = process.env.HTTPS_PROXY || process.env.https_proxy
-
-    if (httpsProxy) return httpsProxy
-    if (httpProxy) return httpProxy
-
-    // 2. 从设置中获取（需要导入 storeService，这里暂时返回 null）
-    // TODO: 实现从设置中获取代理配置
-
-    return null
-  }
-
   /**
    * 比较版本号
    * @param v1 版本1
@@ -466,7 +524,8 @@ class VersionChecker {
    * 清理资源
    */
   cleanup(): void {
-    autoUpdater.removeAllListeners()
+    console.log('[VersionChecker] 清理资源 - 半自动模式无需清理')
+    // 半自动模式下不需要清理 autoUpdater 的事件监听器
   }
 }
 

@@ -56,10 +56,15 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
       if (result.success) {
         setDownloadSuccess(true)
 
-        // 3秒后自动关闭应用并安装更新
-        setTimeout(() => {
-          if (window.api?.enhanced?.windowManager?.exitApp) {
-            window.api.enhanced.windowManager.exitApp()
+        // 下载完成后3秒自动开始安装
+        setTimeout(async () => {
+          try {
+            const installResult = await window.api.enhanced.versionChecker.installUpdate()
+            if (!installResult.success) {
+              console.error('自动安装失败:', installResult.error)
+            }
+          } catch (error) {
+            console.error('自动安装异常:', error)
           }
         }, 3000)
       } else {
@@ -127,7 +132,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
             <div className="bg-green-600/10 border border-green-600/20 rounded-md p-3">
               <p className="text-sm text-green-600 flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                更新下载完成！应用将在 3 秒后关闭并安装更新。
+                更新下载完成！即将运行安装程序。
               </p>
             </div>
           )}
