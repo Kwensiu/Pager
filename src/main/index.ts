@@ -9,6 +9,8 @@ import { ExtensionManager } from './extensions/extensionManager'
 import { sessionIsolationService } from './services/sessionIsolation'
 import { extensionIsolationManager } from './services/extensionIsolation'
 import { extensionPermissionManager } from './services/extensionPermissionManager'
+import { memoryOptimizerService } from './services'
+import { autoLaunchService } from './services/autoLaunch'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -64,7 +66,6 @@ app.whenReady().then(async () => {
     windowManager.setMainWindow(mainWindow)
 
     // 设置内存优化器的主窗口引用
-    const { memoryOptimizerService } = await import('./services')
     memoryOptimizerService.setMainWindow(mainWindow)
   } catch (error) {
     console.error('初始化快捷键服务失败:', error)
@@ -74,9 +75,6 @@ app.whenReady().then(async () => {
   try {
     const storeService = await getStoreService()
     const settings = await storeService.getSettings()
-
-    // 动态导入自动启动服务
-    const { autoLaunchService } = await import('./services/autoLaunch')
 
     // 检查系统自动启动状态与应用设置是否一致
     const isActuallyEnabled = autoLaunchService.isEnabled()
@@ -124,8 +122,6 @@ app.whenReady().then(async () => {
     // 初始化内存优化服务
     if (settings.memoryOptimizerEnabled) {
       try {
-        const { memoryOptimizerService } = await import('./services')
-
         // 应用用户配置
         if (settings.memoryCleanInterval && settings.memoryCleanInterval >= 1) {
           memoryOptimizerService.setCleanupInterval(settings.memoryCleanInterval)
@@ -168,9 +164,7 @@ app.on('will-quit', () => {
 
   // 清理内存优化服务
   try {
-    import('./services/memoryOptimizer').then(({ memoryOptimizerService }) => {
-      memoryOptimizerService.stopCleanup()
-    })
+    memoryOptimizerService.stopCleanup()
   } catch {
     // Silent fail
   }

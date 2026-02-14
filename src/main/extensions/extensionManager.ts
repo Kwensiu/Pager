@@ -8,7 +8,6 @@ import {
   readFileSync as fsReadFileSync,
   realpathSync
 } from 'fs'
-import * as os from 'os'
 import type { ExtensionInfo, ExtensionManifest, ExtensionConfig } from './types'
 import {
   PROTOCOL_CONSTANTS,
@@ -26,10 +25,6 @@ import {
   ExtensionRiskLevel
 } from '../../shared/types/store'
 import type { Session } from 'electron'
-import {
-  generateChromePolyfillCode,
-  CHROME_POLYFILL_INJECTED
-} from '../../shared/utils/chromePolyfill'
 
 // 动态导入 adm-zip 以避免在模块顶层导入
 let AdmZip: typeof import('adm-zip').default | null = null
@@ -329,7 +324,6 @@ export class ExtensionManager {
     string,
     import('../services/extensionIsolation').ExtensionSession
   > = new Map()
-  private tempFiles: Set<string> = new Set() // 跟踪所有临时文件
   private extensionIdLocks: Map<string, Promise<unknown>> = new Map() // 扩展ID更新锁
 
   static getInstance(): ExtensionManager {
@@ -419,32 +413,6 @@ export class ExtensionManager {
           if (!existsSync(filePath)) {
             console.error(`File not found: ${filePath}`)
             callback({ error: ERROR_CODES.FILE_NOT_FOUND })
-            return
-          }
-
-          // 只对扩展自己的JS文件注入polyfill，而非所有通过chrome-extension://协议提供的JS文件
-          // 检查文件是否在扩展目录内
-          if (filePath.toLowerCase().endsWith('.js') && this.isPathSafe(extension.path, filePath)) {
-            const jsContent = readFileSync(filePath, 'utf-8')
-
-            // 检查是否已经注入了polyfill，避免重复注入
-            if (jsContent.includes(CHROME_POLYFILL_INJECTED)) {
-              console.log(
-                `${LOG_PREFIXES.POLYFILL} Polyfill already injected, skipping: ${filePath}`
-              )
-              callback(filePath)
-              return
-            }
-
-            const polyfillCode = generateChromePolyfillCode()
-
-            const modifiedJs = polyfillCode + jsContent
-
-            // 创建临时文件并跟踪它
-            const tempJsPath = this.createTempFile(modifiedJs, '.js', extension.id)
-
-            console.log(`[Polyfill] Injected polyfill into extension JS file: ${filePath}`)
-            callback(tempJsPath)
             return
           }
 
@@ -1019,6 +987,10 @@ export class ExtensionManager {
 
   getExtension(extensionId: string): ExtensionInfo | undefined {
     return this.extensions.get(extensionId)
+  }
+
+  getAllExtensionIds(): string[] {
+    return Array.from(this.extensions.keys())
   }
 
   async loadAllExtensions(): Promise<void> {
@@ -1695,30 +1667,6 @@ export class ExtensionManager {
       console.error('[Security] Error checking path safety:', error)
       // 出错时拒绝访问，确保安全
       return false
-    }
-  }
-
-  /**
-   * 创建临时文件并跟踪它（按扩展ID）
-   */
-  private createTempFile(
-    content: string,
-    suffix: string = STORAGE_CONSTANTS.TEMP_FILE_SUFFIX,
-    _extensionId?: string
-  ): string {
-    const tempPath = `${os.tmpdir()}/${STORAGE_CONSTANTS.TEMP_FILE_PREFIX}${Date.now()}-${Math.random().toString(36).substring(2)}${suffix}`
-    try {
-      writeFileSync(tempPath, content, 'utf-8')
-
-      // 跟踪临时文件
-      this.tempFiles.add(tempPath)
-
-      return tempPath
-    } catch (error) {
-      console.error(`Failed to create temp file: ${tempPath}`, error)
-      throw new Error(
-        `Failed to create temp file: ${error instanceof Error ? error.message : String(error)}`
-      )
     }
   }
 }

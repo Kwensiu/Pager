@@ -6,30 +6,33 @@ import { cn } from '@/lib/utils'
 import { useMouseSideButtons } from '@/hooks/useMouseSideButtons'
 import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
+import { ScriptMenu } from './ScriptMenu'
 
 interface NavigationToolbarProps {
   /** 当前显示的 URL */
   url: string
   /** 是否正在加载 */
-  isLoading: boolean
+  isLoading?: boolean
   /** 刷新回调 */
   onRefresh?: () => void
   /** 后退回调 */
   onGoBack?: () => void
   /** 前进回调 */
   onGoForward?: () => void
-  /** 外部打开回调 */
+  /** 在外部浏览器中打开 */
   onOpenExternal?: () => void
-  /** 导航到新 URL 的回调 */
+  /** 导航回调 */
   onNavigate?: (url: string) => void
   /** 是否可以后退 */
   canGoBack?: boolean
   /** 是否可以前进 */
   canGoForward?: boolean
-  /** 类名 */
+  /** 自定义类名 */
   className?: string
   /** 扩展按钮点击回调 */
   onExtensionClick?: () => void
+  /** 当前网站ID */
+  websiteId?: string
 }
 
 export const NavigationToolbar = ({
@@ -43,7 +46,8 @@ export const NavigationToolbar = ({
   canGoBack = false,
   canGoForward = false,
   className,
-  onExtensionClick
+  onExtensionClick,
+  websiteId
 }: NavigationToolbarProps): React.ReactElement => {
   const { t } = useI18n()
   const { settings } = useSettings()
@@ -184,6 +188,12 @@ export const NavigationToolbar = ({
           />
         </div>
       </div>
+
+      {/* 脚本菜单按钮 */}
+      <ScriptMenu
+        websiteId={websiteId}
+        onConfigSaved={onRefresh} // 配置保存后刷新页面
+      />
 
       {/* 扩展按钮 */}
       {onExtensionClick && (

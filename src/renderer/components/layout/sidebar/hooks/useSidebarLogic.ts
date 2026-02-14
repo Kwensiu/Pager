@@ -108,6 +108,9 @@ export function useSidebarLogic({
   activeWebsiteId: _activeWebsiteId = null,
   onWebsiteClick
 }: UseSidebarLogicProps): UseSidebarLogicReturn {
+  // 开发模式日志开关
+  const isDev = process.env.NODE_ENV === 'development'
+
   // 使用对话框管理钩子
   const dialogManagement = useDialogManagement()
 
@@ -227,6 +230,14 @@ export function useSidebarLogic({
   }
 
   const handleSaveWebsite = (updatedWebsite: Website): void => {
+    if (isDev)
+      console.log('[SidebarLogic] handleSaveWebsite received:', {
+        id: updatedWebsite.id,
+        fingerprintEnabled: updatedWebsite.fingerprintEnabled,
+        fingerprintMode: updatedWebsite.fingerprintMode,
+        jsCodeLength: updatedWebsite.jsCode?.length || 0
+      })
+
     const updatedPrimaryGroups = primaryGroups.map((primaryGroup) => {
       if (primaryGroup.id === activePrimaryGroup?.id) {
         // 首先检查网站是否在一级分类下
@@ -243,8 +254,14 @@ export function useSidebarLogic({
             description: updatedWebsite.description,
             fingerprintEnabled: updatedWebsite.fingerprintEnabled,
             fingerprintMode: updatedWebsite.fingerprintMode,
+            jsCode: updatedWebsite.jsCode,
             updatedAt: Date.now()
           }
+          if (isDev)
+            console.log('[SidebarLogic] Updated in primary group, new data:', {
+              fingerprintEnabled: updatedWebsites[primaryWebsiteIndex].fingerprintEnabled,
+              jsCodeLength: updatedWebsites[primaryWebsiteIndex].jsCode?.length || 0
+            })
           return {
             ...primaryGroup,
             websites: updatedWebsites
@@ -266,8 +283,14 @@ export function useSidebarLogic({
                   description: updatedWebsite.description,
                   fingerprintEnabled: updatedWebsite.fingerprintEnabled,
                   fingerprintMode: updatedWebsite.fingerprintMode,
+                  jsCode: updatedWebsite.jsCode,
                   updatedAt: Date.now()
                 }
+                if (isDev)
+                  console.log('[SidebarLogic] Updated in secondary group, new data:', {
+                    fingerprintEnabled: updatedWebsites[websiteIndex].fingerprintEnabled,
+                    jsCodeLength: updatedWebsites[websiteIndex].jsCode?.length || 0
+                  })
                 return {
                   ...secondaryGroup,
                   websites: updatedWebsites
@@ -283,11 +306,21 @@ export function useSidebarLogic({
 
     setPrimaryGroups(updatedPrimaryGroups)
     storageService.setPrimaryGroups(updatedPrimaryGroups)
+    if (isDev) console.log('[SidebarLogic] Saved to storage and setPrimaryGroups')
 
     // 更新当前网站状态（如果保存的是当前激活的网站）
     if (currentWebsite && currentWebsite.id === updatedWebsite.id) {
       setCurrentWebsite(updatedWebsite)
+      if (isDev) console.log('[SidebarLogic] Updated currentWebsite')
     }
+
+    // 关键：同步更新 editingWebsite，确保再次编辑时数据是最新的
+    if (isDev)
+      console.log('[SidebarLogic] Updating editingWebsite to:', {
+        fingerprintEnabled: updatedWebsite.fingerprintEnabled,
+        jsCodeLength: updatedWebsite.jsCode?.length || 0
+      })
+    dialogManagement.setEditingWebsite(updatedWebsite)
 
     dialogManagement.closeEditWebsiteDialog()
   }
@@ -300,8 +333,41 @@ export function useSidebarLogic({
     }
   }
 
-  const handleWebsiteUpdate = (website: Website): void => {
-    dialogManagement.openEditWebsiteDialog(website)
+  const handleWebsiteUpdate = async (website: Website): Promise<void> => {
+    // 直接从数据库读取最新数据，确保一致性
+    const latestGroups = await storageService.getPrimaryGroups()
+    let latestWebsite: Website | null = null
+
+    for (const pg of latestGroups) {
+      // 在一级分类中查找
+      const foundInPrimary = pg.websites?.find((w) => w.id === website.id)
+      if (foundInPrimary) {
+        latestWebsite = foundInPrimary
+        break
+      }
+      // 在二级分类中查找
+      for (const sg of pg.secondaryGroups) {
+        const foundInSecondary = sg.websites.find((w) => w.id === website.id)
+        if (foundInSecondary) {
+          latestWebsite = foundInSecondary
+          break
+        }
+      }
+      if (latestWebsite) break
+    }
+
+    const websiteToEdit = latestWebsite || website
+
+    if (isDev)
+      console.log('[SidebarLogic] Opening edit dialog for website:', {
+        id: websiteToEdit.id,
+        fingerprintEnabled: websiteToEdit.fingerprintEnabled,
+        fingerprintMode: websiteToEdit.fingerprintMode,
+        jsCodeLength: websiteToEdit.jsCode?.length || 0,
+        source: latestWebsite ? 'from database' : 'from parameter (fallback)'
+      })
+
+    dialogManagement.openEditWebsiteDialog(websiteToEdit)
     setContextMenuWebsite(null)
   }
 

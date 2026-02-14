@@ -4,7 +4,8 @@ import { PROTOCOL_CONSTANTS } from '../../../shared/constants/extensionConstants
 import { useSettings } from '@/hooks/useSettings'
 import { matchesPredefinedShortcut } from '@/utils/keyboardShortcuts'
 import { showSuccessNotification, showErrorNotification } from '@/utils/notifications'
-import { generateChromePolyfillCode } from '../../../shared/utils/chromePolyfill'
+import { generateGMPolyfillCode } from '@shared/utils/gmPolyfill'
+import { UserScript } from './ScriptManager'
 
 // 定义 Electron WebView 元素的类型
 interface WebViewElement extends HTMLWebViewElement {
@@ -377,21 +378,141 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       const webview = webviewRef.current
       if (!webview) return
 
-      const handleDomReady = (): void => {
+      const handleDomReady = async (): Promise<void> => {
         // 应用指纹伪装
         applyFingerprint()
 
-        // 注入Chrome扩展polyfill
-        try {
-          const polyfillCode = generateChromePolyfillCode()
-          webview.executeJavaScript(polyfillCode)
-          // Chrome storage polyfill injected successfully
-        } catch {
-          // Failed to inject chrome storage polyfill
-        }
+        // 注入自定义 JS 脚本
+        if (websiteId) {
+          try {
+            // 从 IPC 获取网站的 jsCode（从数据库）
+            const jsCodeList = await window.api.enhanced.jsInjector.getWebsiteJsCode(websiteId)
 
-        // 右键菜单现在通过主进程的 did-attach-webview 事件处理
-        // 不需要在渲染进程中设置监听器
+            if (jsCodeList && jsCodeList.length > 0) {
+              console.log(
+                `Injecting ${jsCodeList.length} custom JS scripts for website ${websiteId}`
+              )
+
+              // 从 localStorage 加载脚本库用于匹配 ID
+              const storedScripts = localStorage.getItem('pager_user_scripts')
+              const userScripts = storedScripts ? JSON.parse(storedScripts) : []
+
+              // 执行所有 JS 代码（使用 jsInjectorService 的包装格式）
+              for (const { code } of jsCodeList) {
+                try {
+                  // 根据代码匹配找到正确的脚本 ID
+                  const matchedScript = userScripts.find((s: UserScript) => s.code === code)
+                  const scriptId = matchedScript?.id || `script_${Date.now()}`
+
+                  // 注入该脚本的 GM polyfill（带有正确的 scriptId）
+                  try {
+                    const scriptPolyfill = generateGMPolyfillCode(scriptId)
+                    await webview.executeJavaScript(scriptPolyfill)
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log(
+                        `GM polyfill for script ${scriptId} (${matchedScript?.name || 'unknown'}) injected`
+                      )
+                    }
+                  } catch (e) {
+                    console.error('Failed to inject script-specific GM polyfill:', e)
+                  }
+
+                  // 解析 @require 并加载依赖
+                  const requireMatches = code.match(/@require\s+(\S+)/g)
+                  if (requireMatches) {
+                    console.log('Found @require dependencies:', requireMatches)
+                    for (const match of requireMatches) {
+                      const url = match.replace(/@require\s+/, '').trim()
+                      try {
+                        // 动态加载依赖脚本
+                        await webview.executeJavaScript(`
+                          (function() {
+                            if (window.__loadedRequires && window.__loadedRequires['${url}']) {
+                              return Promise.resolve();
+                            }
+                            return new Promise((resolve, reject) => {
+                              const script = document.createElement('script');
+                              script.src = '${url}';
+                              script.onload = () => {
+                                if (!window.__loadedRequires) window.__loadedRequires = {};
+                                window.__loadedRequires['${url}'] = true;
+                                console.log('[GM Polyfill] Loaded @require:', '${url}');
+                                resolve();
+                              };
+                              script.onerror = (e) => {
+                                console.error('[GM Polyfill] Failed to load @require:', '${url}', e);
+                                reject(e);
+                              };
+                              document.head.appendChild(script);
+                            });
+                          })();
+                        `)
+                      } catch (e) {
+                        console.error('Failed to load required script:', url, e)
+                      }
+                    }
+                  }
+
+                  // 使用 script 标签注入代码，确保在页面主上下文中执行
+                  // 使用 Blob URL 避免字符串转义问题
+                  const injectionId =
+                    'user-script-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11)
+                  const wrappedCode = `
+                    (function() {
+                      try {
+                        // 等待页面完全加载
+                        const injectScript = function() {
+                          const scriptContent = ${JSON.stringify(code)};
+                          const blob = new Blob([scriptContent], { type: 'application/javascript' });
+                          const url = URL.createObjectURL(blob);
+                          const script = document.createElement('script');
+                          script.id = '${injectionId}';
+                          script.src = url;
+                          script.type = 'text/javascript';
+                          // 设置脚本 ID，供 GM polyfill 使用
+                          script.setAttribute('data-script-id', '${scriptId || ''}');
+                          script.setAttribute('data-injected-by', 'pager');
+                          script.onload = function() {
+                            console.log('User script executed successfully');
+                            URL.revokeObjectURL(url);
+                          };
+                          script.onerror = function(e) {
+                            console.error('User script execution failed:', e);
+                            URL.revokeObjectURL(url);
+                          };
+                          // 确保 document.head 存在
+                          const target = document.head || document.documentElement || document.body;
+                          if (target) {
+                            target.appendChild(script);
+                          } else {
+                            console.error('No valid target element found for script injection');
+                          }
+                        };
+                        
+                        // 如果页面已经加载完成，直接注入
+                        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                          injectScript();
+                        } else {
+                          // 否则等待 DOMContentLoaded
+                          document.addEventListener('DOMContentLoaded', injectScript);
+                        }
+                      } catch (e) {
+                        console.error('Failed to inject user script:', e);
+                      }
+                    })();
+                  `
+                  await webview.executeJavaScript(wrappedCode)
+                } catch (error) {
+                  console.error('Failed to execute custom JS code:', error)
+                }
+              }
+
+              console.log('Custom JS code injected successfully')
+            }
+          } catch (error) {
+            console.error('Failed to load or inject custom JS code:', error)
+          }
+        }
 
         // 注入鼠标侧键处理脚本到 webview
         try {
@@ -850,6 +971,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
           canGoBack={true}
           canGoForward={true}
           onExtensionClick={onExtensionClick}
+          websiteId={websiteId}
         />
 
         {/* 内容区域 - 修复顶部溢出问题 */}

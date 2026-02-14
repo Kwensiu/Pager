@@ -206,6 +206,22 @@ export function registerEnhancedIpcHandlers(mainWindow: Electron.BrowserWindow):
     return jsInjectorService.getWebsiteJsCode(websiteId) || []
   })
 
+  // 获取网站配置中的 jsCode（从数据库）
+  ipcMain.handle('js-injector:get-website-jscode', async (_, websiteId: string) => {
+    const storeService = await import('../services/store').then((m) => m.storeService)
+    const website = await storeService.getWebsiteById(websiteId)
+    if (!website || !website.jsCode || website.jsCode.length === 0) {
+      return []
+    }
+    // 从 localStorage 获取脚本库，匹配代码找到正确的脚本 ID
+    // 注意：localStorage 只在 renderer 进程可用，这里只能返回代码
+    // 脚本 ID 的匹配在 renderer 进程完成
+    return website.jsCode.map((code, index) => ({
+      id: `script_${index}_${code.slice(0, 20).replace(/[^a-zA-Z0-9]/g, '')}`,
+      code
+    }))
+  })
+
   // ===== 代理支持 =====
   ipcMain.handle(
     'proxy:set-for-website',

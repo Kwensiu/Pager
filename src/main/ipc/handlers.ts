@@ -1631,4 +1631,147 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
       return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
   })
+
+  // 获取扩展目录中的文件列表
+  ipcMain.handle('extension:get-files', async (_, extensionId: string) => {
+    try {
+      const { existsSync, readdirSync } = await import('fs')
+      const { join } = await import('path')
+
+      // 获取扩展信息
+      const extension = extensionManager.getExtension(extensionId)
+      if (!extension) {
+        return { success: false, error: 'Extension not found' }
+      }
+
+      // 检查扩展目录是否存在
+      if (!existsSync(extension.path)) {
+        return { success: false, error: 'Extension directory not found' }
+      }
+
+      // 读取目录中的文件和子目录
+      const allFiles = readdirSync(extension.path, { withFileTypes: true })
+
+      // 收集可能的页面文件
+      const possiblePages: string[] = []
+
+      for (const dirent of allFiles) {
+        if (dirent.isFile()) {
+          // 直接的 HTML 文件
+          const name = dirent.name.toLowerCase()
+          if (name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.xhtml')) {
+            possiblePages.push(dirent.name)
+          }
+        } else if (dirent.isDirectory()) {
+          // 检查目录中是否有 index.html
+          const indexPath = join(extension.path, dirent.name, 'index.html')
+          const htmPath = join(extension.path, dirent.name, 'index.htm')
+
+          if (existsSync(indexPath)) {
+            possiblePages.push(`${dirent.name}/index.html`)
+          } else if (existsSync(htmPath)) {
+            possiblePages.push(`${dirent.name}/index.htm`)
+          }
+
+          // 也检查目录中是否有其他 HTML 文件
+          try {
+            const dirFiles = readdirSync(join(extension.path, dirent.name))
+            for (const dirFile of dirFiles) {
+              if (
+                dirFile.toLowerCase().endsWith('.html') ||
+                dirFile.toLowerCase().endsWith('.htm')
+              ) {
+                possiblePages.push(`${dirent.name}/${dirFile}`)
+              }
+            }
+          } catch {
+            // 忽略无法读取的目录
+          }
+        }
+      }
+
+      // 按优先级排序：options, popup, index
+      const priorityOrder = ['options', 'popup', 'index', 'home', 'main']
+      possiblePages.sort((a, b) => {
+        const aPriority = priorityOrder.findIndex((p) => a.toLowerCase().includes(p))
+        const bPriority = priorityOrder.findIndex((p) => b.toLowerCase().includes(p))
+        if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority
+        if (aPriority !== -1) return -1
+        if (bPriority !== -1) return 1
+        return 0
+      })
+
+      return { success: true, files: possiblePages, manifest: extension.manifest }
+    } catch (error) {
+      console.error('Error getting extension files:', error)
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  })
 }
+
+// 存储相关处理器 - 用于跨 WebView 共享数据
+const sharedStorage = new Map<string, string>()
+
+ipcMain.handle('storage:get-item', (_, key: string) => {
+  try {
+    if (typeof key !== 'string' || key.length === 0 || key.length > 1000) {
+      console.warn('Invalid storage key:', key)
+      return null
+    }
+    return sharedStorage.get(key) || null
+  } catch (error) {
+    console.error('Error getting storage item:', error)
+    return null
+  }
+})
+
+ipcMain.handle('storage:set-item', (_, key: string, value: string) => {
+  try {
+    if (typeof key !== 'string' || key.length === 0 || key.length > 1000) {
+      console.warn('Invalid storage key:', key)
+      return false
+    }
+    if (typeof value !== 'string' || value.length > 10000) {
+      console.warn('Invalid storage value, too large')
+      return false
+    }
+    sharedStorage.set(key, value)
+    return true
+  } catch (error) {
+    console.error('Error setting storage item:', error)
+    return false
+  }
+})
+
+ipcMain.handle('storage:remove-item', (_, key: string) => {
+  try {
+    if (typeof key !== 'string' || key.length === 0 || key.length > 1000) {
+      console.warn('Invalid storage key:', key)
+      return false
+    }
+    sharedStorage.delete(key)
+    return true
+  } catch (error) {
+    console.error('Error removing storage item:', error)
+    return false
+  }
+})
+
+ipcMain.handle('storage:clear', () => {
+  try {
+    sharedStorage.clear()
+    return true
+  } catch (error) {
+    console.error('Error clearing storage:', error)
+    return false
+  }
+})
+
+ipcMain.handle('storage:get-all', () => {
+  try {
+    return Object.fromEntries(sharedStorage)
+  } catch (error) {
+    console.error('Error getting all storage items:', error)
+    return {}
+  }
+})

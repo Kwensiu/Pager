@@ -6,7 +6,7 @@
 export const CHROME_POLYFILL_INJECTED = 'CHROME_POLYFILL_INJECTED'
 
 /**
- * Generates the complete Chrome API polyfill code for injection
+ * Generates basic Chrome API polyfill code for injection
  */
 export function generateChromePolyfillCode(): string {
   return `
@@ -74,11 +74,34 @@ export function generateChromePolyfillCode(): string {
           callback();
         }
         return Promise.resolve();
+      },
+
+      remove: function(keys, callback) {
+        if (typeof keys === 'string') {
+          keys = [keys];
+        }
+        keys.forEach(function(key) {
+          delete storageData[key];
+        });
+        saveStorage();
+        if (typeof callback === 'function') {
+          callback();
+        }
+        return Promise.resolve();
+      },
+
+      clear: function(callback) {
+        storageData = {};
+        saveStorage();
+        if (typeof callback === 'function') {
+          callback();
+        }
+        return Promise.resolve();
       }
     };
   }
 
-  console.log('[Polyfill] Basic chrome.storage.local polyfill injected');
+  console.log('[Polyfill] Basic Chrome storage polyfill injected');
 })();
 `
 }

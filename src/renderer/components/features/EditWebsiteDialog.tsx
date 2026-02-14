@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,10 @@ import { Switch } from '@/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select'
 import { Website } from '@/types/website'
 import { Favicon } from './Favicon'
-import { Fingerprint } from 'lucide-react'
+import { Fingerprint, Code2, X } from 'lucide-react'
 import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
+import { ScriptManager, UserScript } from './ScriptManager'
 
 interface EditWebsiteDialogProps {
   open: boolean
@@ -41,26 +42,78 @@ export function EditWebsiteDialog({
   const [fingerprintMode, setFingerprintMode] = useState<'basic' | 'balanced' | 'advanced'>(
     'balanced'
   )
+  const [, setJsCode] = useState<string[]>([])
+  const [showScriptManager, setShowScriptManager] = useState(false)
+  const [showScriptManagerManage, setShowScriptManagerManage] = useState(false)
+  const [selectedScripts, setSelectedScripts] = useState<UserScript[]>([])
 
+  // 开发模式日志开关
+  const isDev = process.env.NODE_ENV === 'development'
+
+  // 使用 ref 来跟踪上一次处理的 website，避免重复初始化
+  const lastWebsiteRef = useRef<string | null>(null)
+
+  // 从 jsCode 转换为 selectedScripts - 在对话框打开或编辑不同网站时初始化
   useEffect(() => {
-    if (website) {
-      setName(website.name)
-      setUrl(website.url)
-      setFaviconUrl(website.favicon || website.url || '')
-      setFingerprintEnabled(website.fingerprintEnabled || false)
-      setFingerprintMode(website.fingerprintMode || 'balanced')
+    if (!open || !website) return
+
+    // 只有当网站 ID 变化或首次打开时才重新初始化
+    const websiteKey = `${website.id}_${website.jsCode?.length || 0}_${website.fingerprintEnabled}_${website.fingerprintMode}`
+    if (lastWebsiteRef.current === websiteKey) return
+    lastWebsiteRef.current = websiteKey
+
+    if (isDev)
+      console.log('[EditDialog] Loading website data:', {
+        name: website.name,
+        fingerprintEnabled: website.fingerprintEnabled,
+        fingerprintMode: website.fingerprintMode,
+        jsCodeLength: website.jsCode?.length || 0
+      })
+
+    setName(website.name)
+    setUrl(website.url)
+    setFaviconUrl(website.favicon || website.url || '')
+    setFingerprintEnabled(website.fingerprintEnabled || false)
+    setFingerprintMode(website.fingerprintMode || 'balanced')
+    setJsCode(website.jsCode || [])
+
+    // 从 localStorage 加载脚本库，将 jsCode 转换为 selectedScripts
+    if (website.jsCode && website.jsCode.length > 0) {
+      try {
+        const stored = localStorage.getItem('pager_user_scripts')
+        if (stored) {
+          const allScripts: UserScript[] = JSON.parse(stored)
+          // 使用精确匹配避免误匹配
+          const matchedScripts = allScripts.filter((script) =>
+            website.jsCode!.some((code) => code === script.code)
+          )
+          if (isDev)
+            console.log(
+              '[EditDialog] Matched scripts:',
+              matchedScripts.map((s) => s.name)
+            )
+          setSelectedScripts(matchedScripts)
+        }
+      } catch (error) {
+        console.error('[EditDialog] Failed to load scripts for selection:', error)
+        setSelectedScripts([])
+      }
     } else {
-      // 重置表单
-      setName('')
-      setUrl('')
-      setFaviconUrl('')
-      setFingerprintEnabled(false)
-      setFingerprintMode('balanced')
+      if (isDev) console.log('[EditDialog] No jsCode, clearing selected scripts')
+      setSelectedScripts([])
     }
-  }, [website])
+  }, [open, website, isDev])
 
   const handleSave = (): void => {
     if (!website) return
+
+    if (isDev)
+      console.log('[EditDialog] handleSave called, current local state:', {
+        fingerprintEnabled,
+        fingerprintMode,
+        selectedScriptsCount: selectedScripts.length,
+        selectedScripts: selectedScripts.map((s) => s.name)
+      })
 
     // 智能添加协议前缀（如果没有协议）
     let normalizedUrl = url.trim()
@@ -102,8 +155,16 @@ export function EditWebsiteDialog({
       url: normalizedUrl,
       favicon: faviconUrl || undefined,
       fingerprintEnabled,
-      fingerprintMode
+      fingerprintMode,
+      jsCode: selectedScripts.map((s) => s.code)
     }
+
+    if (isDev)
+      console.log('[EditDialog] Sending to onSave:', {
+        fingerprintEnabled: updatedWebsite.fingerprintEnabled,
+        fingerprintMode: updatedWebsite.fingerprintMode,
+        jsCodeLength: updatedWebsite.jsCode?.length || 0
+      })
 
     onSave(updatedWebsite)
 
@@ -177,6 +238,10 @@ export function EditWebsiteDialog({
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  const handleRemoveScript = (scriptId: string): void => {
+    setSelectedScripts(selectedScripts.filter((s) => s.id !== scriptId))
   }
 
   return (
@@ -277,6 +342,64 @@ export function EditWebsiteDialog({
               </Select>
             </div>
           )}
+
+          {/* 脚本注入部分 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Code2 className="h-4 w-4" />
+                JS 脚本注入
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowScriptManager(true)}
+              >
+                <Code2 className="h-4 w-4 mr-1" />
+                选择脚本
+              </Button>
+            </div>
+
+            {selectedScripts.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  已选择 {selectedScripts.length} 个脚本
+                </div>
+                <div className="space-y-2">
+                  {selectedScripts.map((script) => (
+                    <div
+                      key={script.id}
+                      className="flex items-center justify-between p-2 border rounded-md text-sm"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{script.name}</div>
+                        {script.description && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {script.description}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveScript(script.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedScripts.length === 0 && (
+              <div className="text-sm text-muted-foreground p-3 border border-dashed rounded-md">
+                未选择任何脚本，点击&quot;选择脚本&quot;按钮添加
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -299,6 +422,28 @@ export function EditWebsiteDialog({
             {t('save')}
           </Button>
         </DialogFooter>
+
+        {/* 脚本选择对话框 */}
+        <ScriptManager
+          open={showScriptManager}
+          onOpenChange={setShowScriptManager}
+          mode="select"
+          selectedScriptIds={selectedScripts.map((s) => s.id)}
+          onSaveSelection={(scripts) => {
+            setSelectedScripts(scripts)
+          }}
+          onManageScripts={() => {
+            setShowScriptManager(false)
+            setShowScriptManagerManage(true)
+          }}
+        />
+
+        {/* 脚本管理对话框 */}
+        <ScriptManager
+          open={showScriptManagerManage}
+          onOpenChange={setShowScriptManagerManage}
+          mode="manage"
+        />
       </DialogContent>
     </Dialog>
   )

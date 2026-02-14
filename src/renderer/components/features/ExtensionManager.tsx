@@ -341,7 +341,26 @@ Manifest 信息:
       }
 
       // 尝试其他可能的页面，使用 chrome-extension:// URL
-      const possiblePages = ['options.html', 'popup.html', 'index.html']
+      // 首先检查扩展目录中实际存在的 HTML 文件
+      let possiblePages: string[] = []
+
+      const extensionId = extension.realId || extension.id
+
+      try {
+        const filesResult = await window.api.extension.getFiles(extensionId)
+        if (filesResult.success && filesResult.files.length > 0) {
+          console.log(`Found HTML files in extension: ${filesResult.files.join(', ')}`)
+          console.log('Extension manifest:', filesResult.manifest)
+          possiblePages = filesResult.files
+        } else {
+          // 如果无法获取文件列表，使用默认的常见页面
+          possiblePages = ['options.html', 'popup.html', 'index.html']
+          console.log('Using default page list, files:', possiblePages)
+        }
+      } catch (error) {
+        console.log('Failed to get extension files, using defaults:', error)
+        possiblePages = ['options.html', 'popup.html', 'index.html']
+      }
 
       for (const page of possiblePages) {
         try {

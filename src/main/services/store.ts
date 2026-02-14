@@ -264,6 +264,29 @@ export const storeService = {
 
   // ===== 网站相关 =====
 
+  // 根据 ID 获取网站
+  async getWebsiteById(websiteId: string) {
+    const groups = await this.getPrimaryGroups()
+
+    // 搜索主要分组中的网站
+    for (const group of groups) {
+      if (group.websites) {
+        const website = group.websites.find((w) => w.id === websiteId)
+        if (website) return website
+      }
+
+      // 搜索次要分组中的网站
+      for (const secondaryGroup of group.secondaryGroups) {
+        if (secondaryGroup.websites) {
+          const website = secondaryGroup.websites.find((w) => w.id === websiteId)
+          if (website) return website
+        }
+      }
+    }
+
+    return null
+  },
+
   // 在主要分组中添加网站
   async addWebsiteToPrimaryGroup(primaryGroupId: string, website: Website) {
     const groups = await this.getPrimaryGroups()

@@ -21,6 +21,7 @@ import {
 } from '../../ui/dialog'
 import { ExtensionManager } from './ExtensionManager'
 import { ShortcutSettings } from './ShortcutSettings'
+import { ScriptManager } from './ScriptManager'
 
 interface SettingsDialogProps {
   open?: boolean
@@ -40,6 +41,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   const [showClearCacheSettingsDialog, setShowClearCacheSettingsDialog] = useState(false)
   const [showClearDataConfirmDialog, setShowClearDataConfirmDialog] = useState(false)
   const [showResetToDefaultsDialog, setShowResetToDefaultsDialog] = useState(false)
+  const [showScriptManager, setShowScriptManager] = useState(false)
 
   // Toast 状态
   const [showToast, setShowToast] = useState(false)
@@ -722,12 +724,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       <h1 className="text-2xl font-bold mb-6 text-foreground">{t('settings.title', '设置')}</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-6 mb-4">
+        <TabsList className="grid grid-cols-7 mb-4">
           <TabsTrigger value="general">通用</TabsTrigger>
           <TabsTrigger value="privacy">隐私</TabsTrigger>
           <TabsTrigger value="window">窗口</TabsTrigger>
           <TabsTrigger value="performance">性能</TabsTrigger>
           <TabsTrigger value="network">网络</TabsTrigger>
+          <TabsTrigger value="scripts">脚本</TabsTrigger>
           <TabsTrigger value="advanced">高级</TabsTrigger>
         </TabsList>
 
@@ -1441,6 +1444,40 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
           </div>
         </TabsContent>
 
+        {/* 脚本设置 */}
+        <TabsContent value="scripts" className="space-y-4">
+          <div className="rounded-lg border bg-card p-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">脚本管理</h3>
+                <p className="text-sm text-muted-foreground">
+                  管理你的自定义 JavaScript 脚本，可以为网站注入代码以增强功能或修改页面行为
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setShowScriptManager(true)}
+                  className="w-full"
+                  variant="outline"
+                >
+                  打开脚本管理器
+                </Button>
+              </div>
+
+              <div className="rounded-md bg-muted p-4">
+                <h4 className="font-medium mb-2">使用说明</h4>
+                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                  <li>从 Greasy Fork 等网站获取脚本内容</li>
+                  <li>在脚本管理器中创建新脚本并粘贴代码</li>
+                  <li>编辑网站时可以选择要注入的脚本</li>
+                  <li>脚本仅在指定的网站上执行</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
         {/* 高级设置 */}
         <TabsContent value="advanced" className="space-y-4">
           <div className="space-y-4">
@@ -1600,6 +1637,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
           <ExtensionManager open={showExtensionManager} onOpenChange={setShowExtensionManager} />
         </DialogContent>
       </Dialog>
+
+      {/* 脚本管理器对话框 */}
+      <ScriptManager open={showScriptManager} onOpenChange={setShowScriptManager} mode="manage" />
 
       {/* 更新对话框 */}
       <UpdateDialog

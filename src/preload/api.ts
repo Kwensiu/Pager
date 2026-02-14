@@ -69,7 +69,9 @@ export const api = {
         extensionName,
         extensionPath,
         manifest
-      )
+      ),
+    // 获取扩展目录中的文件列表
+    getFiles: (extensionId: string) => ipcRenderer.invoke('extension:get-files', extensionId)
   },
 
   // WebView 相关 API
@@ -265,6 +267,8 @@ export const api = {
       remove: (websiteId: string, injectionId: string) =>
         ipcRenderer.invoke('js-injector:remove', websiteId, injectionId),
       getAll: (websiteId: string) => ipcRenderer.invoke('js-injector:get-all', websiteId),
+      getWebsiteJsCode: (websiteId: string) =>
+        ipcRenderer.invoke('js-injector:get-website-jscode', websiteId),
       injectCode: (code: string) => ipcRenderer.invoke('js-injector:inject-code', code),
       executeScript: (script: string) => ipcRenderer.invoke('js-injector:execute-script', script)
     },
@@ -349,5 +353,14 @@ export const api = {
     getAllFeatures: () => ipcRenderer.invoke('enhanced:get-all-features'),
     enableAll: () => ipcRenderer.invoke('enhanced:enable-all'),
     disableAll: () => ipcRenderer.invoke('enhanced:disable-all')
+  },
+
+  // 存储相关 API - 用于跨 WebView 共享数据
+  storage: {
+    getItem: (key: string) => ipcRenderer.invoke('storage:get-item', key),
+    setItem: (key: string, value: string) => ipcRenderer.invoke('storage:set-item', key, value),
+    removeItem: (key: string) => ipcRenderer.invoke('storage:remove-item', key),
+    clear: () => ipcRenderer.invoke('storage:clear'),
+    getAll: () => ipcRenderer.invoke('storage:get-all')
   }
 }

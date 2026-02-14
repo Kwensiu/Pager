@@ -106,6 +106,13 @@ declare global {
           windowId?: string
           error?: string
         }>
+        // 获取扩展目录中的文件列表
+        getFiles: (extensionId: string) => Promise<{
+          success: boolean
+          files: string[]
+          manifest?: ExtensionManifest
+          error?: string
+        }>
       }
     }
     api: {
@@ -206,6 +213,13 @@ declare global {
         ) => Promise<{
           success: boolean
           windowId?: string
+          error?: string
+        }>
+        // 获取扩展目录中的文件列表
+        getFiles: (extensionId: string) => Promise<{
+          success: boolean
+          files: string[]
+          manifest?: ExtensionManifest
           error?: string
         }>
       }
@@ -521,6 +535,7 @@ declare global {
           inject: (websiteId: string, code: string) => Promise<string>
           remove: (websiteId: string, injectionId: string) => Promise<boolean>
           getAll: (websiteId: string) => Promise<Array<{ id: string; code: string }>>
+          getWebsiteJsCode: (websiteId: string) => Promise<Array<{ id: string; code: string }>>
         }
         // 代理支持
         proxy: {
@@ -622,6 +637,14 @@ declare global {
         getAllFeatures: () => Promise<Record<string, boolean>>
         enableAll: () => Promise<void>
         disableAll: () => Promise<void>
+      }
+      // 存储相关 API - 用于跨 WebView 共享数据
+      storage: {
+        getItem: (key: string) => Promise<string | null>
+        setItem: (key: string, value: string) => Promise<boolean>
+        removeItem: (key: string) => Promise<boolean>
+        clear: () => Promise<boolean>
+        getAll: () => Promise<Record<string, string>>
       }
       // 崩溃模拟
       crash: {
