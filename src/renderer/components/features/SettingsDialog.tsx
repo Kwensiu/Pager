@@ -126,35 +126,35 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     tooltip: string
     defaultChecked: boolean
   }> = [
-      {
-        key: 'clearStorageData',
-        label: t('settings.clearStorageData'),
-        description: t('settings.clearStorageDataDescription'),
-        tooltip: t('settings.clearStorageDataTooltip'),
-        defaultChecked: false
-      },
-      {
-        key: 'clearAuthCache',
-        label: t('settings.clearAuthCache'),
-        description: t('settings.clearAuthCacheDescription'),
-        tooltip: t('settings.clearAuthCacheTooltip'),
-        defaultChecked: false
-      },
-      {
-        key: 'clearSessionCache',
-        label: t('settings.clearSessionCache'),
-        description: t('settings.clearSessionCacheDescription'),
-        tooltip: t('settings.clearSessionCacheTooltip'),
-        defaultChecked: true
-      },
-      {
-        key: 'clearDefaultSession',
-        label: t('settings.clearDefaultSession'),
-        description: t('settings.clearDefaultSessionDescription'),
-        tooltip: t('settings.clearDefaultSessionTooltip'),
-        defaultChecked: true
-      }
-    ]
+    {
+      key: 'clearStorageData',
+      label: t('settings.clearStorageData'),
+      description: t('settings.clearStorageDataDescription'),
+      tooltip: t('settings.clearStorageDataTooltip'),
+      defaultChecked: false
+    },
+    {
+      key: 'clearAuthCache',
+      label: t('settings.clearAuthCache'),
+      description: t('settings.clearAuthCacheDescription'),
+      tooltip: t('settings.clearAuthCacheTooltip'),
+      defaultChecked: false
+    },
+    {
+      key: 'clearSessionCache',
+      label: t('settings.clearSessionCache'),
+      description: t('settings.clearSessionCacheDescription'),
+      tooltip: t('settings.clearSessionCacheTooltip'),
+      defaultChecked: true
+    },
+    {
+      key: 'clearDefaultSession',
+      label: t('settings.clearDefaultSession'),
+      description: t('settings.clearDefaultSessionDescription'),
+      tooltip: t('settings.clearDefaultSessionTooltip'),
+      defaultChecked: true
+    }
+  ]
 
   // 渲染清理设置选项
   const renderClearCacheOption = (config: (typeof clearCacheOptionsConfig)[0]): JSX.Element => (
@@ -1555,7 +1555,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                     </Button>
                     <Switch
                       checked={settings.autoCheckUpdates}
-                      onCheckedChange={(checked) => handleSettingChange('autoCheckUpdates', checked)}
+                      onCheckedChange={(checked) =>
+                        handleSettingChange('autoCheckUpdates', checked)
+                      }
                     />
                   </div>
                 </div>

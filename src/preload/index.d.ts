@@ -115,7 +115,7 @@ declare global {
         }>
       }
     }
-      api: {
+    api: {
       ipcRenderer: {
         on: (channel: string, listener: (...args: unknown[]) => void) => void
         removeAllListeners: (channel: string) => void

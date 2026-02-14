@@ -120,7 +120,6 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                 <XCircle className="h-4 w-4" />
                 {downloadError}
               </p>
-
             </div>
           )}
 
@@ -172,18 +171,11 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
             </Button>
             {available && !isChecking && !downloadSuccess && (
               <>
-                <Button
-                  variant="outline"
-                  onClick={handleOpenGitHub}
-                  disabled={isDownloading}
-                >
+                <Button variant="outline" onClick={handleOpenGitHub} disabled={isDownloading}>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   前往 GitHub
                 </Button>
-                <Button
-                  onClick={handleDownloadUpdate}
-                  disabled={isDownloading}
-                >
+                <Button onClick={handleDownloadUpdate} disabled={isDownloading}>
                   {isDownloading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
