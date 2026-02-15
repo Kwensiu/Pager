@@ -1,0 +1,208 @@
+name: Beta Build
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+' # 只接受 beta tag，例如 v1.5.0-beta.7
+
+  workflow_dispatch: # 手动触发 beta 版
+    inputs:
+      base_version:
+        description: '基础版本号 (x.y.z，例如 1.5.0)'
+        required: true
+        type: string
+      beta_number:
+        description: 'Beta 序号 N (纯数字，例如 7)'
+        required: true
+        type: string
+      platforms:
+        description: '要构建的平台'
+        required: true
+        default: 'win'
+        type: choice
+        options:
+          - win
+      release_note_extra:
+        description: '额外说明文字（会加到 release notes）'
+        required: false
+        type: string
+      comparison_tag:
+        description: '自定义比较 tag（可选，默认使用最新 tag）'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      PLATFORM: win
+      ARTIFACT_NAME: windows
+
+    outputs:
+      version: ${{ steps.extract_version.outputs.version || steps.set_version.outputs.version }}
+      tag: ${{ steps.extract_version.outputs.tag || steps.set_version.outputs.tag }}
+      prerelease: true # beta 一定是 prerelease
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint and typecheck
+        run: |
+          pnpm format --check
+          pnpm lint
+          pnpm typecheck
+
+      # ─────────────── 决定版本号 ────────────────────────
+      - name: Extract version from tag
+        if: github.event_name == 'push'
+        id: extract_version
+        run: |
+          $TAG_NAME = "${{ github.ref }}".Replace("refs/tags/", "")
+          $VERSION = $TAG_NAME.Replace("v", "")
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          echo "tag=$TAG_NAME" >> $env:GITHUB_OUTPUT
+          echo "prerelease=true" >> $env:GITHUB_OUTPUT
+
+      - name: Set version for manual trigger
+        if: github.event_name == 'workflow_dispatch'
+        id: set_version
+        run: |
+          $BASE = "${{ inputs.base_version }}"
+          $BETA_N = "${{ inputs.beta_number }}"
+
+          # 简单验证格式
+          if ($BASE -notmatch "^[0-9]+\.[0-9]+\.[0-9]+$") {
+            Write-Error "错误：base_version 格式应为 x.y.z"
+            exit 1
+          }
+          if ($BETA_N -notmatch "^[0-9]+$") {
+            Write-Error "错误：beta_number 必须是数字"
+            exit 1
+          }
+
+          $FULL_VERSION = "$BASE-beta.$BETA_N"
+          echo "version=$FULL_VERSION" >> $env:GITHUB_OUTPUT
+          echo "tag=v$FULL_VERSION" >> $env:GITHUB_OUTPUT
+          echo "prerelease=true" >> $env:GITHUB_OUTPUT
+
+      - name: Update package.json version
+        run: |
+          $version = "${{ steps.extract_version.outputs.version || steps.set_version.outputs.version }}"
+          $packageJson = Get-Content package.json | ConvertFrom-Json
+          $packageJson.version = $version
+          $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json -Encoding UTF8
+
+      - name: Build application
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm build && pnpm exec electron-builder --win --publish always
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}-build
+          path: |
+            dist/*.exe
+            dist/*.zip
+            dist/**/*.yml
+          retention-days: 30
+
+  generate-release-notes:
+    needs: build
+    runs-on: ubuntu-latest
+
+    outputs:
+      release_notes: ${{ steps.release_notes.outputs.release_notes }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          $version = "${{ needs.build.outputs.version }}"
+          $comparisonTag = "${{ github.event.inputs.comparison_tag }}"
+
+          if ($comparisonTag -and $comparisonTag.Trim() -ne "") {
+            pnpm release-notes "$version" "$comparisonTag"
+          } else {
+            pnpm release-notes "$version"
+          }
+
+          # 如果有额外说明，附加进去
+          $EXTRA = "${{ github.event.inputs.release_note_extra }}"
+          if ($EXTRA -and $EXTRA.Trim() -ne "") {
+            Add-Content RELEASE_NOTES.md ""
+            Add-Content RELEASE_NOTES.md "**额外说明**："
+            Add-Content RELEASE_NOTES.md $EXTRA
+          }
+
+          $content = Get-Content RELEASE_NOTES.md -Raw
+          echo "release_notes<<EOF" >> $env:GITHUB_OUTPUT
+          echo $content >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    needs: [build, generate-release-notes]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: artifacts
+
+      - name: Create GitHub Release with Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: Beta ${{ needs.build.outputs.version }}
+          body: ${{ needs.generate-release-notes.outputs.release_notes }}
+          draft: false
+          prerelease: true # 永远标记为 Pre-release
+          files: |
+            artifacts/*.exe
+            artifacts/*.zip
+            artifacts/**/*.yml
+          token: ${{ secrets.GITHUB_TOKEN }}

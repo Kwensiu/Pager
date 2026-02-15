@@ -37,22 +37,23 @@ interface Categories {
   [category: string]: Commit[]
 }
 
-function getCommitsSinceLastTag(): CommitRange {
+function getCommitsSinceLastTag(customTag?: string): CommitRange {
   try {
-    // Get the latest tag
-    const latestTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim()
-    console.log(colorize(`📦 Latest tag found: ${latestTag}`, 'cyan'))
+    // Use custom tag if provided, otherwise get the latest tag
+    const comparisonTag =
+      customTag || execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim()
+    console.log(colorize(`📦 Comparison tag: ${comparisonTag}`, 'cyan'))
 
-    // Get commits since the latest tag
+    // Get commits since the comparison tag
     const commits = execSync(
-      `git log ${latestTag}..HEAD --pretty=format:"%H|%s|%an|%ad" --date=short`,
+      `git log ${comparisonTag}..HEAD --pretty=format:"%H|%s|%an|%ad" --date=short`,
       { encoding: 'utf8' }
     )
       .trim()
       .split('\n')
       .filter((line) => line)
 
-    return { latestTag, commits }
+    return { latestTag: customTag ? null : comparisonTag, commits }
   } catch {
     // If no tags exist, get all commits
     console.log(colorize('⚠️  No tags found, getting all commits', 'yellow'))
@@ -147,6 +148,14 @@ function generateReleaseNotes(
   })
 
   let notes = `# 🎉 Pager ${version}\n\n`
+
+  // Add beta warning if version contains beta
+  if (version.includes('beta')) {
+    notes += `## 🚧 Beta 版本发布\n\n`
+    notes += `⚠️ **这是自动构建的测试版本，可能存在未知问题，仅供测试使用。**\n\n`
+    notes += `---\n\n`
+  }
+
   notes += `> 📅 发布日期: ${date}\n`
   notes += `> 🔗 比较范围: ${latestTag ? `${latestTag} → HEAD` : '初始提交'}\n\n`
 
@@ -219,9 +228,15 @@ function main(): void {
       process.exit(1)
     }
 
-    console.log(colorize(`📋 Generating notes for version ${version}`, 'blue'))
+    // Optional: custom comparison tag
+    const comparisonTag = process.argv[3]
 
-    const { latestTag, commits } = getCommitsSinceLastTag()
+    console.log(colorize(`📋 Generating notes for version ${version}`, 'blue'))
+    if (comparisonTag) {
+      console.log(colorize(`🔗 Using custom comparison tag: ${comparisonTag}`, 'yellow'))
+    }
+
+    const { latestTag, commits } = getCommitsSinceLastTag(comparisonTag)
     console.log(colorize(`📊 Found ${commits.length} commits`, 'green'))
 
     if (commits.length === 0) {
@@ -229,7 +244,7 @@ function main(): void {
     }
 
     const categories = categorizeCommits(commits)
-    const releaseNotes = generateReleaseNotes(version, categories, latestTag)
+    const releaseNotes = generateReleaseNotes(version, categories, comparisonTag || latestTag)
 
     // Write to file
     const outputPath = join(process.cwd(), 'RELEASE_NOTES.md')

@@ -25,6 +25,10 @@ on:
         required: false
         default: false
         type: boolean
+      comparison_tag:
+        description: 'Custom comparison tag (optional, defaults to latest tag)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -131,7 +135,13 @@ jobs:
         id: release_notes
         run: |
           version="${{ needs.release.outputs.version || github.event.inputs.version }}"
-          pnpm release-notes "$version"
+          comparisonTag="${{ github.event.inputs.comparison_tag }}"
+
+          if [ "$comparisonTag" ] && [ "$comparisonTag" != "" ]; then
+            pnpm release-notes "$version" "$comparisonTag"
+          else
+            pnpm release-notes "$version"
+          fi
           {
             echo 'release_notes<<EOF'
             cat RELEASE_NOTES.md
