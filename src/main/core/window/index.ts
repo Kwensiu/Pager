@@ -153,6 +153,8 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
   const mainWindow = new BrowserWindow({
     width: savedState?.width || 900,
     height: savedState?.height || 670,
+    minWidth: 784, // 实际显示为768px（补偿窗口边框16px）
+    minHeight: 615, // 实际显示为576px（补偿标题栏39px）
     x: savedState?.x ?? undefined,
     y: savedState?.y ?? undefined,
     show: false,
@@ -177,6 +179,8 @@ export async function createWindow(): Promise<Electron.BrowserWindow> {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // 确保窗口的最小尺寸设置为784x615（实际显示为768x576，补偿窗口装饰元素）
+    mainWindow.setMinimumSize(784, 615)
   })
 
   mainWindow.on('resize', () => {

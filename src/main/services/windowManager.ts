@@ -144,7 +144,7 @@ class WindowManager {
     if (!this.mainWindow) return
 
     this.restoreOriginalBounds()
-    this.mainWindow.setMinimumSize(800, 600)
+    this.mainWindow.setMinimumSize(784, 615)
     this.mainWindow.setMaximumSize(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
 
     // 恢复菜单栏
