@@ -222,21 +222,38 @@ export function EditWebsiteDialog({
   }
 
   const handleRefreshFavicon = async (): Promise<void> => {
-    if (!url) return
+    if (!url) {
+      console.warn('🔄 Favicon refresh: No URL provided')
+      return
+    }
 
+    console.log(`🔄 Starting favicon refresh for: ${url}`)
     setIsRefreshing(true)
+
     try {
-      const response = await window.api.getFavicon(url)
+      const response = await window.api.getFavicon(url, { force: true })
+
       if (response) {
+        console.log(`✅ Favicon refresh successful for ${url}: ${response}`)
         setFaviconUrl(response)
       } else {
-        alert(t('failedToGetFavicon'))
+        console.warn(`⚠️ Favicon refresh failed for ${url}`)
+        console.warn('💡 可能的原因:')
+        console.warn('   • 网站没有favicon图标')
+        console.warn('   • 网络连接问题')
+        console.warn('   • 第三方favicon服务被屏蔽')
+        console.warn('   • Electron应用网络限制')
+        alert(
+          `无法获取 ${url} 的favicon图标\n\n可能的原因：\n• 网站没有图标\n• 网络连接问题\n• 应用网络限制\n\n请检查网站是否可以正常访问`
+        )
       }
     } catch (error) {
-      console.error('Error refreshing favicon:', error)
-      alert(t('errorRefreshingFavicon'))
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`❌ Favicon refresh failed for ${url}:`, errorMessage)
+      alert(`获取图标时发生错误: ${errorMessage}`)
     } finally {
       setIsRefreshing(false)
+      console.log(`🔄 Favicon refresh completed for: ${url}`)
     }
   }
 

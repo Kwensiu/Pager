@@ -57,9 +57,10 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
 
   // 处理图片加载错误
   const handleImageError = useCallback(() => {
+    console.warn(`❌ Favicon image failed to load: ${faviconUrl} for URL: ${url}`)
     setError(true)
     setFaviconUrl(null)
-  }, [])
+  }, [faviconUrl, url])
 
   // 处理图片加载完成
   const handleImageLoad = useCallback(

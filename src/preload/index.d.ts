@@ -270,7 +270,7 @@ declare global {
           options?: Electron.OpenDialogOptions
         ) => Promise<{ canceled: boolean; filePaths: string[] }>
       }
-      getFavicon: (url: string) => Promise<string | null>
+      getFavicon: (url: string, options?: { force?: boolean }) => Promise<string | null>
       store: {
         // 主要分组相关
         getPrimaryGroups: () => Promise<PrimaryGroup[]>

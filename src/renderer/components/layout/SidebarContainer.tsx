@@ -240,10 +240,7 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
               aria-expanded={showSettings}
               aria-controls="settings-panel"
             >
-              <Settings
-                className="absolute left-1.5 h-5 w-5 shrink-0"
-                aria-hidden="true"
-              />
+              <Settings className="absolute left-1.5 h-5 w-5 shrink-0" aria-hidden="true" />
               {!isCollapsed && <span className="ml-6">设置</span>}
             </button>
           </div>

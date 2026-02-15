@@ -114,7 +114,8 @@ export const api = {
   },
 
   // 获取网站图标
-  getFavicon: (url: string) => ipcRenderer.invoke('get-favicon', url),
+  getFavicon: (url: string, options?: { force?: boolean }) =>
+    ipcRenderer.invoke('get-favicon', url, options),
 
   // 批量预加载网站图标
   preloadFavicons: (urls: string[], priority?: string[]) =>

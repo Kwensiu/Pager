@@ -1605,11 +1605,11 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   // ===== Favicon 相关 IPC 处理器 =====
 
   // 获取网站 favicon 的 IPC 处理器
-  ipcMain.handle('get-favicon', async (_, url: string) => {
+  ipcMain.handle('get-favicon', async (_, url: string, options?: { force?: boolean }) => {
     try {
       const { FaviconService } = await import('../services')
       const faviconService = FaviconService.getInstance()
-      return await faviconService.getFavicon(url)
+      return await faviconService.getFavicon(url, options)
     } catch (error) {
       console.error('Error getting favicon:', error)
       return null

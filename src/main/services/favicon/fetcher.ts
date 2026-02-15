@@ -1,81 +1,182 @@
 import { URL } from 'url'
 import { FaviconStrategy } from './types'
-import { globalProxyService } from '../proxyService'
+import { request } from 'https'
+import { BrowserWindow } from 'electron'
 
-// 检查 URL 状态的辅助函数
-export function checkUrlStatus(url: string, timeout: number = 3000): Promise<number> {
-  return new Promise((resolve, reject) => {
-    ;(async () => {
-      try {
-        // 获取软件专用session
-        const softwareSession = globalProxyService.getSoftwareSession()
+// 使用Electron webContents来获取favicon的备选方案
+export async function fetchFaviconViaWebContents(
+  url: string,
+  timeout: number = 5000
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      console.log('🌐 Using webContents to fetch favicon for:', url)
 
-        const fetchOptions: RequestInit = {
-          method: 'HEAD',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
-          }
+      // 创建一个隐藏的BrowserWindow来获取favicon
+      const faviconWindow = new BrowserWindow({
+        show: false,
+        width: 1,
+        height: 1,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          webSecurity: true,
+          allowRunningInsecureContent: false
         }
+      })
 
-        // 设置超时
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), timeout)
+      // 设置超时
+      const timeoutId = setTimeout(() => {
+        console.warn(`⏰ WebContents favicon fetch timeout for ${url}`)
+        faviconWindow.destroy()
+        resolve(null)
+      }, timeout)
 
+      faviconWindow.webContents.once('did-finish-load', async () => {
         try {
-          const response = await softwareSession.fetch(url, {
-            ...fetchOptions,
-            signal: controller.signal
-          } as Record<string, unknown>)
+          // 尝试获取favicon URL
+          const faviconUrl = await faviconWindow.webContents.executeJavaScript(`
+            (function() {
+              // 查找favicon link标签
+              const links = document.querySelectorAll('link[rel*="icon"]');
+              for (const link of links) {
+                const href = link.getAttribute('href');
+                if (href) {
+                  // 转换为绝对URL
+                  try {
+                    return new URL(href, window.location.href).href;
+                  } catch (e) {
+                    return href;
+                  }
+                }
+              }
+              // 默认favicon路径
+              return new URL('/favicon.ico', window.location.href).href;
+            })()
+          `)
 
           clearTimeout(timeoutId)
-          resolve(response.status || 500)
+          faviconWindow.destroy()
+
+          if (faviconUrl) {
+            console.log(`✅ WebContents found favicon: ${faviconUrl}`)
+            resolve(faviconUrl)
+          } else {
+            console.warn(`⚠️ WebContents found no favicon for ${url}`)
+            resolve(null)
+          }
         } catch (error) {
           clearTimeout(timeoutId)
-          reject(error)
+          faviconWindow.destroy()
+          console.warn(`❌ WebContents favicon extraction failed:`, error)
+          resolve(null)
         }
-      } catch (error) {
-        reject(error)
+      })
+
+      faviconWindow.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
+        clearTimeout(timeoutId)
+        faviconWindow.destroy()
+        console.warn(`❌ WebContents failed to load ${url}: ${errorCode} - ${errorDescription}`)
+        resolve(null)
+      })
+
+      // 加载页面
+      faviconWindow.loadURL(url).catch((error) => {
+        clearTimeout(timeoutId)
+        faviconWindow.destroy()
+        console.warn(`❌ WebContents failed to load URL ${url}:`, error)
+        resolve(null)
+      })
+    } catch (error) {
+      console.error('❌ WebContents favicon fetch setup failed:', error)
+      resolve(null)
+    }
+  })
+}
+export function checkUrlStatus(url: string, timeout: number = 3000): Promise<number> {
+  return new Promise((resolve, reject) => {
+    try {
+      const urlObj = new URL(url)
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'HEAD',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
+        },
+        timeout: timeout
       }
-    })()
+
+      console.log('🔍 Using Node.js HTTPS for URL check:', url)
+
+      const req = request(options, (res) => {
+        console.log(`📊 ${url} status: ${res.statusCode}`)
+        resolve(res.statusCode || 500)
+      })
+
+      req.on('error', (error) => {
+        console.warn(`❌ ${url} check failed:`, error.message)
+        reject(error)
+      })
+
+      req.on('timeout', () => {
+        console.warn(`⏰ ${url} check timeout`)
+        req.destroy()
+        reject(new Error('Request timeout'))
+      })
+
+      req.end()
+    } catch (error) {
+      reject(error)
+    }
   })
 }
 
 // 获取 URL 内容的辅助函数
 export function fetchUrlContent(url: string, timeout: number = 5000): Promise<string> {
   return new Promise((resolve, reject) => {
-    ;(async () => {
-      try {
-        // 获取软件专用session
-        const softwareSession = globalProxyService.getSoftwareSession()
-
-        const fetchOptions: RequestInit = {
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
-          }
-        }
-
-        // 设置超时
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-        try {
-          const response = await softwareSession.fetch(url, {
-            ...fetchOptions,
-            signal: controller.signal
-          } as Record<string, unknown>)
-
-          clearTimeout(timeoutId)
-          const data = await response.text()
-          resolve(data)
-        } catch (error) {
-          clearTimeout(timeoutId)
-          reject(error)
-        }
-      } catch (error) {
-        reject(error)
+    try {
+      const urlObj = new URL(url)
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; favicon-fetcher)'
+        },
+        timeout: timeout
       }
-    })()
+
+      console.log('📄 Using Node.js HTTPS to fetch HTML:', url)
+
+      const req = request(options, (res) => {
+        let data = ''
+
+        res.on('data', (chunk) => {
+          data += chunk
+        })
+
+        res.on('end', () => {
+          console.log(`✅ HTML fetched for ${url}, length: ${data.length}`)
+          resolve(data)
+        })
+      })
+
+      req.on('error', (error) => {
+        console.warn(`❌ HTML fetch failed for ${url}:`, error.message)
+        reject(error)
+      })
+
+      req.on('timeout', () => {
+        console.warn(`⏰ HTML fetch timeout for ${url}`)
+        req.destroy()
+        reject(new Error('Request timeout'))
+      })
+
+      req.end()
+    } catch (error) {
+      reject(error)
+    }
   })
 }
 
@@ -159,18 +260,22 @@ export async function tryCommonPaths(
         return faviconUrl
       }
     } catch {
-      continue
+      // 静默失败，继续下一个路径
     }
   }
 
+  console.warn(
+    `⚠️ Common paths strategy failed for ${baseUrl} - no favicon found at standard locations`
+  )
   return null
 }
 
 // 尝试第三方 favicon 服务
 export async function tryThirdPartyServices(
   hostname: string,
-  timeout: number = 3000
+  timeout: number = 2000 // 缩短超时，第三方服务通常很快
 ): Promise<string | null> {
+  console.log(`🔍 Checking third-party services for ${hostname}`)
   const faviconServices = [
     `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
     `https://t0.gstatic.com/favicon?domain=${hostname}&sz=64`,
@@ -178,19 +283,42 @@ export async function tryThirdPartyServices(
     `https://favicon.io/favicon/${hostname}/`
   ]
 
-  // 并行检查所有服务
+  // 使用 Promise.allSettled 获取所有服务的结果
   const promises = faviconServices.map(async (serviceUrl) => {
     try {
+      console.log(`🌐 Testing ${serviceUrl}`)
       const statusCode = await checkUrlStatus(serviceUrl, timeout)
+      console.log(`📊 ${serviceUrl} returned status: ${statusCode}`)
       return statusCode < 400 ? serviceUrl : null
-    } catch {
+    } catch (error) {
+      console.warn(
+        `❌ ${serviceUrl} failed:`,
+        error instanceof Error ? error.message : String(error)
+      )
       return null
     }
   })
 
-  // 返回第一个成功的结果
-  const results = await Promise.all(promises)
-  return results.find((result) => result !== null) || null
+  // 使用 Promise.allSettled 获取所有结果
+  try {
+    const results = await Promise.allSettled(promises)
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        console.log(`✅ Third-party service success: ${result.value}`)
+        return result.value
+      }
+    }
+    console.warn(
+      `⚠️ Third-party services failed for ${hostname} - all external favicon services unavailable`
+    )
+    return null
+  } catch (error) {
+    console.warn(
+      `⚠️ Third-party services failed for ${hostname} - all external favicon services unavailable:`,
+      error
+    )
+    return null
+  }
 }
 
 // 从 HTML 解析 favicon
