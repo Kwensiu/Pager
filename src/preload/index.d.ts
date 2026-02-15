@@ -553,6 +553,11 @@ declare global {
             latency?: number
             error?: string
           }>
+          getCurrentSettings: () => Promise<{
+            success: boolean
+            settings?: { mode: string; proxyRules?: string; proxyBypassRules?: string }
+            error?: string
+          }>
         }
         // 系统主题切换
         theme: {

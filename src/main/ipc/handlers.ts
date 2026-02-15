@@ -14,11 +14,12 @@ import { registerEnhancedIpcHandlers } from './enhancedHandlers'
 import { extensionEnhancedHandlers } from './extensionEnhancedHandlers'
 import { ExtensionManager } from '../extensions/extensionManager'
 import { ExtensionIsolationLevel } from '../../shared/types/store'
+import { globalProxyService } from '../services/proxyService'
 
 const extensionManager = ExtensionManager.getInstance()
 
 // 动态导入storeService以避免循环依赖
-const getStoreService = async (): Promise<typeof import('../services/store').storeService> => {
+export const getStoreService = async (): Promise<typeof import('../services/store').storeService> => {
   const { storeService } = await import('../services/store')
   return storeService
 }
@@ -346,7 +347,21 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
     }
   })
 
-  // ===== WebView 相关 IPC 处理器 =====
+  // ===== 代理设置相关 IPC 处理器 =====
+
+  // 获取当前代理设置
+  ipcMain.handle('proxy:get-current-settings', async () => {
+    try {
+      const proxySettings = globalProxyService.getCurrentProxySettings()
+      return { success: true, settings: proxySettings }
+    } catch (error) {
+      console.error('Failed to get proxy settings:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  })
 
   // 监听所有 webview 的右键菜单事件
   mainWindow.webContents.on('did-attach-webview', (_event, webContents) => {

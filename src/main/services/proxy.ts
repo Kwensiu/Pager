@@ -203,7 +203,7 @@ class ProxyService {
    */
   async testProxyConnection(
     proxyRules: string,
-    testUrl: string = 'https://www.google.com'
+    testUrl: string = 'https://httpbin.org/ip'
   ): Promise<{ success: boolean; latency: number; error?: string }> {
     const parsedRules = this.parseProxyRules(proxyRules)
     if (!parsedRules) {
@@ -214,36 +214,83 @@ class ProxyService {
       }
     }
 
-    try {
-      const startTime = Date.now()
+    const startTime = Date.now()
 
-      // 创建临时 session 测试代理
+    return new Promise((resolve) => {
+      // 创建临时会话来测试代理
       const tempSession = session.fromPartition(`temp-proxy-test-${Date.now()}`)
-      tempSession.setProxy({ proxyRules: parsedRules })
 
-      // 使用 fetch 测试连接
-      const response = await fetch(testUrl, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(10000) // 10秒超时
-      })
+      // 设置15秒超时
+      const timeout = setTimeout(() => {
+        resolve({
+          success: false,
+          latency: 0,
+          error: '请求超时 (15秒)'
+        })
+        tempSession.setProxy({ mode: 'direct' }).catch(() => {})
+      }, 15000)
 
-      const latency = Date.now() - startTime
+      tempSession
+        .setProxy({ proxyRules: parsedRules })
+        .then(async () => {
+          try {
+            // 使用 net 模块的 request 方法测试连接
+            const { net } = await import('electron')
+            const request = net.request({
+              url: testUrl,
+              session: tempSession
+            })
 
-      // 清理临时 session
-      tempSession.setProxy({ mode: 'direct' })
+            request.on('response', (response) => {
+              clearTimeout(timeout)
+              if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+                const latency = Date.now() - startTime
+                resolve({ success: true, latency })
+              } else {
+                resolve({
+                  success: false,
+                  latency: 0,
+                  error: `HTTP error! status: ${response.statusCode}`
+                })
+              }
+              // 消费响应数据以释放资源
+              response.on('data', () => {})
+              response.on('end', () => {
+                // 清理临时会话
+                tempSession.setProxy({ mode: 'direct' }).catch(() => {})
+              })
+            })
 
-      return {
-        success: response.ok,
-        latency,
-        error: response.ok ? undefined : `HTTP ${response.status}`
-      }
-    } catch (error) {
-      return {
-        success: false,
-        latency: 0,
-        error: error instanceof Error ? error.message : '未知错误'
-      }
-    }
+            request.on('error', (error) => {
+              clearTimeout(timeout)
+              resolve({
+                success: false,
+                latency: 0,
+                error: error.message || 'Connection failed'
+              })
+              tempSession.setProxy({ mode: 'direct' }).catch(() => {})
+            })
+
+            request.end()
+          } catch (error) {
+            clearTimeout(timeout)
+            resolve({
+              success: false,
+              latency: 0,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            })
+            tempSession.setProxy({ mode: 'direct' }).catch(() => {})
+          }
+        })
+        .catch((error) => {
+          clearTimeout(timeout)
+          resolve({
+            success: false,
+            latency: 0,
+            error: error instanceof Error ? error.message : 'Failed to set proxy'
+          })
+        })
+    })
   }
 
   /**

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '../../ui/button'
 import { Switch } from '../../ui/switch'
 import { Label } from '../../ui/label'
@@ -84,25 +84,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.memoryOptimizerEnabled, activeTab])
 
-  // 同步自动启动状态
+  // 同步代理规则设置到本地状态，仅在未被用户修改时同步
   useEffect(() => {
-    const syncAutoLaunchStatus = async (): Promise<void> => {
-      try {
-        if (window.api?.enhanced?.autoLaunch) {
-          const isActuallyEnabled = await window.api.enhanced.autoLaunch.isEnabled()
-          if (isActuallyEnabled !== settings.isAutoLaunch) {
-            console.log('Syncing auto-launch status:', isActuallyEnabled)
-            updateSettings({ isAutoLaunch: isActuallyEnabled })
-          }
-        }
-      } catch (error) {
-        console.error('Failed to sync auto-launch status:', error)
-      }
+    if (!hasUserModifiedProxyRules.current) {
+      setLocalProxyRules(settings.proxyRules)
     }
-
-    syncAutoLaunchStatus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [settings.proxyRules])
 
   // 处理清理选项设置变更
   const handleClearCacheOptionChange = (
@@ -227,6 +214,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
   } | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
 
+  // 代理规则本地状态，用于优化输入体验（失焦时保存，避免每次输入都保存）
+  const [localProxyRules, setLocalProxyRules] = useState(settings.proxyRules)
+
+  // 跟踪用户是否修改了代理规则，避免设置更新时覆盖用户输入
+  const hasUserModifiedProxyRules = useRef(false)
+
   // 代理测试状态
   const [isTestingProxy, setIsTestingProxy] = useState(false)
   const [proxyTestResult, setProxyTestResult] = useState<{
@@ -234,6 +227,9 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     latency?: number
     error?: string
   } | null>(null)
+
+  // 当前代理设置显示
+  const [currentProxySettings, setCurrentProxySettings] = useState<string>('')
 
   // 获取版本信息
   const [versionInfo, setVersionInfo] = useState<{
@@ -535,8 +531,41 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
     }
   }
 
+  // 代理规则失焦时保存
+  const handleProxyRulesBlur = (): void => {
+    if (!localProxyRules?.trim()) {
+      // 允许空值
+      handleSettingChange('proxyRules', '')
+      return
+    }
+  
+    // 简单格式检查
+    if (!isValidProxyFormat(localProxyRules)) {
+      setProxyTestResult({ success: false, error: '代理格式无效' })
+      return
+    }
+  
+    if (localProxyRules !== settings.proxyRules) {
+      handleSettingChange('proxyRules', localProxyRules)
+    }
+    hasUserModifiedProxyRules.current = false
+  }
+
+  // 验证代理格式
+  const isValidProxyFormat = (rules: string): boolean => {
+    // 简单的正则检查
+    return /^([a-zA-Z]+:\/\/)?[^:]+:\d+$/.test(rules.trim())
+  }
+
   const testProxyConnection = async (): Promise<void> => {
-    if (!settings.proxyRules?.trim()) {
+    // 在测试前保存本地更改，确保设置持久化
+    if (localProxyRules !== settings.proxyRules) {
+      console.log('保存代理规则 (测试前):', { 旧值: settings.proxyRules, 新值: localProxyRules })
+      await handleSettingChange('proxyRules', localProxyRules)
+    }
+
+    const rulesToTest = localProxyRules || settings.proxyRules
+    if (!rulesToTest?.trim()) {
       setProxyTestResult({
         success: false,
         error: '请先输入代理规则'
@@ -557,13 +586,15 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
         return
       }
 
-      const result = await api.enhanced.proxy.testConnection(settings.proxyRules)
+      const result = await api.enhanced.proxy.testConnection(rulesToTest)
 
       setProxyTestResult({
         success: result.success,
         latency: result.latency,
         error: result.error
       })
+
+      console.log('代理测试结果:', result)
     } catch (error) {
       setProxyTestResult({
         success: false,
@@ -571,6 +602,20 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       })
     } finally {
       setIsTestingProxy(false)
+    }
+  }
+
+  // 获取当前代理设置
+  const handleGetCurrentProxySettings = async (): Promise<void> => {
+    try {
+      const result = await window.api?.enhanced?.proxy?.getCurrentSettings()
+      if (result?.success) {
+        setCurrentProxySettings(JSON.stringify(result.settings, null, 2))
+      } else {
+        setCurrentProxySettings(`获取失败: ${result?.error || '未知错误'}`)
+      }
+    } catch (error) {
+      setCurrentProxySettings(`获取失败: ${error instanceof Error ? error.message : '未知错误'}`)
     }
   }
 
@@ -1336,8 +1381,12 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                   </div>
                   <div className="flex gap-2">
                     <Input
-                      value={settings.proxyRules}
-                      onChange={(e) => handleSettingChange('proxyRules', e.target.value)}
+                      value={localProxyRules}
+                      onChange={(e) => {
+                        setLocalProxyRules(e.target.value)
+                        hasUserModifiedProxyRules.current = true
+                      }}
+                      onBlur={handleProxyRulesBlur}
                       placeholder={t('proxy.rulesPlaceholder')}
                       className="font-mono flex-1"
                     />
@@ -1345,7 +1394,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                       onClick={testProxyConnection}
                       variant="outline"
                       size="sm"
-                      disabled={isTestingProxy || !settings.proxyRules?.trim()}
+                      disabled={isTestingProxy || !(localProxyRules || settings.proxyRules)?.trim()}
                       className="h-9 px-2"
                     >
                       {isTestingProxy ? (
@@ -1403,6 +1452,26 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
                     )}
                   </div>
                 )}
+
+                {/* 当前代理设置显示 */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleGetCurrentProxySettings}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    检查当前代理设置
+                  </Button>
+                  {currentProxySettings && (
+                    <div className="p-3 rounded-md bg-muted/50">
+                      <Label className="text-sm font-medium mb-2 block">当前代理设置：</Label>
+                      <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                        {currentProxySettings}
+                      </pre>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

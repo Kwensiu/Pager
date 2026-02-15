@@ -282,7 +282,8 @@ export const api = {
       clearForWebsite: (websiteId: string) =>
         ipcRenderer.invoke('proxy:clear-for-website', websiteId),
       testConnection: (proxyRules: string, testUrl?: string) =>
-        ipcRenderer.invoke('proxy:test-connection', proxyRules, testUrl)
+        ipcRenderer.invoke('proxy:test-connection', proxyRules, testUrl),
+      getCurrentSettings: () => ipcRenderer.invoke('proxy:get-current-settings')
     },
 
     // 系统主题切换

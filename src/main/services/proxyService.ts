@@ -11,6 +11,9 @@ class GlobalProxyService {
   private lastSettings: Partial<Settings> | null = null
   private checkInterval: NodeJS.Timeout | null = null
 
+  // 当前代理设置，用于查询
+  private currentProxySettings: { mode: string; proxyRules?: string; proxyBypassRules?: string } = { mode: 'direct' }
+
   // 软件本体专用的 session 分区
   private readonly SOFTWARE_SESSION_PARTITION = 'persist:software-session'
 
@@ -58,10 +61,18 @@ class GlobalProxyService {
     const defaultSession = session.defaultSession
     const softwareSession = session.fromPartition(this.SOFTWARE_SESSION_PARTITION)
 
+    console.log('更新代理配置:', {
+      proxyEnabled: settings.proxyEnabled,
+      proxyRules: settings.proxyRules,
+      proxySoftwareOnly: settings.proxySoftwareOnly
+    })
+
     if (!settings.proxyEnabled) {
       // 禁用代理时，清除所有 session 的代理设置
       await defaultSession.setProxy({ mode: 'direct' })
       await softwareSession.setProxy({ mode: 'direct' })
+      this.currentProxySettings = { mode: 'direct' }
+      console.log('代理已禁用，所有session设置为direct')
       return
     }
 
@@ -69,6 +80,8 @@ class GlobalProxyService {
       // 没有代理规则时，清除所有 session 的代理设置
       await defaultSession.setProxy({ mode: 'direct' })
       await softwareSession.setProxy({ mode: 'direct' })
+      this.currentProxySettings = { mode: 'direct' }
+      console.log('无代理规则，所有session设置为direct')
       return
     }
 
@@ -81,6 +94,8 @@ class GlobalProxyService {
       })
       // 网页内容使用默认 session，不设置代理
       await defaultSession.setProxy({ mode: 'direct' })
+      this.currentProxySettings = { mode: 'direct' } // 网页内容不使用代理
+      console.log('代理模式: 仅软件本体，代理规则:', settings.proxyRules)
     } else {
       // 代理所有内容模式
       // 对默认 session 设置代理（影响网页内容）
@@ -90,7 +105,20 @@ class GlobalProxyService {
       })
       // 软件本体也使用默认 session 的代理
       await softwareSession.setProxy({ mode: 'direct' })
+      this.currentProxySettings = {
+        mode: 'fixed_servers',
+        proxyRules: settings.proxyRules,
+        proxyBypassRules: '<local>'
+      }
+      console.log('代理模式: 所有内容，代理规则:', settings.proxyRules)
     }
+  }
+
+  /**
+   * 获取当前代理设置
+   */
+  getCurrentProxySettings(): { mode: string; proxyRules?: string; proxyBypassRules?: string } {
+    return { ...this.currentProxySettings }
   }
 
   /**
@@ -107,62 +135,82 @@ class GlobalProxyService {
   ): Promise<{ success: boolean; latency?: number; error?: string }> {
     const startTime = Date.now()
 
+    try {
+      const directIP = await this.getDirectIP()
+      const proxyIP = await this.getProxyIP(proxyRules)
+
+      // 简单的比较逻辑
+      if (directIP && proxyIP && directIP !== proxyIP) {
+        return { success: true, latency: Date.now() - startTime }
+      } else {
+        return { success: false, error: '代理无效', latency: Date.now() - startTime }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '测试失败',
+        latency: Date.now() - startTime
+      }
+    }
+  }
+
+  // 获取直接连接的IP
+  private async getDirectIP(): Promise<string | null> {
+    const testSession = session.fromPartition(`direct-${Date.now()}`)
+    
+    try {
+      await testSession.setProxy({ mode: 'direct' })
+      return await this.getIP(testSession)
+    } finally {
+      this.cleanupSession(testSession)
+    }
+  }
+
+  // 获取通过代理的IP
+  private async getProxyIP(proxyRules: string): Promise<string | null> {
+    const testSession = session.fromPartition(`proxy-${Date.now()}`)
+    
+    try {
+      await testSession.setProxy({ proxyRules })
+      return await this.getIP(testSession)
+    } finally {
+      this.cleanupSession(testSession)
+    }
+  }
+
+  // 获取当前IP地址
+  private async getIP(testSession: Session): Promise<string | null> {
     return new Promise((resolve) => {
-      // 创建一个临时会话来测试代理
-      const testSession = session.fromPartition(`temp-${Date.now()}`)
+      const request = net.request({
+        url: 'https://httpbin.org/ip',
+        session: testSession
+      })
 
-      testSession
-        .setProxy({ proxyRules })
-        .then(async () => {
+      const timeout = setTimeout(() => {
+        request.abort()
+        resolve(null)
+      }, 10000)
+
+      request.on('response', (response) => {
+        clearTimeout(timeout)
+        let data = ''
+        response.on('data', (chunk) => data += chunk)
+        response.on('end', () => {
           try {
-            // 使用 net 模块的 request 方法测试连接
-            const request = net.request({
-              url: 'https://httpbin.org/ip',
-              session: testSession
-            })
-
-            request.on('response', (response) => {
-              if (response.statusCode >= 200 && response.statusCode < 300) {
-                const latency = Date.now() - startTime
-                resolve({ success: true, latency })
-              } else {
-                resolve({
-                  success: false,
-                  error: `HTTP error! status: ${response.statusCode}`
-                })
-              }
-              // 消费响应数据以释放资源
-              response.on('data', () => {})
-              response.on('end', () => {
-                // 清理临时会话
-                this.cleanupSession(testSession)
-              })
-            })
-
-            request.on('error', (error) => {
-              resolve({
-                success: false,
-                error: error.message || 'Connection failed'
-              })
-              this.cleanupSession(testSession)
-            })
-
-            request.end()
-          } catch (error) {
-            resolve({
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            })
-            this.cleanupSession(testSession)
+            const json = JSON.parse(data)
+            resolve(json.origin || null)
+          } catch {
+            resolve(null)
           }
         })
-        .catch((error) => {
-          resolve({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to set proxy'
-          })
-          this.cleanupSession(testSession)
-        })
+      })
+
+      request.on('error', () => {
+        clearTimeout(timeout)
+        resolve(null)
+      })
+
+      request.end()
     })
   }
 
