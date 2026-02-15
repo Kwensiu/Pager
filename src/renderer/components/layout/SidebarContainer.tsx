@@ -231,24 +231,20 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
             collapsedSidebarMode={collapsedSidebarMode}
           />
         </UISidebarContent>
-        <SidebarFooter className={`mt-auto border-t border-border ${isCollapsed ? 'p-1' : 'p-2'}`}>
+        <SidebarFooter className="mt-auto border-t border-border p-2">
           <div className="flex flex-col gap-2">
             <button
-              className={`w-full justify-start text-sm font-medium text-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition-colors ${
-                isCollapsed ? 'justify-center px-1 py-2' : 'px-3 py-2'
-              }`}
+              className="relative flex items-center w-full text-sm font-medium text-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition-colors h-9 px-3"
               onClick={() => setShowSettings(!showSettings)}
               aria-label={showSettings ? '关闭设置面板' : '打开设置面板'}
               aria-expanded={showSettings}
               aria-controls="settings-panel"
             >
-              <span className="flex items-center">
-                <Settings
-                  className={`${isCollapsed ? 'h-5 w-5' : 'h-4 w-4'} shrink-0`}
-                  aria-hidden="true"
-                />
-                {!isCollapsed && <span className="ml-2">设置</span>}
-              </span>
+              <Settings
+                className="absolute left-1.5 h-5 w-5 shrink-0"
+                aria-hidden="true"
+              />
+              {!isCollapsed && <span className="ml-6">设置</span>}
             </button>
           </div>
 

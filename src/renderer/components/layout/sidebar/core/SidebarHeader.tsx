@@ -45,7 +45,7 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
 
   return (
     <UISidebarHeader className="border-b px-1 h-[53px]">
-      <div className="flex items-center h-full">
+      <div className="flex items-center h-full pl-[1px]">
         <SidebarTrigger className="h-9 w-9 shrink-0">
           {state === 'expanded' ? (
             <PanelLeftClose className="h-4 w-4" />
