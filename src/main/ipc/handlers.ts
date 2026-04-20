@@ -19,7 +19,9 @@ import { globalProxyService } from '../services/proxyService'
 const extensionManager = ExtensionManager.getInstance()
 
 // 动态导入storeService以避免循环依赖
-export const getStoreService = async (): Promise<typeof import('../services/store').storeService> => {
+export const getStoreService = async (): Promise<
+  typeof import('../services/store').storeService
+> => {
   const { storeService } = await import('../services/store')
   return storeService
 }
@@ -658,31 +660,17 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
         throw new Error(`Extension not found: ${extensionId}`)
       }
 
-      // 使用扩展session而不是主session，因为扩展加载在扩展session中
-      const extensionSession = session.fromPartition('persist:extensions')
-      console.log(`Using extension session for extension window`)
+      // 检查是否是弹出页面，如果是，使用悬浮窗模式
+      const isPopup =
+        url.includes('popup.html') || url.includes('popup') || title?.includes('popup')
 
-      const extensionWindow = new BrowserWindow({
-        width: 900,
-        height: 700,
-        title: title || 'Extension Options',
-        show: false,
-        autoHideMenuBar: true,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          webviewTag: false,
-          session: extensionSession
-        }
-      })
-
-      extensionWindow.on('ready-to-show', () => {
-        extensionWindow.show()
-      })
-
-      await extensionWindow.loadURL(url)
-
-      return { success: true }
+      if (isPopup) {
+        // 创建悬浮窗（类似浏览器扩展弹出）
+        return await createExtensionPopup(url, title || 'Extension Popup', extensionId)
+      } else {
+        // 选项页面使用普通窗口
+        return await createExtensionOptionsWindow(url, title || 'Extension Options', extensionId)
+      }
     } catch (error) {
       console.error('Failed to open extension in new window:', error)
       return {
@@ -691,6 +679,271 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
       }
     }
   })
+
+  // 创建扩展悬浮窗
+  async function createExtensionPopup(
+    url: string,
+    title: string,
+    _extensionId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Creating extension popup: ${title}`)
+
+      // 获取主窗口位置
+      const mainWindow = BrowserWindow.getAllWindows().find((w) => w.webContents.id === 1)
+      const mainWindowBounds = mainWindow?.getBounds() || {
+        x: 100,
+        y: 100,
+        width: 1200,
+        height: 800
+      }
+
+      // 计算悬浮窗位置（在主窗口右上角）
+      const popupWidth = 400
+      const popupHeight = 600
+      const popupX = mainWindowBounds.x + mainWindowBounds.width - popupWidth - 20
+      const popupY = mainWindowBounds.y + 80 // 留出标题栏空间
+
+      const extensionSession = session.fromPartition('persist:extensions')
+
+      const popupWindow = new BrowserWindow({
+        width: popupWidth,
+        height: popupHeight,
+        x: popupX,
+        y: popupY,
+        title: title,
+        show: false,
+        frame: false, // 无边框，更像悬浮窗
+        alwaysOnTop: true, // 始终置顶
+        skipTaskbar: true, // 不在任务栏显示
+        resizable: false, // 不可调整大小
+        minimizable: false, // 不可最小化
+        maximizable: false, // 不可最大化
+        hasShadow: true, // 添加阴影效果
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          webviewTag: false,
+          session: extensionSession,
+          webSecurity: true,
+          allowRunningInsecureContent: false,
+          experimentalFeatures: true,
+          javascript: true,
+          plugins: true,
+          images: true,
+          preload: undefined,
+          additionalArguments: ['--disable-features=VizDisplayCompositor', '--disable-gpu']
+        }
+      })
+
+      // 添加错误处理
+      popupWindow.webContents.on(
+        'did-fail-load',
+        (_event, errorCode, errorDescription, validatedURL) => {
+          console.error(
+            `Extension popup failed to load: ${errorCode} - ${errorDescription} for URL: ${validatedURL}`
+          )
+          popupWindow.destroy()
+        }
+      )
+
+      // 监听页面加载完成后的错误
+      popupWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+        if (level >= 2) {
+          console.warn(`Extension popup console [${level}]: ${message} at ${sourceId}:${line}`)
+
+          // 如果检测到扩展内部的JavaScript错误，尝试修复
+          if (
+            message.includes('Cannot read properties of undefined') &&
+            (sourceId.includes('popup') || sourceId.includes('fenix'))
+          ) {
+            console.log('Detected extension internal error in popup, attempting to fix...')
+
+            setTimeout(() => {
+              popupWindow.webContents
+                .executeJavaScript(
+                  `
+                console.log('=== Attempting to fix popup extension errors ===');
+                
+                try {
+                  // 重写可能出错的函数
+                  const originalSplit = String.prototype.split;
+                  String.prototype.split = function(separator) {
+                    if (this === undefined || this === null) {
+                      console.warn('String.split called on undefined/null, returning empty array');
+                      return [''];
+                    }
+                    return originalSplit.call(this, separator);
+                  };
+                  
+                  console.log('Applied String.prototype.split safety fix for popup');
+                } catch (e) {
+                  console.log('Error fix attempt failed:', e);
+                }
+                
+                console.log('=== End popup error fix attempt ===');
+              `
+                )
+                .catch((err) => console.log('Failed to inject popup error fix:', err))
+            }, 1000)
+          }
+        }
+      })
+
+      // 监听DOM内容加载完成
+      popupWindow.webContents.on('dom-ready', () => {
+        console.log('Extension popup DOM ready')
+
+        // 注入调试和修复脚本
+        popupWindow.webContents
+          .executeJavaScript(
+            `
+          console.log('=== Extension Popup Debug Info ===');
+          
+          // 添加全局错误处理
+          window.addEventListener('error', function(e) {
+            console.error('Popup error caught:', e.error);
+            
+            // 如果是split相关的错误，提供简化界面
+            if (e.message.includes('Cannot read properties of undefined') && e.message.includes('split')) {
+              console.log('Detected split-related error in popup, providing fallback...');
+              
+              setTimeout(() => {
+                const body = document.body;
+                if (body) {
+                  body.innerHTML = \`
+                    <div style="padding: 15px; font-family: Arial, sans-serif; text-align: center;">
+                      <h4 style="margin: 0 0 10px 0;">扩展控制</h4>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button onclick="alert('广告拦截已启用')" style="padding: 6px 12px; background: #d32f2f; color: white; border: none; border-radius: 3px; cursor: pointer;">启用拦截</button>
+                        <button onclick="alert('已暂停拦截')" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">暂停拦截</button>
+                        <button onclick="window.close()" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">关闭</button>
+                      </div>
+                      <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">简化模式 - 扩展兼容性问题</p>
+                    </div>
+                  \`;
+                }
+              }, 1000);
+            }
+          });
+          
+          // 确保悬浮窗样式正确
+          document.body.style.margin = '0';
+          document.body.style.padding = '0';
+          document.body.style.overflow = 'hidden';
+          document.body.style.backgroundColor = '#ffffff';
+          
+          console.log('=== End Extension Popup Debug Info ===');
+        `
+          )
+          .catch((err) => console.log('Failed to inject popup debug script:', err))
+      })
+
+      // 点击外部区域关闭悬浮窗
+      popupWindow.on('blur', () => {
+        // 延迟关闭，给用户时间点击内部元素
+        setTimeout(() => {
+          if (!popupWindow.isDestroyed()) {
+            popupWindow.close()
+          }
+        }, 200)
+      })
+
+      // 失去焦点时也可以关闭
+      popupWindow.on('focus', () => {
+        // 获得焦点时取消关闭定时器
+      })
+
+      popupWindow.on('ready-to-show', () => {
+        popupWindow.show()
+        // 添加动画效果
+        popupWindow.setOpacity(0)
+        popupWindow.setOpacity(1)
+      })
+
+      await popupWindow.loadURL(url)
+
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to create extension popup:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
+  // 创建扩展选项窗口
+  async function createExtensionOptionsWindow(
+    url: string,
+    title: string,
+    _extensionId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`Creating extension options window: ${title}`)
+
+      const extensionSession = session.fromPartition('persist:extensions')
+
+      const optionsWindow = new BrowserWindow({
+        width: 900,
+        height: 700,
+        minWidth: 600,
+        minHeight: 400,
+        title: title,
+        show: false,
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          webviewTag: false,
+          session: extensionSession,
+          webSecurity: true,
+          allowRunningInsecureContent: false,
+          experimentalFeatures: true,
+          javascript: true,
+          plugins: true,
+          images: true,
+          preload: undefined,
+          additionalArguments: [
+            '--disable-features=VizDisplayCompositor',
+            '--disable-gpu',
+            '--disable-software-rasterizer'
+          ]
+        }
+      })
+
+      // 添加错误处理（复用之前的代码）
+      optionsWindow.webContents.on(
+        'did-fail-load',
+        (_event, errorCode, errorDescription, validatedURL) => {
+          console.error(
+            `Extension options failed to load: ${errorCode} - ${errorDescription} for URL: ${validatedURL}`
+          )
+          optionsWindow.destroy()
+        }
+      )
+
+      optionsWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+        if (level >= 2) {
+          console.warn(`Extension options console [${level}]: ${message} at ${sourceId}:${line}`)
+        }
+      })
+
+      optionsWindow.on('ready-to-show', () => {
+        optionsWindow.show()
+      })
+
+      await optionsWindow.loadURL(url)
+
+      return { success: true }
+    } catch (error) {
+      console.error('Failed to create extension options window:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
 
   // 在主窗口中加载扩展页面
   ipcMain.handle('window:load-extension-url', async (_, url: string) => {

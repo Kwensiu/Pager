@@ -328,15 +328,74 @@ Manifest 信息:
         const chromeExtensionUrl = `chrome-extension://${extensionId}/${extension.manifest.options_page}`
         console.log(`Opening extension options: ${chromeExtensionUrl}`)
 
-        const result = await window.api.window.openExtensionInNewWindow(
-          chromeExtensionUrl,
-          `${extension.name} - Options`
-        )
-        if (result.success) {
-          console.log(`Extension options opened in new window successfully`)
-          return
-        } else {
-          console.log(`Failed to open in new window:`, result.error)
+        try {
+          const result = await window.api.window.openExtensionInNewWindow(
+            chromeExtensionUrl,
+            `${extension.name} - Options`
+          )
+          if (result.success) {
+            console.log(`Extension options opened in new window successfully`)
+            return
+          } else {
+            console.log(`Failed to open in new window:`, result.error)
+            // 如果是加载错误，继续尝试其他方法
+            if (
+              result.error &&
+              (result.error.includes('failed to load') || result.error.includes('timeout'))
+            ) {
+              console.log('Extension options page failed to load, trying fallback methods')
+            } else {
+              // 如果是其他错误，也继续尝试其他方法
+              console.log('Extension options page encountered error, trying fallback methods')
+            }
+          }
+        } catch (error) {
+          console.log('Failed to open extension options:', error)
+          // 继续尝试其他方法
+        }
+      }
+
+      // 尝试打开扩展的弹出页面（popup）
+      if (extension.manifest?.action?.default_popup) {
+        const extensionId = extension.realId || extension.id
+        const popupUrl = `chrome-extension://${extensionId}/${extension.manifest.action.default_popup}`
+        console.log(`Opening extension popup: ${popupUrl}`)
+
+        try {
+          const result = await window.api.window.openExtensionInNewWindow(
+            popupUrl,
+            `${extension.name} - Popup`
+          )
+          if (result.success) {
+            console.log(`Extension popup opened in new window successfully`)
+            return
+          } else {
+            console.log(`Failed to open popup:`, result.error)
+          }
+        } catch (error) {
+          console.log('Failed to open extension popup:', error)
+        }
+      }
+
+      // 尝试旧的browser_action弹出页面
+      if (extension.manifest?.browser_action?.default_popup) {
+        const extensionId = extension.realId || extension.id
+        const popupUrl = `chrome-extension://${extensionId}/${extension.manifest.browser_action.default_popup}`
+        console.log(`Opening extension browser action popup: ${popupUrl}`)
+
+        try {
+          const result = await window.api.window.openExtensionInNewWindow(
+            popupUrl,
+            `${extension.name} - Popup`
+          )
+          if (result.success) {
+            console.log(`Extension browser action popup opened in new window successfully`)
+            return
+          } else {
+            console.log(`Failed to open browser action popup:`, result.error)
+          }
+        } catch (error) {
+          console.log('Failed to open extension browser action popup:', error)
         }
       }
 
@@ -377,6 +436,13 @@ Manifest 信息:
             return
           } else {
             console.log(`Failed to open ${page}:`, result.error)
+            // 如果是加载错误，尝试下一个页面
+            if (
+              result.error &&
+              (result.error.includes('failed to load') || result.error.includes('timeout'))
+            ) {
+              continue
+            }
           }
         } catch (error) {
           console.log(`Failed to open ${page}:`, error)
@@ -386,6 +452,7 @@ Manifest 信息:
 
       // 如果 chrome-extension:// 都失败，回退到我们创建的配置页面
       if (extension.path && extension.manifest) {
+        console.log('All chrome-extension:// URLs failed, creating fallback config page')
         const result = await window.api.extension.createConfigPage(
           extension.id,
           extension.name,
@@ -401,25 +468,26 @@ Manifest 信息:
         }
       }
 
-      // 最后回退到 file:// URL
-      if (extension.manifest?.options_page && extension.path) {
-        const optionsPath = `${extension.path}/${extension.manifest.options_page}`
-        const fileUrl = `file://${optionsPath.replace(/\\/g, '/')}`
-        console.log(`Falling back to file URL: ${fileUrl}`)
+      // 最后的回退：显示错误信息给用户
+      console.log('All extension page opening methods failed, showing user error')
+      const errorMessage = `
+无法打开扩展 "${extension.name}" 的页面。
 
-        const result = await window.api.window.openExtensionInNewWindow(
-          fileUrl,
-          `${extension.name} - Options`
-        )
-        if (result.success) {
-          console.log(`Extension options opened successfully (file URL)`)
-        } else {
-          throw new Error(result.error || 'Failed to load extension options')
-        }
-        return
-      }
+可能的原因：
+1. 扩展的页面包含JavaScript错误
+2. 扩展不兼容当前环境
+3. 扩展文件损坏或缺失
 
-      console.log('No suitable page found')
+建议：
+1. 检查扩展是否完整安装
+2. 尝试重新安装扩展
+3. 联系扩展开发者获取支持
+
+扩展ID: ${extension.id}
+扩展路径: ${extension.path || '未知'}
+      `.trim()
+
+      alert(errorMessage)
     } catch (error) {
       console.error('Failed to open extension options:', error)
       alert(`无法打开扩展选项页面: ${error instanceof Error ? error.message : String(error)}`)
