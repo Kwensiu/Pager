@@ -9,6 +9,31 @@ interface DashboardProps {
   currentWebsite: Website | null
 }
 
+type OpenedWebsitesAction =
+  | { type: 'UPSERT'; payload: { website: Website } }
+  | { type: 'REMOVE'; payload: { websiteId: string } }
+
+const openedWebsitesReducer = (state: Website[], action: OpenedWebsitesAction): Website[] => {
+  switch (action.type) {
+    case 'UPSERT': {
+      const website = action.payload.website
+      const existingIndex = state.findIndex((item) => item.id === website.id)
+
+      if (existingIndex === -1) {
+        return [...state, website]
+      }
+
+      const nextState = [...state]
+      nextState[existingIndex] = website
+      return nextState
+    }
+    case 'REMOVE':
+      return state.filter((website) => website.id !== action.payload.websiteId)
+    default:
+      return state
+  }
+}
+
 function Dashboard({ currentWebsite }: DashboardProps): React.ReactElement {
   const { t } = useI18n()
   const [isLoading, setIsLoading] = useState(false)
@@ -39,33 +64,55 @@ function Dashboard({ currentWebsite }: DashboardProps): React.ReactElement {
     }
   }, [])
 
-  // 使用 reducer 管理 openedWebsites 状态
-  const openedWebsitesReducer = (
-    state: Website[],
-    action: { type: string; payload?: { website: Website } }
-  ): Website[] => {
-    switch (action.type) {
-      case 'ADD_IF_NOT_EXISTS': {
-        if (!action.payload) return state
-        const website = action.payload.website
-        if (!state.some((w) => w.url === website.url)) {
-          return [...state, website]
-        }
-        return state
-      }
-      default:
-        return state
-    }
-  }
-
   const [openedWebsites, dispatch] = useReducer(openedWebsitesReducer, [])
 
-  // 记录所有打开过的网站
+  // 记录并同步所有打开过的网站（按 website.id 维护）
   useEffect(() => {
     if (currentWebsite) {
-      dispatch({ type: 'ADD_IF_NOT_EXISTS', payload: { website: currentWebsite } })
+      dispatch({ type: 'UPSERT', payload: { website: currentWebsite } })
     }
   }, [currentWebsite])
+
+  useEffect(() => {
+    const handleWebsiteUpdated = (event: Event): void => {
+      const customEvent = event as CustomEvent<{ website?: Website }>
+      const updatedWebsite = customEvent.detail?.website
+
+      if (!updatedWebsite) {
+        return
+      }
+
+      dispatch({ type: 'UPSERT', payload: { website: updatedWebsite } })
+    }
+
+    const handleWebsiteDeleted = (event: Event): void => {
+      const customEvent = event as CustomEvent<{ websiteId?: string }>
+      const websiteId = customEvent.detail?.websiteId
+
+      if (!websiteId) {
+        return
+      }
+
+      dispatch({ type: 'REMOVE', payload: { websiteId } })
+      setSessionUrlOverrides((prev) => {
+        if (!(websiteId in prev)) {
+          return prev
+        }
+
+        const next = { ...prev }
+        delete next[websiteId]
+        return next
+      })
+    }
+
+    window.addEventListener('pager:website-updated', handleWebsiteUpdated as EventListener)
+    window.addEventListener('pager:website-deleted', handleWebsiteDeleted as EventListener)
+
+    return () => {
+      window.removeEventListener('pager:website-updated', handleWebsiteUpdated as EventListener)
+      window.removeEventListener('pager:website-deleted', handleWebsiteDeleted as EventListener)
+    }
+  }, [])
 
   // 应用启动时恢复会话（只执行一次）
   useEffect(() => {
@@ -129,6 +176,8 @@ function Dashboard({ currentWebsite }: DashboardProps): React.ReactElement {
     setShowExtensionManager(true)
   }, [])
 
+  const activeWebsiteId = currentWebsite?.id ?? null
+
   return (
     <div className="h-full w-full relative">
       {/* 渲染所有打开过的网站，但只显示当前选中的 */}
@@ -136,16 +185,18 @@ function Dashboard({ currentWebsite }: DashboardProps): React.ReactElement {
         const fingerprintSettings = getWebsiteFingerprintSettings(website)
         // 使用会话覆盖的URL，如果没有则使用默认URL
         const actualUrl = sessionUrlOverrides[website.id] || website.url
+        const isActive = activeWebsiteId === website.id
 
         return (
           <div
-            key={website.url}
+            key={website.id}
             className="absolute inset-0"
-            style={{ display: currentWebsite?.url === website.url ? 'block' : 'none' }}
+            style={{ display: isActive ? 'block' : 'none' }}
           >
             <WebViewContainer
               url={actualUrl}
               websiteId={website.id}
+              isActive={isActive}
               isLoading={isLoading}
               onRefresh={handleRefresh}
               onGoBack={handleGoBack}

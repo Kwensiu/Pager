@@ -308,6 +308,12 @@ export function useSidebarLogic({
     storageService.setPrimaryGroups(updatedPrimaryGroups)
     if (isDev) console.log('[SidebarLogic] Saved to storage and setPrimaryGroups')
 
+    window.dispatchEvent(
+      new CustomEvent('pager:website-updated', {
+        detail: { website: updatedWebsite }
+      })
+    )
+
     // 更新当前网站状态（如果保存的是当前激活的网站）
     if (currentWebsite && currentWebsite.id === updatedWebsite.id) {
       setCurrentWebsite(updatedWebsite)
@@ -377,19 +383,18 @@ export function useSidebarLogic({
   }
 
   const confirmDeleteWebsite = (): void => {
-    if (!dialogManagement.confirmDialog.websiteId) return
+    const websiteIdToDelete = dialogManagement.confirmDialog.websiteId
+    if (!websiteIdToDelete) return
 
     const updatedPrimaryGroups = primaryGroups.map((pg) => {
       // 首先从一级分类的网站中删除
-      const filteredPrimaryWebsites =
-        pg.websites?.filter((w) => w.id !== dialogManagement.confirmDialog.websiteId) || []
+      const filteredPrimaryWebsites = pg.websites?.filter((w) => w.id !== websiteIdToDelete) || []
 
       // 然后从二级分组的网站中删除
       const updatedSecondaryGroups = pg.secondaryGroups
         .map((sg) => ({
           ...sg,
-          websites:
-            sg.websites?.filter((w) => w.id !== dialogManagement.confirmDialog.websiteId) || []
+          websites: sg.websites?.filter((w) => w.id !== websiteIdToDelete) || []
         }))
         .filter((sg) => sg.websites && sg.websites.length > 0)
 
@@ -402,6 +407,17 @@ export function useSidebarLogic({
 
     setPrimaryGroups(updatedPrimaryGroups)
     storageService.setPrimaryGroups(updatedPrimaryGroups)
+
+    if (currentWebsite?.id === websiteIdToDelete) {
+      setCurrentWebsite(null)
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('pager:website-deleted', {
+        detail: { websiteId: websiteIdToDelete }
+      })
+    )
+
     setContextMenuWebsite(null)
     dialogManagement.closeConfirmDeleteWebsite()
   }
