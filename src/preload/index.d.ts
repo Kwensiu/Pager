@@ -9,10 +9,39 @@ import type {
 } from '../main/types/store'
 import type { ExtensionInfo, ExtensionManifest } from '../main/extensions/types'
 
+type ElectronIpcOnChannel =
+  | 'window-manager:always-on-top-changed'
+  | 'window-manager:refresh-page'
+  | 'window-manager:copy-url'
+type ElectronIpcSendChannel = 'window-manager:refresh-page' | 'window-manager:copy-url'
+type ElectronIpcInvokeChannel =
+  | 'clear-cache'
+  | 'shell:openPath'
+  | 'shell:openExternal'
+  | 'extension:create-config-page'
+  | 'window:load-extension-url'
+  | 'window:create-extension-options'
+  | 'window:open-extension-in-new-window'
+  | 'window:open-extension-options-in-main'
+  | 'window-manager:get-always-on-top-state'
+  | 'window-manager:toggle-always-on-top'
+  | 'window-manager:show-notification'
+  | 'window-manager:copy-to-clipboard'
+
+interface SafeElectronIpcRenderer {
+  on: (channel: ElectronIpcOnChannel, listener: (...args: unknown[]) => void) => void
+  once: (channel: ElectronIpcOnChannel, listener: (...args: unknown[]) => void) => void
+  removeListener: (channel: ElectronIpcOnChannel, listener: (...args: unknown[]) => void) => void
+  removeAllListeners: (channel: ElectronIpcOnChannel) => void
+  send: (channel: ElectronIpcSendChannel, ...args: unknown[]) => void
+  invoke: (channel: ElectronIpcInvokeChannel, ...args: unknown[]) => Promise<unknown>
+}
+
 // 扩展 ElectronAPI 接口
 declare global {
   interface Window {
-    electron: ElectronAPI & {
+    electron: Omit<ElectronAPI, 'ipcRenderer'> & {
+      ipcRenderer: SafeElectronIpcRenderer
       shell: {
         openPath: (path: string) => Promise<{
           success: boolean
@@ -118,6 +147,7 @@ declare global {
     api: {
       ipcRenderer: {
         on: (channel: string, listener: (...args: unknown[]) => void) => void
+        removeListener: (channel: string, listener: (...args: unknown[]) => void) => void
         removeAllListeners: (channel: string) => void
         send: (channel: string, ...args: unknown[]) => void
         invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
@@ -242,8 +272,12 @@ declare global {
           success: boolean
           windowId?: string
         }>
-        openExtensionOptionsInMain: (url: string) => Promise<{
+        openExtensionOptionsInMain: (
+          extensionIdOrUrl: string,
+          optionsPath?: string
+        ) => Promise<{
           success: boolean
+          url?: string
           error?: string
         }>
       }
@@ -491,8 +525,15 @@ declare global {
         dataSync: {
           exportConfig: (options?: Record<string, unknown>) => Promise<Record<string, unknown>>
           importConfig: (filePath: string) => Promise<boolean>
-          exportCookies: (websiteId?: string) => Promise<Record<string, unknown>>
-          importCookies: (filePath: string, websiteId?: string) => Promise<number>
+          exportCookies: (
+            websiteId: string,
+            partition: string
+          ) => Promise<Record<string, unknown>[] | null>
+          importCookies: (
+            websiteId: string,
+            partition: string,
+            cookies: Record<string, unknown>[]
+          ) => Promise<boolean>
         }
         // 自动启动
         autoLaunch: {
@@ -659,13 +700,6 @@ declare global {
       crash: {
         simulateCrash: () => Promise<void>
       }
-    }
-  }
-
-  declare global {
-    interface Window {
-      electron: ElectronAPI
-      api: API
     }
   }
 }

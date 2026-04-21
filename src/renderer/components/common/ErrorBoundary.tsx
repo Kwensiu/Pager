@@ -3,6 +3,7 @@ import React from 'react'
 interface ErrorBoundaryProps {
   children: React.ReactNode
   fallback?: React.FC<{ error?: Error; resetError: () => void }>
+  resetKeys?: readonly unknown[]
 }
 
 interface ErrorBoundaryState {
@@ -18,6 +19,23 @@ interface ErrorFallbackProps {
   buttonText?: string
 }
 
+function hasResetKeysChanged(
+  prevResetKeys: readonly unknown[] = [],
+  nextResetKeys: readonly unknown[] = []
+): boolean {
+  if (prevResetKeys.length !== nextResetKeys.length) {
+    return true
+  }
+
+  for (let index = 0; index < prevResetKeys.length; index += 1) {
+    if (!Object.is(prevResetKeys[index], nextResetKeys[index])) {
+      return true
+    }
+  }
+
+  return false
+}
+
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
@@ -30,6 +48,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('ErrorBoundary caught an error:', error, errorInfo)
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps): void {
+    if (
+      this.state.hasError &&
+      hasResetKeysChanged(prevProps.resetKeys ?? [], this.props.resetKeys ?? [])
+    ) {
+      this.setState({ hasError: false, error: undefined })
+    }
   }
 
   resetError = (): void => {

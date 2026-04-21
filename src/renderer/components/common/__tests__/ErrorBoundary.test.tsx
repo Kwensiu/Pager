@@ -86,9 +86,6 @@ describe('ErrorBoundary', () => {
       expect(screen.getByText('出现错误')).toBeInTheDocument()
     })
 
-    // Click retry button
-    await user.click(screen.getByText('重试'))
-
     // Rerender with normal component
     rerender(
       <ErrorBoundary>
@@ -96,7 +93,56 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     )
 
-    expect(screen.getByText('Normal component')).toBeInTheDocument()
+    // Click retry button
+    await user.click(screen.getByText('重试'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Normal component')).toBeInTheDocument()
+    })
+  })
+
+  it('does not auto reset only because children changed', async (): Promise<void> => {
+    const { rerender } = render(
+      <ErrorBoundary>
+        <ThrowError />
+      </ErrorBoundary>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('出现错误')).toBeInTheDocument()
+    })
+
+    rerender(
+      <ErrorBoundary>
+        <NormalComponent />
+      </ErrorBoundary>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('出现错误')).toBeInTheDocument()
+    })
+  })
+
+  it('resets when resetKeys changed', async (): Promise<void> => {
+    const { rerender } = render(
+      <ErrorBoundary resetKeys={['v1']}>
+        <ThrowError />
+      </ErrorBoundary>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('出现错误')).toBeInTheDocument()
+    })
+
+    rerender(
+      <ErrorBoundary resetKeys={['v2']}>
+        <NormalComponent />
+      </ErrorBoundary>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Normal component')).toBeInTheDocument()
+    })
   })
 
   it('calls componentDidCatch with error and error info', async (): Promise<void> => {

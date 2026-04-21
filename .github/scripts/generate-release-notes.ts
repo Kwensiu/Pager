@@ -37,14 +37,56 @@ interface Categories {
   [category: string]: Commit[]
 }
 
-function getCommitsSinceLastTag(customTag?: string): CommitRange {
+function tryExec(command: string): string | null {
   try {
-    // Use custom tag if provided, otherwise get the latest tag
-    const comparisonTag =
-      customTag || execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim()
-    console.log(colorize(`📦 Comparison tag: ${comparisonTag}`, 'cyan'))
+    const output = execSync(command, { encoding: 'utf8' }).trim()
+    return output.length > 0 ? output : null
+  } catch {
+    return null
+  }
+}
 
-    // Get commits since the comparison tag
+function resolveComparisonTag(customTag?: string): {
+  comparisonTag: string | null
+  latestTag: string | null
+} {
+  if (customTag) {
+    return { comparisonTag: customTag, latestTag: null }
+  }
+
+  const latestTag = tryExec('git describe --tags --abbrev=0')
+  if (!latestTag) {
+    return { comparisonTag: null, latestTag: null }
+  }
+
+  const headCommit = tryExec('git rev-parse HEAD')
+  const latestTagCommit = tryExec(`git rev-list -n 1 ${latestTag}`)
+
+  // 当 HEAD 正好是当前发布 tag 时，自动回退到“前一个 tag”作为比较基线
+  if (headCommit && latestTagCommit && headCommit === latestTagCommit) {
+    const previousTag = tryExec(`git describe --tags --abbrev=0 ${latestTag}^`)
+    if (previousTag) {
+      return { comparisonTag: previousTag, latestTag }
+    }
+  }
+
+  return { comparisonTag: latestTag, latestTag }
+}
+
+function getCommitsSinceLastTag(customTag?: string): CommitRange {
+  const { comparisonTag, latestTag } = resolveComparisonTag(customTag)
+
+  if (comparisonTag) {
+    console.log(colorize(`📦 Comparison tag: ${comparisonTag}`, 'cyan'))
+    if (!customTag && latestTag && comparisonTag !== latestTag) {
+      console.log(
+        colorize(
+          `🔁 HEAD is tagged with ${latestTag}, fallback to previous tag ${comparisonTag}`,
+          'yellow'
+        )
+      )
+    }
+
     const commits = execSync(
       `git log ${comparisonTag}..HEAD --pretty=format:"%H|%s|%an|%ad" --date=short`,
       { encoding: 'utf8' }
@@ -53,19 +95,19 @@ function getCommitsSinceLastTag(customTag?: string): CommitRange {
       .split('\n')
       .filter((line) => line)
 
-    return { latestTag: customTag ? null : comparisonTag, commits }
-  } catch {
-    // If no tags exist, get all commits
-    console.log(colorize('⚠️  No tags found, getting all commits', 'yellow'))
-    const commits = execSync('git log --pretty=format:"%H|%s|%an|%ad" --date=short', {
-      encoding: 'utf8'
-    })
-      .trim()
-      .split('\n')
-      .filter((line) => line)
-
-    return { latestTag: null, commits }
+    return { latestTag: comparisonTag, commits }
   }
+
+  // If no tags exist, get all commits
+  console.log(colorize('⚠️  No tags found, getting all commits', 'yellow'))
+  const commits = execSync('git log --pretty=format:"%H|%s|%an|%ad" --date=short', {
+    encoding: 'utf8'
+  })
+    .trim()
+    .split('\n')
+    .filter((line) => line)
+
+  return { latestTag: null, commits }
 }
 
 function categorizeCommits(commits: string[]): Categories {

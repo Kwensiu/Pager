@@ -9,6 +9,7 @@ class SessionIsolationService {
   private sessions: Map<string, Electron.Session> = new Map()
   private websiteSessions: Map<string, string> = new Map() // websiteId -> partition
   private initialized: boolean = false
+  private clearAllSessionsPromise: Promise<void> | null = null
 
   constructor() {
     // 延迟初始化，不在构造函数中访问 app
@@ -38,6 +39,12 @@ class SessionIsolationService {
     }
   }
 
+  private async waitForClearAllSessions(): Promise<void> {
+    if (this.clearAllSessionsPromise) {
+      await this.clearAllSessionsPromise
+    }
+  }
+
   /**
    * 为网站创建隔离的 Session
    * @param website 网站配置
@@ -45,6 +52,7 @@ class SessionIsolationService {
    */
   async createIsolatedSession(website: Website): Promise<string> {
     await this.ensureInitialized()
+    await this.waitForClearAllSessions()
 
     if (!website.id) {
       throw new Error('Website ID is required')
@@ -133,6 +141,7 @@ class SessionIsolationService {
    */
   async clearWebsiteSession(websiteId: string): Promise<boolean> {
     await this.ensureInitialized()
+    await this.waitForClearAllSessions()
     const partition = this.websiteSessions.get(websiteId)
     if (!partition) {
       return false
@@ -140,22 +149,43 @@ class SessionIsolationService {
 
     const sess = this.sessions.get(partition)
     if (sess) {
-      // 清除缓存和存储
-      sess.clearCache()
-      sess.clearStorageData()
-      sess.clearAuthCache()
-      sess.clearHostResolverCache()
+      // 清除缓存和存储，确保清理完成后再返回
+      const cleanupResults = await Promise.allSettled([
+        sess.clearCache(),
+        sess.clearStorageData(),
+        sess.clearAuthCache(),
+        sess.clearHostResolverCache()
+      ])
+
+      cleanupResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const operation = [
+            'clearCache',
+            'clearStorageData',
+            'clearAuthCache',
+            'clearHostResolverCache'
+          ][index]
+          console.error(`Failed to ${operation} for website ${websiteId}:`, result.reason)
+        }
+      })
 
       // 清除所有 Cookie
       const cookies = await sess.cookies.get({})
-      for (const cookie of cookies) {
-        try {
-          const url = cookie.secure ? `https://${cookie.domain}` : `http://${cookie.domain}`
-          await sess.cookies.remove(url, cookie.name)
-        } catch (error) {
-          console.error(`Failed to remove cookie ${cookie.name}:`, error)
-        }
-      }
+      await Promise.all(
+        cookies.map(async (cookie) => {
+          try {
+            const rawDomain = cookie.domain || ''
+            const cookieDomain = rawDomain.startsWith('.') ? rawDomain.slice(1) : rawDomain
+            if (!cookieDomain) {
+              return
+            }
+            const url = cookie.secure ? `https://${cookieDomain}` : `http://${cookieDomain}`
+            await sess.cookies.remove(url, cookie.name)
+          } catch (error) {
+            console.error(`Failed to remove cookie ${cookie.name}:`, error)
+          }
+        })
+      )
     }
 
     this.sessions.delete(partition)
@@ -174,26 +204,62 @@ class SessionIsolationService {
     clearAuthCache?: boolean
   }): Promise<void> {
     await this.ensureInitialized()
-    this.sessions.forEach((sess, partition) => {
-      try {
-        if (options?.clearSessionCache !== false) {
-          sess.clearCache()
+    if (this.clearAllSessionsPromise) {
+      await this.clearAllSessionsPromise
+      return
+    }
+
+    const clearPromise = (async (): Promise<void> => {
+      const sessionEntries = Array.from(this.sessions.entries())
+      const websiteEntries = Array.from(this.websiteSessions.entries())
+
+      const clearTasks = sessionEntries.map(async ([partition, sess]) => {
+        try {
+          const tasks: Array<{ name: string; promise: Promise<void> }> = []
+
+          if (options?.clearSessionCache !== false) {
+            tasks.push({ name: 'clearCache', promise: sess.clearCache() })
+          }
+          if (options?.clearStorageData !== false) {
+            tasks.push({ name: 'clearStorageData', promise: sess.clearStorageData() })
+          }
+          if (options?.clearAuthCache !== false) {
+            tasks.push({ name: 'clearAuthCache', promise: sess.clearAuthCache() })
+          }
+
+          const results = await Promise.allSettled(tasks.map((task) => task.promise))
+          results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              const operation = tasks[index]?.name || 'unknown'
+              console.error(`Failed to ${operation} for session ${partition}:`, result.reason)
+            }
+          })
+        } catch (error) {
+          console.error(`Error clearing session ${partition}:`, error)
         }
-        if (options?.clearStorageData !== false) {
-          sess.clearStorageData()
-        }
-        if (options?.clearAuthCache !== false) {
-          sess.clearAuthCache()
-        }
-      } catch (error) {
-        console.error(`Error clearing session ${partition}:`, error)
+      })
+
+      await Promise.all(clearTasks)
+
+      // 只删除快照中的索引，避免误删清理期间新增的数据（新增操作已被锁等待）
+      for (const [partition] of sessionEntries) {
+        this.sessions.delete(partition)
       }
-    })
+      for (const [websiteId] of websiteEntries) {
+        this.websiteSessions.delete(websiteId)
+      }
 
-    this.sessions.clear()
-    this.websiteSessions.clear()
+      console.log('All sessions cleared')
+    })()
 
-    console.log('All sessions cleared')
+    this.clearAllSessionsPromise = clearPromise
+    try {
+      await clearPromise
+    } finally {
+      if (this.clearAllSessionsPromise === clearPromise) {
+        this.clearAllSessionsPromise = null
+      }
+    }
   }
 
   /**

@@ -4,6 +4,11 @@ out
 .DS_Store
 .eslintcache
 *.log*
+dev-stdout.log
+dev-stderr.log
+task.json
+progress.html
+RELEASE_NOTES.md
 plans/*
 .codebuddy
 .vscode

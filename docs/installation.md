@@ -170,7 +170,7 @@ sudo snap install pager --classic
 
 ### 前提条件
 
-- **Node.js**: >= 18.0.0
+- **Node.js**: ^20.19.0 || >=22.12.0
 - **pnpm**: >= 1.22.0
 - **Git**: 最新版本
 - **Python**: >= 3.6（用于构建原生模块）
@@ -203,14 +203,20 @@ pnpm dev
 #### 4. 代码检查
 
 ```bash
-# 格式化代码
+# 自动格式化代码
 pnpm format
 
-# 类型检查
-pnpm typecheck
+# 只读格式检查（CI 同款）
+pnpm format:check
+
+# 运行测试
+pnpm test
 
 # ESLint 检查
 pnpm lint
+
+# 类型检查
+pnpm typecheck
 ```
 
 ### 构建应用程序
@@ -253,9 +259,12 @@ pnpm build:linux
 按照以下顺序执行构建任务：
 
 1. `pnpm install` - 安装依赖
-2. `pnpm format` - 格式化代码
-3. `pnpm typecheck` - 类型检查
-4. `pnpm build` - 构建应用
+2. `pnpm format` - 本地自动格式化
+3. `pnpm format:check` - 只读格式检查
+4. `pnpm test` - 运行测试
+5. `pnpm lint` - ESLint 检查
+6. `pnpm typecheck` - 类型检查
+7. `pnpm build` - 构建应用
 
 ---
 

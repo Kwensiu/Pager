@@ -31,6 +31,7 @@ declare global {
 interface WebViewContainerProps {
   url: string
   websiteId?: string
+  isActive?: boolean
   isLoading: boolean
   onRefresh?: () => void
   onGoBack?: () => void
@@ -48,6 +49,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     {
       url,
       websiteId,
+      isActive = true,
       isLoading,
       onRefresh,
       onGoBack,
@@ -62,7 +64,12 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
   ) => {
     const { settings } = useSettings()
     const webviewRef = useRef<WebViewElement>(null)
+    const [webviewElement, setWebviewElement] = useState<WebViewElement | null>(null)
     const [currentUrl, setCurrentUrl] = useState(url) // 跟踪实际URL
+    const currentUrlRef = useRef(url)
+    const websiteIdRef = useRef<string | undefined>(websiteId)
+    const onNavigateRef = useRef<typeof onNavigate>(onNavigate)
+    const isActiveRef = useRef(isActive)
 
     // 根据设置和URL动态生成partition
     const partition = useMemo(() => {
@@ -76,10 +83,26 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       [partition, settings.enableJavaScript, settings.allowPopups]
     )
 
-    // 同步URL状态
+    // 同步外部URL引用，实际展示URL由导航事件驱动更新
     useEffect(() => {
-      setCurrentUrl(url)
+      currentUrlRef.current = url
     }, [url])
+
+    useEffect(() => {
+      currentUrlRef.current = currentUrl
+    }, [currentUrl])
+
+    useEffect(() => {
+      websiteIdRef.current = websiteId
+    }, [websiteId])
+
+    useEffect(() => {
+      onNavigateRef.current = onNavigate
+    }, [onNavigate])
+
+    useEffect(() => {
+      isActiveRef.current = isActive
+    }, [isActive])
 
     // 内存优化：标记网站为活跃
     useEffect(() => {
@@ -120,6 +143,14 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     // 处理导航到新 URL
     const handleNavigate = useCallback(
       (newUrl: string) => {
+        if (typeof newUrl !== 'string' || newUrl.trim().length === 0) {
+          return
+        }
+
+        // 先乐观更新地址栏，再由 did-navigate 事件做最终校正。
+        currentUrlRef.current = newUrl
+        setCurrentUrl(newUrl)
+
         const webview = webviewRef.current
         if (webview && webview.loadURL) {
           webview.loadURL(newUrl)
@@ -134,7 +165,11 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
     // 监听来自主进程的webview操作命令
     useEffect(() => {
+      const isInactive = (): boolean => !isActiveRef.current
+
       const handleNavigateBack = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview && webview.goBack) {
           webview.goBack()
@@ -144,6 +179,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleNavigateForward = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview && webview.goForward) {
           webview.goForward()
@@ -153,6 +190,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleReload = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview && webview.reload) {
           webview.reload()
@@ -162,6 +201,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleReloadForce = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview && webview.reload) {
           // 忽略缓存重新加载
@@ -172,6 +213,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleCopy = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview) {
           webview.executeJavaScript('document.execCommand("copy")')
@@ -179,6 +222,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handlePaste = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview) {
           webview.executeJavaScript('document.execCommand("paste")')
@@ -186,6 +231,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleSelectAll = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview) {
           webview.executeJavaScript('document.execCommand("selectAll")')
@@ -193,6 +240,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleViewSource = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview && webview.getURL) {
           const currentUrl = webview.getURL()
@@ -203,6 +252,8 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       }
 
       const handleInspectElement = (): void => {
+        if (isInactive()) return
+
         const webview = webviewRef.current
         if (webview) {
           webview.executeJavaScript(`
@@ -214,41 +265,61 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         }
       }
 
+      const handleLoadUrl = (...args: unknown[]): void => {
+        if (isInactive()) return
+
+        const nextUrl = args[0] as string
+        if (typeof nextUrl === 'string') {
+          handleNavigate(nextUrl)
+        }
+      }
+
       // 注册IPC监听器
       if (window.api?.ipcRenderer) {
-        window.api.ipcRenderer.on('webview:navigate-back', handleNavigateBack)
-        window.api.ipcRenderer.on('webview:navigate-forward', handleNavigateForward)
-        window.api.ipcRenderer.on('webview:reload', handleReload)
-        window.api.ipcRenderer.on('webview:reload-force', handleReloadForce)
-        window.api.ipcRenderer.on('webview:copy', handleCopy)
-        window.api.ipcRenderer.on('webview:paste', handlePaste)
-        window.api.ipcRenderer.on('webview:select-all', handleSelectAll)
-        window.api.ipcRenderer.on('webview:view-source', handleViewSource)
-        window.api.ipcRenderer.on('webview:inspect-element', handleInspectElement)
-        window.api.ipcRenderer.on('webview:load-url', (...args: unknown[]) => {
-          const url = args[0] as string
-          if (typeof url === 'string') {
-            handleNavigate(url)
+        const ipcRenderer = window.api.ipcRenderer as typeof window.api.ipcRenderer & {
+          removeListener?: (channel: string, listener: (...args: unknown[]) => void) => void
+        }
+
+        const removeIpcListener = (
+          channel: string,
+          listener: (...args: unknown[]) => void
+        ): void => {
+          if (ipcRenderer.removeListener) {
+            ipcRenderer.removeListener(channel, listener)
+            return
           }
-        })
+
+          ipcRenderer.removeAllListeners(channel)
+        }
+
+        ipcRenderer.on('webview:navigate-back', handleNavigateBack)
+        ipcRenderer.on('webview:navigate-forward', handleNavigateForward)
+        ipcRenderer.on('webview:reload', handleReload)
+        ipcRenderer.on('webview:reload-force', handleReloadForce)
+        ipcRenderer.on('webview:copy', handleCopy)
+        ipcRenderer.on('webview:paste', handlePaste)
+        ipcRenderer.on('webview:select-all', handleSelectAll)
+        ipcRenderer.on('webview:view-source', handleViewSource)
+        ipcRenderer.on('webview:inspect-element', handleInspectElement)
+        ipcRenderer.on('webview:load-url', handleLoadUrl)
 
         return () => {
           // 清理IPC监听器
-          window.api.ipcRenderer.removeAllListeners('webview:navigate-back')
-          window.api.ipcRenderer.removeAllListeners('webview:navigate-forward')
-          window.api.ipcRenderer.removeAllListeners('webview:reload')
-          window.api.ipcRenderer.removeAllListeners('webview:reload-force')
-          window.api.ipcRenderer.removeAllListeners('webview:copy')
-          window.api.ipcRenderer.removeAllListeners('webview:paste')
-          window.api.ipcRenderer.removeAllListeners('webview:select-all')
-          window.api.ipcRenderer.removeAllListeners('webview:view-source')
-          window.api.ipcRenderer.removeAllListeners('webview:inspect-element')
-          window.api.ipcRenderer.removeAllListeners('webview:load-url')
+          removeIpcListener('webview:navigate-back', handleNavigateBack)
+          removeIpcListener('webview:navigate-forward', handleNavigateForward)
+          removeIpcListener('webview:reload', handleReload)
+          removeIpcListener('webview:reload-force', handleReloadForce)
+          removeIpcListener('webview:copy', handleCopy)
+          removeIpcListener('webview:paste', handlePaste)
+          removeIpcListener('webview:select-all', handleSelectAll)
+          removeIpcListener('webview:view-source', handleViewSource)
+          removeIpcListener('webview:inspect-element', handleInspectElement)
+          removeIpcListener('webview:load-url', handleLoadUrl)
         }
       }
 
       return undefined
-    }, [onGoBack, onGoForward, onRefresh, onNavigate, handleNavigate])
+    }, [onGoBack, onGoForward, onRefresh, handleNavigate])
 
     // 应用指纹伪装到 webview
     const applyFingerprint = useCallback(async (): Promise<void> => {
@@ -375,7 +446,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     }, [fingerprintEnabled, fingerprintMode])
 
     useEffect(() => {
-      const webview = webviewRef.current
+      const webview = webviewElement
       if (!webview) return
 
       const handleDomReady = async (): Promise<void> => {
@@ -686,94 +757,116 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         webview.removeEventListener('did-navigate', handleUserInteraction)
         webview.removeEventListener('did-navigate-in-page', handleUserInteraction)
       }
-    }, [url, applyFingerprint, websiteId])
+    }, [webviewElement, applyFingerprint, websiteId])
 
     // 监听指纹设置变化并重新应用指纹
     useEffect(() => {
-      const webview = webviewRef.current
+      const webview = webviewElement
       if (!webview) return
+
+      let disposed = false
+      let timeoutId: number | null = null
 
       // 检查 WebView 是否已经准备好
       const checkAndApplyFingerprint = (): void => {
+        if (disposed) {
+          return
+        }
+
         try {
           // 尝试执行一个简单的 JavaScript 来检查 WebView 是否准备好
           webview
             .executeJavaScript('true')
             .then(() => {
-              applyFingerprint()
+              if (!disposed) {
+                void applyFingerprint()
+              }
             })
             .catch(() => {
               // WebView 还没准备好，等待一段时间后再试
-              setTimeout(checkAndApplyFingerprint, 500)
+              timeoutId = window.setTimeout(checkAndApplyFingerprint, 500)
             })
         } catch {
           // WebView 还没准备好，等待一段时间后再试
-          setTimeout(checkAndApplyFingerprint, 500)
+          timeoutId = window.setTimeout(checkAndApplyFingerprint, 500)
         }
       }
 
       // 延迟执行，确保 WebView 已经挂载到 DOM
-      setTimeout(checkAndApplyFingerprint, 100)
-    }, [fingerprintEnabled, fingerprintMode, applyFingerprint])
+      timeoutId = window.setTimeout(checkAndApplyFingerprint, 100)
 
-    const webviewCallbackRef = useCallback(
-      (element: WebViewElement | null) => {
-        if (element) {
-          webviewRef.current = element
-
-          // 添加导航事件监听器
-          const handleDidNavigate = (event: Event): void => {
-            const navigateEvent = event as unknown as { url: string }
-            if (navigateEvent.url && navigateEvent.url !== currentUrl) {
-              setCurrentUrl(navigateEvent.url)
-
-              if (onNavigate) {
-                onNavigate(navigateEvent.url)
-              }
-            }
-          }
-
-          const handleDidNavigateInPage = (event: Event): void => {
-            const navigateEvent = event as unknown as { url: string }
-            if (navigateEvent.url && navigateEvent.url !== currentUrl) {
-              setCurrentUrl(navigateEvent.url)
-
-              // 保存会话信息
-              if (websiteId && window.api?.enhanced?.session) {
-                window.api.enhanced.session
-                  .addOrUpdate(websiteId, navigateEvent.url, '')
-                  .catch((error) => console.error('Failed to save session:', error))
-              }
-            }
-          }
-
-          // 监听页面标题更新
-          const handlePageTitleUpdated = (event: Event): void => {
-            const titleEvent = event as unknown as { title: string }
-            // 保存会话信息
-            if (titleEvent.title && websiteId && window.api?.enhanced?.session) {
-              window.api.enhanced.session
-                .addOrUpdate(websiteId, currentUrl, titleEvent.title)
-                .catch((error) => console.error('Failed to update session title:', error))
-            }
-          }
-
-          // 监听页面导航事件
-          element.addEventListener('did-navigate', handleDidNavigate)
-          element.addEventListener('did-navigate-in-page', handleDidNavigateInPage)
-          element.addEventListener('page-title-updated', handlePageTitleUpdated)
-
-          // 清理函数
-          return () => {
-            element.removeEventListener('did-navigate', handleDidNavigate)
-            element.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
-            element.removeEventListener('page-title-updated', handlePageTitleUpdated)
-          }
+      return () => {
+        disposed = true
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId)
         }
-        return undefined
-      },
-      [currentUrl, onNavigate, websiteId]
-    )
+      }
+    }, [webviewElement, fingerprintEnabled, fingerprintMode, applyFingerprint])
+
+    const webviewCallbackRef = useCallback((element: WebViewElement | null) => {
+      webviewRef.current = element
+      setWebviewElement(element)
+    }, [])
+
+    useEffect(() => {
+      if (!webviewElement) {
+        return
+      }
+
+      const handleDidNavigate = (event: Event): void => {
+        const navigateEvent = event as unknown as { url?: string }
+        const nextUrl = navigateEvent.url
+
+        if (!nextUrl || nextUrl === currentUrlRef.current) {
+          return
+        }
+
+        currentUrlRef.current = nextUrl
+        setCurrentUrl(nextUrl)
+        onNavigateRef.current?.(nextUrl)
+      }
+
+      const handleDidNavigateInPage = (event: Event): void => {
+        const navigateEvent = event as unknown as { url?: string }
+        const nextUrl = navigateEvent.url
+
+        if (!nextUrl || nextUrl === currentUrlRef.current) {
+          return
+        }
+
+        currentUrlRef.current = nextUrl
+        setCurrentUrl(nextUrl)
+
+        const currentWebsiteId = websiteIdRef.current
+        if (currentWebsiteId && window.api?.enhanced?.session) {
+          window.api.enhanced.session
+            .addOrUpdate(currentWebsiteId, nextUrl, '')
+            .catch((error) => console.error('Failed to save session:', error))
+        }
+      }
+
+      // 监听页面标题更新
+      const handlePageTitleUpdated = (event: Event): void => {
+        const titleEvent = event as unknown as { title?: string }
+        const currentWebsiteId = websiteIdRef.current
+
+        if (titleEvent.title && currentWebsiteId && window.api?.enhanced?.session) {
+          window.api.enhanced.session
+            .addOrUpdate(currentWebsiteId, currentUrlRef.current, titleEvent.title)
+            .catch((error) => console.error('Failed to update session title:', error))
+        }
+      }
+
+      webviewElement.addEventListener('did-navigate', handleDidNavigate)
+      webviewElement.addEventListener('did-navigate-in-page', handleDidNavigateInPage)
+      webviewElement.addEventListener('page-title-updated', handlePageTitleUpdated)
+
+      return () => {
+        webviewElement.removeEventListener('did-navigate', handleDidNavigate)
+        webviewElement.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
+        webviewElement.removeEventListener('page-title-updated', handlePageTitleUpdated)
+      }
+    }, [webviewElement])
 
     // 处理后退 - 直接使用 webview API
     const handleGoBack = useCallback(() => {
@@ -849,7 +942,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
     // 监听WebView的键盘事件（应用内模式）
     useEffect(() => {
-      const webview = webviewRef.current
+      const webview = webviewElement
       if (!webview) return
 
       const handleKeyDown = (event: KeyboardEvent): void => {
@@ -865,11 +958,15 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       return (): void => {
         webview.removeEventListener('keydown', handleKeyDown)
       }
-    }, [handleRefresh, handleCopyUrl, createKeyboardHandler])
+    }, [webviewElement, handleRefresh, handleCopyUrl, createKeyboardHandler])
 
     // 监听文档级别的键盘事件（应用内快捷键）
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent): void => {
+        if (!isActiveRef.current) {
+          return
+        }
+
         createKeyboardHandler(event, {
           copyUrl: handleCopyUrl
         })
@@ -886,15 +983,11 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     // 监听快捷键刷新消息（全局模式）
     useEffect(() => {
       const handleRefreshShortcut = (): void => {
-        // 检查当前WebView是否是活跃的
-        const webview = webviewRef.current
-        if (webview && webview.getURL && webview.getURL()) {
-          // 检查这个WebView是否是当前显示的
-          const isVisible = webview.style.display !== 'none'
-          if (isVisible) {
-            handleRefresh()
-          }
+        if (!isActiveRef.current) {
+          return
         }
+
+        handleRefresh()
       }
 
       if (window.electron?.ipcRenderer) {
@@ -914,34 +1007,11 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
     // 监听复制URL消息（全局模式）
     useEffect(() => {
       const handleCopyUrlShortcut = (): void => {
-        // 检查当前WebView是否是活跃的
-        const webview = webviewRef.current
-        if (webview && webview.getURL && webview.getURL()) {
-          const currentUrl = webview.getURL()
-          // 检查这个WebView是否是当前显示的
-          const isVisible = webview.style.display !== 'none'
-          if (isVisible) {
-            // 使用Electron的IPC复制到剪贴板
-            if (window.electron?.ipcRenderer) {
-              window.electron.ipcRenderer
-                .invoke('window-manager:copy-to-clipboard', currentUrl)
-                .then(() => {
-                  // 显示通知
-                  window.electron.ipcRenderer.invoke('window-manager:show-notification', {
-                    title: 'URL已复制',
-                    body: currentUrl
-                  })
-                })
-                .catch((error) => {
-                  // 显示错误通知
-                  window.electron.ipcRenderer.invoke('window-manager:show-notification', {
-                    title: 'URL复制失败',
-                    body: error.message || '未知错误'
-                  })
-                })
-            }
-          }
+        if (!isActiveRef.current) {
+          return
         }
+
+        void handleCopyUrl()
       }
 
       if (window.electron?.ipcRenderer) {
@@ -956,7 +1026,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
           )
         }
       }
-    }, [])
+    }, [handleCopyUrl])
 
     return (
       <div ref={ref} className="flex h-full w-full flex-col">

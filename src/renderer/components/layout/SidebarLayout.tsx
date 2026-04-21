@@ -128,8 +128,11 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
   // 获取当前窗口顶置状态
   useEffect(() => {
     // 监听窗口顶置状态变化
-    const handleAlwaysOnTopChange = (_event: Electron.IpcRendererEvent, state: boolean): void => {
-      setIsAlwaysOnTop(state)
+    const handleAlwaysOnTopChange = (...args: unknown[]): void => {
+      const state = args[1]
+      if (typeof state === 'boolean') {
+        setIsAlwaysOnTop(state)
+      }
     }
 
     if (window.electron?.ipcRenderer) {
@@ -157,7 +160,9 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
           const state = await window.electron.ipcRenderer.invoke(
             'window-manager:get-always-on-top-state'
           )
-          setIsAlwaysOnTop(state)
+          if (typeof state === 'boolean') {
+            setIsAlwaysOnTop(state)
+          }
         } catch (error) {
           console.error('Failed to get always on top state:', error)
         }
@@ -204,7 +209,11 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
           if (window.electron?.ipcRenderer) {
             window.electron.ipcRenderer
               .invoke('window-manager:toggle-always-on-top')
-              .then(setIsAlwaysOnTop)
+              .then((nextState) => {
+                if (typeof nextState === 'boolean') {
+                  setIsAlwaysOnTop(nextState)
+                }
+              })
           }
           break
         case 'refresh-page':

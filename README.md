@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-39.2.6-9FE349.svg)
 ![React](https://img.shields.io/badge/React-19.2.1-61DAFB.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6.svg)
@@ -122,7 +122,7 @@ pager/
 
 ### 系统要求
 
-- **Node.js**: >= 18.0.0
+- **Node.js**: ^20.19.0 || >=22.12.0
 - **pnpm**: >= 1.22.0
 - **操作系统**: Windows 10+, macOS 10.15+, Linux
 
@@ -151,6 +151,12 @@ pnpm format
 ### 代码检查
 
 ```bash
+# 只读格式检查（CI 同款）
+pnpm format:check
+
+# 运行测试
+pnpm test
+
 # 类型检查
 pnpm typecheck
 
@@ -179,9 +185,12 @@ pnpm build:linux
 按照以下顺序执行开发任务：
 
 1. `pnpm install` - 安装依赖
-2. `pnpm format` - 格式化代码（跳过检查输出）
-3. `pnpm typecheck` - 类型检查
-4. `pnpm build` - 构建应用
+2. `pnpm format` - 本地自动格式化
+3. `pnpm format:check` - 只读格式检查
+4. `pnpm test` - 运行测试
+5. `pnpm lint` - ESLint 检查
+6. `pnpm typecheck` - 类型检查
+7. `pnpm build` - 构建应用
 
 ## 常见问题
 
@@ -221,7 +230,7 @@ A: 在设置页面中，使用"导出配置"功能将当前设置导出为 JSON 
 
 - 使用 TypeScript 编写代码
 - 遵循 ESLint 和 Prettier 配置
-- 提交前运行 `pnpm format` 和 `pnpm typecheck`
+- 提交前运行 `pnpm format:check`、`pnpm test`、`pnpm lint` 和 `pnpm typecheck`
 - 提交信息使用英文，遵循现有格式（`git log --oneline -5`）
 
 ### 报告问题
