@@ -10,7 +10,7 @@ on:
   workflow_dispatch: # 手动触发
     inputs:
       version:
-        description: 'Version to release (e.g., 0.1.0)'
+        description: 'Version to release (e.g., 0.2.0)'
         required: true
         default: ''
       platforms:
@@ -65,9 +65,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run lint and typecheck
+      - name: Run quality gates
         run: |
-          pnpm format --check
+          pnpm format:check
+          pnpm test
           pnpm lint
           pnpm typecheck
 

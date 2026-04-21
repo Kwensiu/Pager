@@ -18,22 +18,22 @@
 # 查看当前版本
 git describe --tags --abbrev=0
 
-# 创建新标签（例如 v0.1.0）
-git tag -a v0.1.0 -m "Release v0.1.0"
+# 创建新标签（例如 v0.2.0）
+git tag -a v0.2.0 -m "Release v0.2.0"
 
 # 推送标签到远程仓库
-git push origin v0.1.0
+git push origin v0.2.0
 ```
 
 ### 3. GitHub Action 自动触发
 
 推送标签后，GitHub Action 将自动：
 
-1. 运行 lint、typecheck 和构建检查
-2. 为 Windows、macOS 和 Linux 构建应用程序
+1. 运行 format、test、lint、typecheck 和构建检查
+2. 为 Windows 构建应用程序并发布到 GitHub Releases
 3. 更新 package.json 中的版本号
-4. 上传构建产物到 GitHub Releases
-5. 配置自动更新
+4. 更新 Release Notes
+5. 配置自动更新元数据
 
 ### 4. 手动发布（可选）
 
@@ -41,8 +41,8 @@ git push origin v0.1.0
 
 1. 导航到 "Release Build" 工作流
 2. 点击 "Run workflow"
-3. 输入版本号（如 0.1.0）
-4. 选择要构建的平台
+3. 输入版本号（如 0.2.0）
+4. 选择要构建的平台（当前仅支持 `win`）
 5. 点击 "Run workflow"
 
 ## 版本管理
@@ -55,9 +55,9 @@ git push origin v0.1.0
 
 ### 版本号示例
 
-- `v0.0.1` - 初始版本
-- `v0.1.0` - 新增功能
-- `v0.1.1` - 修复 bug
+- `v0.2.0` - 当前版本基线
+- `v0.2.1` - 修复 bug
+- `v0.3.0` - 新增功能
 - `v1.0.0` - 稳定版本
 
 ## GitHub Actions 配置
@@ -68,9 +68,9 @@ git push origin v0.1.0
    - 触发条件：推送到 main 分支或创建 PR
    - 功能：运行代码质量检查
 
-2. **发布工作流** (`.github/workflows/release.yml`)
+2. **发布工作流** (`.github/workflows/release-build.yml`)
    - 触发条件：创建 v*.*.\* 格式的标签
-   - 功能：构建多平台应用并发布到 GitHub Releases
+   - 功能：构建 Windows 应用并发布到 GitHub Releases，同时更新 Release Notes
 
 ### 自动更新配置
 
@@ -89,23 +89,14 @@ git push origin v0.1.0
 - `pager-{version}-setup.exe` - Windows 安装程序
 - `pager-{version}-win.zip` - 便携版
 
-### macOS
-
-- `pager-{version}.dmg` - macOS 磁盘映像
-- `pager-{version}.zip` - 压缩包
-
-### Linux
-
-- `pager-{version}.AppImage` - AppImage 格式
-- `pager-{version}.deb` - Debian 包
-- `pager-{version}.snap` - Snap 包
+> 当前 `release-build.yml` 仅在 `windows-latest` 上执行发布构建。
 
 ## 故障排除
 
 ### 常见问题
 
 1. **构建失败**
-   - 检查 Node.js 版本（需要 20+）
+   - 检查 Node.js 版本（CI 使用 Node.js 22）
    - 确保 pnpm 依赖安装正确
    - 查看 GitHub Actions 日志
 
