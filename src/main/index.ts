@@ -9,7 +9,7 @@ import { ExtensionManager } from './extensions/extensionManager'
 import { sessionIsolationService } from './services/sessionIsolation'
 import { extensionIsolationManager } from './services/extensionIsolation'
 import { extensionPermissionManager } from './services/extensionPermissionManager'
-import { memoryOptimizerService } from './services'
+import { memoryOptimizerService, crashHandler } from './services'
 import { autoLaunchService } from './services/autoLaunch'
 
 let mainWindow: BrowserWindow | null = null
@@ -56,6 +56,13 @@ app.whenReady().then(async () => {
 
   // 初始化代理服务
   await globalProxyService.initialize()
+
+  // 初始化崩溃处理器
+  try {
+    await crashHandler.initialize()
+  } catch (error) {
+    console.error('Failed to initialize crash handler:', error)
+  }
 
   // 创建窗口
   mainWindow = await createWindow()

@@ -1,4 +1,5 @@
 import type { Website } from '../../shared/types/store'
+import { webContents as electronWebContents } from 'electron'
 
 // 定义内存信息接口以避免使用 any
 interface MemoryInfo {
@@ -32,7 +33,6 @@ class MemoryOptimizerService {
   private optimizationEnabled = true
   private activeWebsites: Map<string, number> = new Map()
   private mainWindow: Electron.BrowserWindow | null = null
-  private webContentsCache: Electron.WebContents[] | null = null
 
   /**
    * 设置主窗口引用
@@ -250,27 +250,12 @@ class MemoryOptimizerService {
    * 获取所有 webContents
    */
   private getAllWebContents(): Electron.WebContents[] {
-    if (!this.webContentsCache) {
-      // 使用动态导入避免 require
-      import('electron')
-        .then(({ webContents }) => {
-          this.webContentsCache = webContents.getAllWebContents()
-        })
-        .catch(() => {
-          console.warn('Failed to import webContents from electron')
-          this.webContentsCache = []
-        })
-      // 返回空数组作为fallback，下次调用时会有缓存
+    try {
+      return electronWebContents.getAllWebContents().filter((wc) => !wc.isDestroyed())
+    } catch (error) {
+      console.warn('Failed to get all webContents:', error)
       return []
     }
-    return this.webContentsCache
-  }
-
-  /**
-   * 清理WebContents缓存
-   */
-  private clearWebContentsCache(): void {
-    this.webContentsCache = null
   }
 
   /**
@@ -279,8 +264,6 @@ class MemoryOptimizerService {
   private restartCleanup(): void {
     this.stopCleanup()
     this.startCleanup()
-    // 清理WebContents缓存以确保获取最新数据
-    this.clearWebContentsCache()
   }
 
   /**

@@ -1,4 +1,4 @@
-import { ipcRenderer } from 'electron'
+import { ipcRenderer, type IpcRendererEvent } from 'electron'
 import type {
   PrimaryGroup,
   SecondaryGroup,
@@ -8,14 +8,138 @@ import type {
   WebsiteOrderUpdate
 } from '../main/types/store'
 
+const PRELOAD_IPC_ON_CHANNELS = new Set([
+  'webview:navigate-back',
+  'webview:navigate-forward',
+  'webview:reload',
+  'webview:reload-force',
+  'webview:copy',
+  'webview:paste',
+  'webview:select-all',
+  'webview:view-source',
+  'webview:inspect-element',
+  'webview:load-url'
+])
+const PRELOAD_IPC_SEND_CHANNELS = new Set(['webview:load-url'])
+const PRELOAD_IPC_INVOKE_CHANNELS = new Set(['webview:load-url'])
+
+function isAllowedPreloadIpcChannel(allowedChannels: Set<string>, channel: string): boolean {
+  return typeof channel === 'string' && allowedChannels.has(channel)
+}
+
+function logBlockedPreloadIpc(
+  method: 'on' | 'removeListener' | 'removeAllListeners' | 'send' | 'invoke',
+  channel: string
+): void {
+  console.warn(`[preload] Blocked ipcRenderer.${method} on channel: ${channel}`)
+}
+
+type PreloadIpcListener = (...args: unknown[]) => void
+type WrappedPreloadIpcListener = (_event: IpcRendererEvent, ...args: unknown[]) => void
+
+const preloadIpcListenerMap = new Map<
+  string,
+  Map<PreloadIpcListener, WrappedPreloadIpcListener[]>
+>()
+
+function trackPreloadIpcListener(
+  channel: string,
+  listener: PreloadIpcListener,
+  wrappedListener: WrappedPreloadIpcListener
+): void {
+  const channelListeners = preloadIpcListenerMap.get(channel) ?? new Map()
+  const wrappedListeners = channelListeners.get(listener) ?? []
+  wrappedListeners.push(wrappedListener)
+  channelListeners.set(listener, wrappedListeners)
+  preloadIpcListenerMap.set(channel, channelListeners)
+}
+
+function takeTrackedPreloadIpcListeners(
+  channel: string,
+  listener: PreloadIpcListener
+): WrappedPreloadIpcListener[] {
+  const channelListeners = preloadIpcListenerMap.get(channel)
+  if (!channelListeners) {
+    return []
+  }
+
+  const wrappedListeners = channelListeners.get(listener) ?? []
+  channelListeners.delete(listener)
+  if (channelListeners.size === 0) {
+    preloadIpcListenerMap.delete(channel)
+  }
+
+  return wrappedListeners
+}
+
+function clearTrackedPreloadIpcChannel(channel: string): void {
+  preloadIpcListenerMap.delete(channel)
+}
+
+function normalizeExtensionOptionsTarget(
+  extensionIdOrUrl: string,
+  optionsPath?: string
+): [string, string?] {
+  if (typeof extensionIdOrUrl === 'string' && extensionIdOrUrl.startsWith('chrome-extension://')) {
+    try {
+      const parsedUrl = new URL(extensionIdOrUrl)
+      const parsedPath = parsedUrl.pathname.replace(/^\/+/, '')
+      return [parsedUrl.hostname, parsedPath || optionsPath]
+    } catch {
+      return [extensionIdOrUrl, optionsPath]
+    }
+  }
+
+  return [extensionIdOrUrl, optionsPath]
+}
+
 export const api = {
   // 暴露 ipcRenderer 用于监听事件
   ipcRenderer: {
-    on: (channel: string, listener: (...args: unknown[]) => void) =>
-      ipcRenderer.on(channel, listener),
-    removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
-    send: (channel: string, ...args: unknown[]) => ipcRenderer.send(channel, ...args),
-    invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args)
+    on: (channel: string, listener: (...args: unknown[]) => void) => {
+      if (!isAllowedPreloadIpcChannel(PRELOAD_IPC_ON_CHANNELS, channel)) {
+        logBlockedPreloadIpc('on', channel)
+        return
+      }
+
+      const wrappedListener: WrappedPreloadIpcListener = (_event, ...args) => listener(...args)
+      trackPreloadIpcListener(channel, listener, wrappedListener)
+      ipcRenderer.on(channel, wrappedListener)
+    },
+    removeListener: (channel: string, listener: (...args: unknown[]) => void) => {
+      if (!isAllowedPreloadIpcChannel(PRELOAD_IPC_ON_CHANNELS, channel)) {
+        logBlockedPreloadIpc('removeListener', channel)
+        return
+      }
+
+      const wrappedListeners = takeTrackedPreloadIpcListeners(channel, listener)
+      for (const wrappedListener of wrappedListeners) {
+        ipcRenderer.removeListener(channel, wrappedListener)
+      }
+    },
+    removeAllListeners: (channel: string) => {
+      if (!isAllowedPreloadIpcChannel(PRELOAD_IPC_ON_CHANNELS, channel)) {
+        logBlockedPreloadIpc('removeAllListeners', channel)
+        return
+      }
+
+      clearTrackedPreloadIpcChannel(channel)
+      ipcRenderer.removeAllListeners(channel)
+    },
+    send: (channel: string, ...args: unknown[]) => {
+      if (!isAllowedPreloadIpcChannel(PRELOAD_IPC_SEND_CHANNELS, channel)) {
+        logBlockedPreloadIpc('send', channel)
+        return
+      }
+      ipcRenderer.send(channel, ...args)
+    },
+    invoke: (channel: string, ...args: unknown[]) => {
+      if (!isAllowedPreloadIpcChannel(PRELOAD_IPC_INVOKE_CHANNELS, channel)) {
+        logBlockedPreloadIpc('invoke', channel)
+        return Promise.reject(new Error(`Blocked ipcRenderer.invoke channel: ${channel}`))
+      }
+      return ipcRenderer.invoke(channel, ...args)
+    }
   },
 
   // 会话管理 - 直接添加到主 API 对象
@@ -87,8 +211,17 @@ export const api = {
       ipcRenderer.send('webview:show-context-menu', params),
     createExtensionOptions: (url: string, title: string) =>
       ipcRenderer.invoke('window:create-extension-options', url, title),
-    openExtensionOptionsInMain: (url: string) =>
-      ipcRenderer.invoke('window:open-extension-options-in-main', url)
+    openExtensionOptionsInMain: (extensionIdOrUrl: string, optionsPath?: string) => {
+      const [extensionId, normalizedOptionsPath] = normalizeExtensionOptionsTarget(
+        extensionIdOrUrl,
+        optionsPath
+      )
+      return ipcRenderer.invoke(
+        'window:open-extension-options-in-main',
+        extensionId,
+        normalizedOptionsPath
+      )
+    }
   },
 
   // 崩溃模拟
@@ -238,10 +371,10 @@ export const api = {
       exportData: (data: Record<string, unknown>) =>
         ipcRenderer.invoke('data-sync:export-data', data),
       importConfig: (filePath: string) => ipcRenderer.invoke('data-sync:import-config', filePath),
-      exportCookies: (websiteId?: string) =>
-        ipcRenderer.invoke('data-sync:export-cookies', websiteId),
-      importCookies: (filePath: string, websiteId?: string) =>
-        ipcRenderer.invoke('data-sync:import-cookies', filePath, websiteId)
+      exportCookies: (websiteId: string, partition: string) =>
+        ipcRenderer.invoke('data-sync:export-cookies', websiteId, partition),
+      importCookies: (websiteId: string, partition: string, cookies: Record<string, unknown>[]) =>
+        ipcRenderer.invoke('data-sync:import-cookies', websiteId, partition, cookies)
     },
 
     // 自动启动

@@ -13,6 +13,7 @@ class CrashHandler {
   private maxCrashCount: number = 5
   private crashListeners: Array<(type: string, error: Error) => void> = []
   private initialized = false
+  private initializePromise: Promise<void> | null = null
   private crashRecoveryWindow = new CrashRecoveryWindow()
 
   /**
@@ -20,12 +21,24 @@ class CrashHandler {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return
+    if (this.initializePromise) {
+      await this.initializePromise
+      return
+    }
 
-    await app.whenReady()
-    this.crashReportsDir = join(app.getPath('userData'), 'crash-reports')
-    this.ensureCrashReportsDir()
-    this.setupCrashHandlers()
-    this.initialized = true
+    this.initializePromise = (async () => {
+      await app.whenReady()
+      this.crashReportsDir = join(app.getPath('userData'), 'crash-reports')
+      this.ensureCrashReportsDir()
+      this.setupCrashHandlers()
+      this.initialized = true
+    })()
+
+    try {
+      await this.initializePromise
+    } finally {
+      this.initializePromise = null
+    }
   }
 
   /**
@@ -89,18 +102,23 @@ class CrashHandler {
         // 显示简短的通知后自动重启
         this.showAutoRestartNotification(error, type)
 
-        setTimeout(() => {
-          app.relaunch()
-          app.exit(0)
-        }, 3000)
+        this.scheduleAppRestart()
       } else {
         // 显示恢复窗口让用户选择
-        this.crashRecoveryWindow.show(error, type)
+        this.crashRecoveryWindow.show(error, type, {
+          onReload: () => {
+            this.scheduleAppRestart(0)
+          }
+        })
       }
     } catch (settingsError) {
       console.error('Failed to read settings for auto-restart decision:', settingsError)
       // 如果无法读取设置，默认显示恢复窗口
-      this.crashRecoveryWindow.show(error, type)
+      this.crashRecoveryWindow.show(error, type, {
+        onReload: () => {
+          this.scheduleAppRestart(0)
+        }
+      })
     }
 
     if (this.crashCount >= this.maxCrashCount) {
@@ -115,7 +133,13 @@ class CrashHandler {
     webContents: Electron.WebContents,
     details: Electron.RenderProcessGoneDetails
   ): Promise<void> {
+    if (details.reason === 'clean-exit') {
+      return
+    }
+
     this.crashCount++
+
+    const renderCrashError = new Error(`渲染进程崩溃: ${details.reason}`)
 
     const crashReport = {
       type: 'render-process-crashed',
@@ -129,10 +153,7 @@ class CrashHandler {
     }
 
     await this.saveCrashReport(crashReport)
-    this.notifyCrashListeners(
-      'render-process-crashed',
-      new Error(`Render process crashed: ${details.reason}`)
-    )
+    this.notifyCrashListeners('render-process-crashed', renderCrashError)
 
     // 读取设置检查是否自动重启
     try {
@@ -142,36 +163,47 @@ class CrashHandler {
       if (settings.autoRestartOnCrash) {
         console.log('Auto-restart enabled for render process crash, restarting application...')
         // 显示简短的通知后自动重启
-        this.showAutoRestartNotification(
-          new Error(`渲染进程崩溃: ${details.reason}`),
-          'render-process-crashed'
-        )
-
-        setTimeout(() => {
-          app.relaunch()
-          app.exit(0)
-        }, 3000)
+        this.showAutoRestartNotification(renderCrashError, 'render-process-crashed')
+        this.scheduleAppRestart()
       } else {
         // 显示恢复窗口让用户选择
-        this.crashRecoveryWindow.show(
-          new Error(`渲染进程崩溃: ${details.reason}`),
-          'render-process-crashed'
-        )
+        this.crashRecoveryWindow.show(renderCrashError, 'render-process-crashed', {
+          onReload: () => {
+            if (!webContents.isDestroyed()) {
+              webContents.reload()
+              return
+            }
+
+            console.warn('Render process is destroyed, fallback to application restart')
+            this.scheduleAppRestart(0)
+          }
+        })
       }
     } catch (settingsError) {
       console.error('Failed to read settings for auto-restart decision:', settingsError)
       // 如果无法读取设置，默认显示恢复窗口
-      this.crashRecoveryWindow.show(
-        new Error(`渲染进程崩溃: ${details.reason}`),
-        'render-process-crashed'
-      )
-    }
+      this.crashRecoveryWindow.show(renderCrashError, 'render-process-crashed', {
+        onReload: () => {
+          if (!webContents.isDestroyed()) {
+            webContents.reload()
+            return
+          }
 
+          console.warn('Render process is destroyed, fallback to application restart')
+          this.scheduleAppRestart(0)
+        }
+      })
+    }
+  }
+
+  /**
+   * 调度应用重启
+   */
+  private scheduleAppRestart(delay = 3000): void {
     setTimeout(() => {
-      if (!webContents.isDestroyed()) {
-        webContents.reload()
-      }
-    }, 1000)
+      app.relaunch()
+      app.exit(0)
+    }, delay)
   }
 
   /**

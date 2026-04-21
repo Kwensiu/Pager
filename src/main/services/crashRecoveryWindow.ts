@@ -1,5 +1,10 @@
 import { BrowserWindow, app, shell } from 'electron'
 
+type CrashRecoveryActions = {
+  onReload?: () => void
+  onClose?: () => void
+}
+
 /**
  * 崩溃恢复窗口
  * 显示错误信息并提供GitHub issue提交指引
@@ -13,7 +18,7 @@ export class CrashRecoveryWindow {
    * @param error 错误信息
    * @param type 错误类型
    */
-  show(error?: Error, type?: string): void {
+  show(error?: Error, type?: string, actions: CrashRecoveryActions = {}): void {
     // 如果窗口已存在，先关闭
     if (this.window && !this.window.isDestroyed()) {
       this.window.close()
@@ -45,6 +50,80 @@ export class CrashRecoveryWindow {
       }
     })
 
+    // 统一处理外链，避免在恢复窗口内打开新窗口
+    this.window.webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        void shell.openExternal(url)
+      }
+      return { action: 'deny' }
+    })
+
+    // 监听导航事件，处理恢复动作
+    this.window.webContents.on('will-navigate', (event, url) => {
+      if (!url.startsWith('app://')) {
+        return
+      }
+
+      event.preventDefault()
+
+      let action = ''
+      try {
+        action = new URL(url).hostname
+      } catch {
+        return
+      }
+
+      switch (action) {
+        case 'restart':
+          app.relaunch()
+          app.exit(0)
+          break
+        case 'exit':
+          app.exit(0)
+          break
+        case 'open-github':
+          void shell.openExternal('https://github.com/Kwensiu/pager/issues')
+          break
+        case 'reload':
+          if (this.isSimulation) {
+            app.relaunch()
+            app.exit(0)
+            return
+          }
+
+          if (actions.onReload) {
+            try {
+              actions.onReload()
+            } catch (error) {
+              console.error('Failed to execute crash recovery reload action:', error)
+            }
+          } else {
+            // 没有可恢复目标时，退化为应用重启
+            app.relaunch()
+            app.exit(0)
+          }
+          this.window?.close()
+          break
+        case 'close':
+          if (actions.onClose) {
+            try {
+              actions.onClose()
+            } catch (error) {
+              console.error('Failed to execute crash recovery close action:', error)
+            }
+          }
+          this.window?.close()
+          break
+      }
+    })
+
+    this.window.on('closed', () => {
+      this.window = null
+      if (this.isSimulation) {
+        app.exit(0)
+      }
+    })
+
     // 生成错误信息
     const errorData = this.generateErrorData(error, type)
 
@@ -54,29 +133,6 @@ export class CrashRecoveryWindow {
 
     this.window.center()
     this.window.showInactive() // 显示但不激活
-
-    // 如果是模拟崩溃，设置窗口关闭时的行为
-    if (this.isSimulation) {
-      // 监听导航事件来区分重启和退出
-      this.window.webContents.on('will-navigate', (event, url) => {
-        if (url === 'app://restart') {
-          event.preventDefault()
-          app.relaunch()
-          app.exit(0)
-        } else if (url === 'app://exit') {
-          event.preventDefault()
-          app.exit(0)
-        } else if (url === 'app://open-github') {
-          event.preventDefault()
-          // 使用外部浏览器打开GitHub
-          shell.openExternal('https://github.com/Kwensiu/pager/issues')
-        }
-      })
-
-      this.window.on('closed', () => {
-        app.exit(0)
-      })
-    }
   }
 
   /**
@@ -134,6 +190,14 @@ export class CrashRecoveryWindow {
    * 获取HTML内容
    */
   private getHtmlContent(errorData: ReturnType<CrashRecoveryWindow['generateErrorData']>): string {
+    const isRenderProcessCrash = errorData.type === 'render-process-crashed'
+    const reloadButtonText = this.isSimulation
+      ? '🔄 重启应用'
+      : isRenderProcessCrash
+        ? '🔄 重新加载崩溃页面'
+        : '🔄 重启应用'
+    const closeButtonText = this.isSimulation ? '✖ 退出应用' : '✖ 关闭窗口'
+
     return `
       <!DOCTYPE html>
       <html>
@@ -541,8 +605,8 @@ export class CrashRecoveryWindow {
               <button onclick="openGithub()" class="secondary">🐙 打开 GitHub</button>
             </div>
             <div class="button-group">
-              <button onclick="reloadApp()" class="danger">${this.isSimulation ? '🔄 重启应用' : '🔄 重新加载应用'}</button>
-              <button onclick="closeWindow()" class="secondary">${this.isSimulation ? '✖ 退出应用' : '✖ 关闭窗口'}</button>
+              <button onclick="reloadApp()" class="danger">${reloadButtonText}</button>
+              <button onclick="closeWindow()" class="secondary">${closeButtonText}</button>
             </div>
           </div>
         </div>
@@ -641,8 +705,8 @@ Chrome: \${errorData.chromeVersion}
               // 模拟崩溃时，通过导航到特殊URL来重启应用
               window.location.href = 'app://restart';
             } else {
-              // 真实崩溃时，重新加载当前窗口
-              window.location.reload();
+              // 真实崩溃时，请求主进程执行恢复逻辑
+              window.location.href = 'app://reload';
             }
           }
           
@@ -652,8 +716,8 @@ Chrome: \${errorData.chromeVersion}
               // 模拟崩溃时，通过导航到特殊URL来退出应用
               window.location.href = 'app://exit';
             } else {
-              // 真实崩溃时，只关闭窗口
-              window.close();
+              // 真实崩溃时，请求主进程关闭恢复窗口
+              window.location.href = 'app://close';
             }
           }
           

@@ -10,9 +10,12 @@ class GlobalProxyService {
 
   private lastSettings: Partial<Settings> | null = null
   private checkInterval: NodeJS.Timeout | null = null
+  private readonly proxyBypassRules = '<local>,localhost,127.0.0.1,::1,[::1]'
 
   // 当前代理设置，用于查询
-  private currentProxySettings: { mode: string; proxyRules?: string; proxyBypassRules?: string } = { mode: 'direct' }
+  private currentProxySettings: { mode: string; proxyRules?: string; proxyBypassRules?: string } = {
+    mode: 'direct'
+  }
 
   // 软件本体专用的 session 分区
   private readonly SOFTWARE_SESSION_PARTITION = 'persist:software-session'
@@ -90,7 +93,7 @@ class GlobalProxyService {
       // 只对软件本体 session 设置代理
       await softwareSession.setProxy({
         proxyRules: settings.proxyRules,
-        proxyBypassRules: '<local>'
+        proxyBypassRules: this.proxyBypassRules
       })
       // 网页内容使用默认 session，不设置代理
       await defaultSession.setProxy({ mode: 'direct' })
@@ -101,14 +104,14 @@ class GlobalProxyService {
       // 对默认 session 设置代理（影响网页内容）
       await defaultSession.setProxy({
         proxyRules: settings.proxyRules,
-        proxyBypassRules: '<local>'
+        proxyBypassRules: this.proxyBypassRules
       })
       // 软件本体也使用默认 session 的代理
       await softwareSession.setProxy({ mode: 'direct' })
       this.currentProxySettings = {
         mode: 'fixed_servers',
         proxyRules: settings.proxyRules,
-        proxyBypassRules: '<local>'
+        proxyBypassRules: this.proxyBypassRules
       }
       console.log('代理模式: 所有内容，代理规则:', settings.proxyRules)
     }
@@ -157,7 +160,7 @@ class GlobalProxyService {
   // 获取直接连接的IP
   private async getDirectIP(): Promise<string | null> {
     const testSession = session.fromPartition(`direct-${Date.now()}`)
-    
+
     try {
       await testSession.setProxy({ mode: 'direct' })
       return await this.getIP(testSession)
@@ -169,7 +172,7 @@ class GlobalProxyService {
   // 获取通过代理的IP
   private async getProxyIP(proxyRules: string): Promise<string | null> {
     const testSession = session.fromPartition(`proxy-${Date.now()}`)
-    
+
     try {
       await testSession.setProxy({ proxyRules })
       return await this.getIP(testSession)
@@ -194,7 +197,7 @@ class GlobalProxyService {
       request.on('response', (response) => {
         clearTimeout(timeout)
         let data = ''
-        response.on('data', (chunk) => data += chunk)
+        response.on('data', (chunk) => (data += chunk))
         response.on('end', () => {
           try {
             const json = JSON.parse(data)

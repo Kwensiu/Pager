@@ -15,6 +15,9 @@ export default defineConfig({
     plugins: []
   },
   renderer: {
+    server: {
+      host: '127.0.0.1'
+    },
     resolve: {
       alias: {
         '@': resolve(__dirname, './src/renderer'),
