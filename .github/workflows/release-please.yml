@@ -5,12 +5,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: 'Dry run mode'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -33,4 +27,3 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: .github/.release-please-config.json
           manifest-file: .github/.release-please-manifest.json
-          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
