@@ -106,7 +106,11 @@ export function WebsiteGroup({
                   )}
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/10">
-                    <Favicon url={website.url} className="h-6 w-6" />
+                    <Favicon
+                      url={website.favicon || ''}
+                      className="h-6 w-6"
+                      fetchMode="display-only"
+                    />
                   </div>
                   <span className="truncate flex-1 text-left">{website.name}</span>
                 </button>

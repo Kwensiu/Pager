@@ -24,7 +24,7 @@ export class FaviconService {
     this.config = {
       cacheTtl: 7 * 24 * 60 * 60 * 1000, // 7天
       maxCacheSize: 500,
-      timeout: 3000,
+      timeout: 12000,
       parallelRequests: 3
     }
 
@@ -166,7 +166,7 @@ export class FaviconService {
   private getCacheKey(url: string): string {
     try {
       const parsedUrl = new URL(url)
-      return `${parsedUrl.hostname}${parsedUrl.pathname}`.toLowerCase()
+      return parsedUrl.origin.toLowerCase()
     } catch {
       return url.toLowerCase()
     }
@@ -176,42 +176,39 @@ export class FaviconService {
   private async fetchFaviconInternal(url: string): Promise<string | null> {
     try {
       const parsedUrl = new URL(url)
-      const baseUrl = `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}`.replace(
-        /\/$/,
-        ''
-      ) // 移除末尾斜杠
+      const origin = parsedUrl.origin
 
-      // 简化策略：检查用户提供的正确路径和常见favicon目录下的PNG文件
-      const commonPaths = [
-        '/favicon.ico', // 标准路径
-        '/favicon/favicon-light-32.png', // 用户提供的实际路径
-        '/favicon/favicon-32x32.png', // 常见32x32 PNG
-        '/favicon/favicon-16x16.png', // 常见16x16 PNG
-        '/favicon/favicon.png' // 通用favicon.png
-      ]
+      // 1) 优先解析页面 link[rel*=icon]，尽量对齐浏览器策略
+      const { tryHtmlParsing, tryCommonPaths } = await import('./fetcher')
+      const htmlIcon = await tryHtmlParsing(url, this.config.timeout)
+      if (htmlIcon) {
+        console.log(`✅ Found favicon from HTML: ${htmlIcon}`)
+        return htmlIcon
+      }
 
-      // 动态导入fetcher函数
-      const { checkUrlStatus } = await import('./fetcher')
+      // 2) 回退常见路径（站点根目录）
+      const commonPathIcon = await tryCommonPaths(origin, this.config.timeout)
+      if (commonPathIcon) {
+        console.log(`✅ Found favicon from common paths: ${commonPathIcon}`)
+        return commonPathIcon
+      }
 
-      // 按顺序尝试常见路径
-      for (const path of commonPaths) {
-        const faviconUrl = `${baseUrl}${path}`
-        try {
-          console.log(`🔍 Checking favicon at: ${faviconUrl}`)
-          const status = await checkUrlStatus(faviconUrl, 1500) // 减少超时时间
-          if (status === 200) {
-            console.log(`✅ Found favicon: ${faviconUrl}`)
-            return faviconUrl
-          }
-        } catch {
-          // 静默失败，不输出错误日志
+      // 2.1) 对 apex 域名增加 www 回退（例如 google.com -> www.google.com）
+      const hostname = parsedUrl.hostname
+      const isIpv4 = /^\d+\.\d+\.\d+\.\d+$/.test(hostname)
+      const isLocalHost = hostname === 'localhost'
+      if (!hostname.startsWith('www.') && !isIpv4 && !isLocalHost) {
+        const wwwOrigin = `${parsedUrl.protocol}//www.${hostname}`
+        const wwwIcon = await tryCommonPaths(wwwOrigin, this.config.timeout)
+        if (wwwIcon) {
+          console.log(`✅ Found favicon from www fallback: ${wwwIcon}`)
+          return wwwIcon
         }
       }
 
-      // 如果都没有找到，返回默认路径
-      const defaultFavicon = `${baseUrl}/favicon.ico`
-      console.log(`📝 Using default favicon path: ${defaultFavicon}`)
-      return defaultFavicon
+      // 3) 找不到可验证图标，返回 null 交给前端展示默认占位，避免无效请求噪音
+      console.log(`⚠️ No valid favicon found for ${url}`)
+      return null
     } catch (error) {
       console.error(`❌ Error fetching favicon for ${url}:`, error)
       return null

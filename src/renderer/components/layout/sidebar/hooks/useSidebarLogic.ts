@@ -239,69 +239,46 @@ export function useSidebarLogic({
       })
 
     const updatedPrimaryGroups = primaryGroups.map((primaryGroup) => {
-      if (primaryGroup.id === activePrimaryGroup?.id) {
-        // 首先检查网站是否在一级分类下
-        const primaryWebsiteIndex =
-          primaryGroup.websites?.findIndex((w) => w.id === updatedWebsite.id) ?? -1
+      const updatedPrimaryWebsites = (primaryGroup.websites || []).map((website) =>
+        website.id === updatedWebsite.id
+          ? {
+              ...website,
+              name: updatedWebsite.name,
+              url: updatedWebsite.url,
+              favicon: updatedWebsite.favicon,
+              description: updatedWebsite.description,
+              fingerprintEnabled: updatedWebsite.fingerprintEnabled,
+              fingerprintMode: updatedWebsite.fingerprintMode,
+              jsCode: updatedWebsite.jsCode,
+              updatedAt: Date.now()
+            }
+          : website
+      )
 
-        if (primaryWebsiteIndex !== -1) {
-          // 更新一级分类下的网站
-          const updatedWebsites = [...(primaryGroup.websites || [])]
-          updatedWebsites[primaryWebsiteIndex] = {
-            ...updatedWebsites[primaryWebsiteIndex],
-            name: updatedWebsite.name,
-            url: updatedWebsite.url,
-            description: updatedWebsite.description,
-            fingerprintEnabled: updatedWebsite.fingerprintEnabled,
-            fingerprintMode: updatedWebsite.fingerprintMode,
-            jsCode: updatedWebsite.jsCode,
-            updatedAt: Date.now()
-          }
-          if (isDev)
-            console.log('[SidebarLogic] Updated in primary group, new data:', {
-              fingerprintEnabled: updatedWebsites[primaryWebsiteIndex].fingerprintEnabled,
-              jsCodeLength: updatedWebsites[primaryWebsiteIndex].jsCode?.length || 0
-            })
-          return {
-            ...primaryGroup,
-            websites: updatedWebsites
-          }
-        } else {
-          // 检查网站是否在二级分组中
-          return {
-            ...primaryGroup,
-            secondaryGroups: primaryGroup.secondaryGroups.map((secondaryGroup) => {
-              const websiteIndex = secondaryGroup.websites.findIndex(
-                (w) => w.id === updatedWebsite.id
-              )
-              if (websiteIndex !== -1) {
-                const updatedWebsites = [...secondaryGroup.websites]
-                updatedWebsites[websiteIndex] = {
-                  ...updatedWebsites[websiteIndex],
-                  name: updatedWebsite.name,
-                  url: updatedWebsite.url,
-                  description: updatedWebsite.description,
-                  fingerprintEnabled: updatedWebsite.fingerprintEnabled,
-                  fingerprintMode: updatedWebsite.fingerprintMode,
-                  jsCode: updatedWebsite.jsCode,
-                  updatedAt: Date.now()
-                }
-                if (isDev)
-                  console.log('[SidebarLogic] Updated in secondary group, new data:', {
-                    fingerprintEnabled: updatedWebsites[websiteIndex].fingerprintEnabled,
-                    jsCodeLength: updatedWebsites[websiteIndex].jsCode?.length || 0
-                  })
-                return {
-                  ...secondaryGroup,
-                  websites: updatedWebsites
-                }
+      const updatedSecondaryGroups = primaryGroup.secondaryGroups.map((secondaryGroup) => ({
+        ...secondaryGroup,
+        websites: secondaryGroup.websites.map((website) =>
+          website.id === updatedWebsite.id
+            ? {
+                ...website,
+                name: updatedWebsite.name,
+                url: updatedWebsite.url,
+                favicon: updatedWebsite.favicon,
+                description: updatedWebsite.description,
+                fingerprintEnabled: updatedWebsite.fingerprintEnabled,
+                fingerprintMode: updatedWebsite.fingerprintMode,
+                jsCode: updatedWebsite.jsCode,
+                updatedAt: Date.now()
               }
-              return secondaryGroup
-            })
-          }
-        }
+            : website
+        )
+      }))
+
+      return {
+        ...primaryGroup,
+        websites: updatedPrimaryWebsites,
+        secondaryGroups: updatedSecondaryGroups
       }
-      return primaryGroup
     })
 
     setPrimaryGroups(updatedPrimaryGroups)
@@ -311,6 +288,16 @@ export function useSidebarLogic({
     window.dispatchEvent(
       new CustomEvent('pager:website-updated', {
         detail: { website: updatedWebsite }
+      })
+    )
+
+    window.dispatchEvent(
+      new CustomEvent('pager:favicon-updated', {
+        detail: {
+          websiteId: updatedWebsite.id,
+          url: updatedWebsite.url,
+          faviconUrl: updatedWebsite.favicon || null
+        }
       })
     )
 
@@ -463,6 +450,59 @@ export function useSidebarLogic({
       }
     }
   }, [contextMenuWebsite, contextMenuSecondaryGroup])
+
+  // 同步来自 WebView 的 favicon 更新，确保侧边栏立即覆盖回退图标
+  useEffect(() => {
+    const handleFaviconUpdated = (event: Event): void => {
+      const customEvent = event as CustomEvent<{ websiteId?: string; faviconUrl?: string | null }>
+      const websiteId = customEvent.detail?.websiteId
+      if (!websiteId) return
+
+      const nextFavicon = customEvent.detail?.faviconUrl || undefined
+
+      setPrimaryGroups((prevGroups) =>
+        prevGroups.map((primaryGroup) => ({
+          ...primaryGroup,
+          websites: (primaryGroup.websites || []).map((website) =>
+            website.id === websiteId
+              ? {
+                  ...website,
+                  favicon: nextFavicon,
+                  updatedAt: Date.now()
+                }
+              : website
+          ),
+          secondaryGroups: primaryGroup.secondaryGroups.map((secondaryGroup) => ({
+            ...secondaryGroup,
+            websites: secondaryGroup.websites.map((website) =>
+              website.id === websiteId
+                ? {
+                    ...website,
+                    favicon: nextFavicon,
+                    updatedAt: Date.now()
+                  }
+                : website
+            )
+          }))
+        }))
+      )
+
+      setCurrentWebsite((prevWebsite) =>
+        prevWebsite && prevWebsite.id === websiteId
+          ? {
+              ...prevWebsite,
+              favicon: nextFavicon,
+              updatedAt: Date.now()
+            }
+          : prevWebsite
+      )
+    }
+
+    window.addEventListener('pager:favicon-updated', handleFaviconUpdated as EventListener)
+    return () => {
+      window.removeEventListener('pager:favicon-updated', handleFaviconUpdated as EventListener)
+    }
+  }, [])
 
   // 右键菜单关闭函数
   const handleCloseContextMenu = (): void => {

@@ -21,5 +21,3 @@ export interface FaviconPreloadOptions {
   urls: string[]
   priority?: string[] // 优先加载的 URL
 }
-
-export type FaviconStrategy = 'third-party' | 'common-paths' | 'html-parsing'

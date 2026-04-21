@@ -5,10 +5,43 @@ interface FaviconProps {
   url: string
   className?: string
   preload?: boolean // 是否预加载
+  fetchMode?: 'auto' | 'display-only'
+}
+
+const loggedFaviconFailures = new Set<string>()
+
+function normalizeOrigin(input: string): string | null {
+  try {
+    let normalizedUrl = input
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      if (normalizedUrl.startsWith('localhost') || /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)) {
+        normalizedUrl = 'http://' + normalizedUrl
+      } else {
+        normalizedUrl = 'https://' + normalizedUrl
+      }
+    }
+    return new URL(normalizedUrl).origin
+  } catch {
+    return null
+  }
+}
+
+function isDirectIconUrl(input: string): boolean {
+  try {
+    const parsed = new URL(input)
+    const pathname = parsed.pathname.toLowerCase()
+    return (
+      /\.(ico|png|svg|webp|avif|jpg|jpeg|gif)(\?.*)?$/.test(pathname) ||
+      pathname.includes('/favicon') ||
+      pathname.includes('apple-touch-icon')
+    )
+  } catch {
+    return false
+  }
 }
 
 // Favicon 组件用于加载并显示网站图标
-const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
+const Favicon: FC<FaviconProps> = ({ url, className, preload = false, fetchMode = 'auto' }) => {
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<boolean>(false)
@@ -16,14 +49,35 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
   // 从URL获取主机名作为缓存键，这样即使URL参数变化也不会影响缓存
 
   // 获取 favicon
-  const fetchFavicon = useCallback(async (): Promise<void> => {
+  const fetchFavicon = useCallback(async (options: { force?: boolean } = {}): Promise<void> => {
     try {
+      if (!url || !url.trim()) {
+        setError(true)
+        setFaviconUrl(null)
+        setLoading(false)
+        return
+      }
+
+      if (isDirectIconUrl(url)) {
+        setError(false)
+        setFaviconUrl(url)
+        setLoading(false)
+        return
+      }
+
+      if (fetchMode === 'display-only') {
+        setError(true)
+        setFaviconUrl(null)
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setError(false)
 
       // 使用后端 API 获取 favicon URL
       if (window.api && typeof window.api.getFavicon === 'function') {
-        const result = await window.api.getFavicon(url)
+        const result = await window.api.getFavicon(url, options)
         setFaviconUrl(result)
       } else {
         // 如果 API 不可用，使用原始方法作为后备
@@ -47,7 +101,7 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
     } finally {
       setLoading(false)
     }
-  }, [url])
+  }, [url, fetchMode])
 
   // 预加载 favicon
   const preloadFavicons = useCallback(async (): Promise<void> => {
@@ -57,7 +111,13 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
 
   // 处理图片加载错误
   const handleImageError = useCallback(() => {
-    console.warn(`❌ Favicon image failed to load: ${faviconUrl} for URL: ${url}`)
+    if (import.meta.env.DEV) {
+      const key = `${url}::${faviconUrl ?? 'null'}`
+      if (!loggedFaviconFailures.has(key)) {
+        loggedFaviconFailures.add(key)
+        console.warn(`❌ Favicon image failed to load: ${faviconUrl} for URL: ${url}`)
+      }
+    }
     setError(true)
     setFaviconUrl(null)
   }, [faviconUrl, url])
@@ -83,6 +143,25 @@ const Favicon: FC<FaviconProps> = ({ url, className, preload = false }) => {
     // 获取 favicon
     fetchFavicon()
   }, [fetchFavicon, preloadFavicons, preload])
+
+  useEffect(() => {
+    const handleFaviconUpdated = (event: Event): void => {
+      const customEvent = event as CustomEvent<{ origin?: string; url?: string }>
+      const targetOrigin = customEvent.detail?.origin ?? normalizeOrigin(customEvent.detail?.url || '')
+      const currentOrigin = normalizeOrigin(url)
+
+      if (!targetOrigin || !currentOrigin || targetOrigin !== currentOrigin) {
+        return
+      }
+
+      void fetchFavicon({ force: true })
+    }
+
+    window.addEventListener('pager:favicon-updated', handleFaviconUpdated as EventListener)
+    return () => {
+      window.removeEventListener('pager:favicon-updated', handleFaviconUpdated as EventListener)
+    }
+  }, [url, fetchFavicon])
 
   // 如果加载失败，显示默认图标
   if (error || (!loading && !faviconUrl)) {

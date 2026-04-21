@@ -264,7 +264,9 @@ export const SortableSecondaryGroup = React.memo(
       if (
         prevWebsite.id !== nextWebsite.id ||
         prevWebsite.name !== nextWebsite.name ||
-        prevWebsite.url !== nextWebsite.url
+        prevWebsite.url !== nextWebsite.url ||
+        prevWebsite.favicon !== nextWebsite.favicon ||
+        prevWebsite.updatedAt !== nextWebsite.updatedAt
       ) {
         return false
       }

@@ -195,7 +195,11 @@ const SortableWebsiteItemComponent: React.FC<SortableWebsiteItemProps> = ({
 
             {/* 网站图标 */}
             <div className={`${isCollapsed ? '' : 'mr-2'} flex-shrink-0`}>
-              <Favicon url={website.url} className="h-6 w-6" />
+              <Favicon
+                url={website.favicon || ''}
+                className="h-6 w-6"
+                fetchMode="display-only"
+              />
             </div>
 
             {/* 网站名称 - 折叠状态下隐藏 */}
@@ -256,6 +260,7 @@ export const SortableWebsiteItem = memo(SortableWebsiteItemComponent, (prevProps
     prevProps.website.id === nextProps.website.id &&
     prevProps.website.name === nextProps.website.name &&
     prevProps.website.url === nextProps.website.url &&
+    prevProps.website.favicon === nextProps.website.favicon &&
     prevProps.active === nextProps.active &&
     prevProps.disabled === nextProps.disabled &&
     prevProps.isCollapsed === nextProps.isCollapsed
@@ -287,7 +292,7 @@ export const SimpleSortableWebsiteItem: React.FC<{
       `}
     >
       <DragHandle isDragging={isDragging} disabled={disabled} size="sm" />
-      <Favicon url={url} className="mr-2 h-6 w-6" />
+      <Favicon url={url} className="mr-2 h-6 w-6" fetchMode="display-only" />
       <span className="flex-1 text-sm truncate">{name}</span>
     </div>
   )

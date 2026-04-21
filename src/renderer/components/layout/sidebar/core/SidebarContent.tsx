@@ -94,7 +94,11 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                               hover:bg-secondary cursor-pointer`}
                             style={{ userSelect: 'none' }}
                           >
-                            <Favicon url={website.url} className="mr-2 h-6 w-6" />
+                            <Favicon
+                              url={website.favicon || ''}
+                              className="mr-2 h-6 w-6"
+                              fetchMode="display-only"
+                            />
                             <span>{website.name}</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>

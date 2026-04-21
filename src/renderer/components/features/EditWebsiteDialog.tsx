@@ -19,6 +19,36 @@ import { useI18n } from '@/core/i18n/useI18n'
 import { useSettings } from '@/hooks/useSettings'
 import { ScriptManager, UserScript } from './ScriptManager'
 
+function normalizeUrlInput(rawUrl: string, allowLocalFileAccess: boolean): string {
+  let normalizedUrl = rawUrl.trim()
+  if (
+    !normalizedUrl.startsWith('http://') &&
+    !normalizedUrl.startsWith('https://') &&
+    !normalizedUrl.startsWith('file://')
+  ) {
+    if (
+      allowLocalFileAccess &&
+      (normalizedUrl.includes('\\') ||
+        normalizedUrl.startsWith('/') ||
+        normalizedUrl.includes(':'))
+    ) {
+      if (normalizedUrl.includes(':') && !normalizedUrl.startsWith('/')) {
+        normalizedUrl = 'file:///' + normalizedUrl.replace(/\\/g, '/').replace(/^C:/i, 'C:')
+      } else {
+        normalizedUrl = 'file://' + normalizedUrl
+      }
+    } else if (
+      normalizedUrl.startsWith('localhost') ||
+      /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)
+    ) {
+      normalizedUrl = 'http://' + normalizedUrl
+    } else {
+      normalizedUrl = 'https://' + normalizedUrl
+    }
+  }
+  return normalizedUrl
+}
+
 interface EditWebsiteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -46,12 +76,18 @@ export function EditWebsiteDialog({
   const [showScriptManager, setShowScriptManager] = useState(false)
   const [showScriptManagerManage, setShowScriptManagerManage] = useState(false)
   const [selectedScripts, setSelectedScripts] = useState<UserScript[]>([])
+  const faviconUrlRef = useRef('')
 
   // 开发模式日志开关
   const isDev = process.env.NODE_ENV === 'development'
 
   // 使用 ref 来跟踪上一次处理的 website，避免重复初始化
   const lastWebsiteRef = useRef<string | null>(null)
+
+  const setFaviconState = (value: string): void => {
+    faviconUrlRef.current = value
+    setFaviconUrl(value)
+  }
 
   // 从 jsCode 转换为 selectedScripts - 在对话框打开或编辑不同网站时初始化
   useEffect(() => {
@@ -72,7 +108,7 @@ export function EditWebsiteDialog({
 
     setName(website.name)
     setUrl(website.url)
-    setFaviconUrl(website.favicon || website.url || '')
+    setFaviconState(website.favicon || '')
     setFingerprintEnabled(website.fingerprintEnabled || false)
     setFingerprintMode(website.fingerprintMode || 'balanced')
     setJsCode(website.jsCode || [])
@@ -115,45 +151,13 @@ export function EditWebsiteDialog({
         selectedScripts: selectedScripts.map((s) => s.name)
       })
 
-    // 智能添加协议前缀（如果没有协议）
-    let normalizedUrl = url.trim()
-    if (
-      !normalizedUrl.startsWith('http://') &&
-      !normalizedUrl.startsWith('https://') &&
-      !normalizedUrl.startsWith('file://')
-    ) {
-      // 检查是否为文件路径（仅在设置允许时）
-      if (
-        settings.allowLocalFileAccess &&
-        (normalizedUrl.includes('\\') ||
-          normalizedUrl.startsWith('/') ||
-          normalizedUrl.includes(':'))
-      ) {
-        // Windows路径或Unix路径，转换为file://
-        if (normalizedUrl.includes(':') && !normalizedUrl.startsWith('/')) {
-          // Windows路径: C:\path\to\file
-          normalizedUrl = 'file:///' + normalizedUrl.replace(/\\/g, '/').replace(/^C:/i, 'C:')
-        } else {
-          // Unix路径或已格式化的Windows路径
-          normalizedUrl = 'file://' + normalizedUrl
-        }
-      } else if (
-        normalizedUrl.startsWith('localhost') ||
-        /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)
-      ) {
-        // 对于localhost和IP地址，优先使用http
-        normalizedUrl = 'http://' + normalizedUrl
-      } else {
-        // 普通域名使用https
-        normalizedUrl = 'https://' + normalizedUrl
-      }
-    }
+    const normalizedUrl = normalizeUrlInput(url, settings.allowLocalFileAccess)
 
     const updatedWebsite = {
       ...website,
       name,
       url: normalizedUrl,
-      favicon: faviconUrl || undefined,
+      favicon: faviconUrlRef.current.trim() || undefined,
       fingerprintEnabled,
       fingerprintMode,
       jsCode: selectedScripts.map((s) => s.code)
@@ -176,38 +180,7 @@ export function EditWebsiteDialog({
 
   // 验证URL是否有效
   const isValidUrl = (urlString: string): boolean => {
-    let normalizedUrl = urlString.trim()
-    if (
-      !normalizedUrl.startsWith('http://') &&
-      !normalizedUrl.startsWith('https://') &&
-      !normalizedUrl.startsWith('file://')
-    ) {
-      // 检查是否为文件路径（仅在设置允许时）
-      if (
-        settings.allowLocalFileAccess &&
-        (normalizedUrl.includes('\\') ||
-          normalizedUrl.startsWith('/') ||
-          normalizedUrl.includes(':'))
-      ) {
-        // Windows路径或Unix路径，转换为file://
-        if (normalizedUrl.includes(':') && !normalizedUrl.startsWith('/')) {
-          // Windows路径: C:\path\to\file
-          normalizedUrl = 'file:///' + normalizedUrl.replace(/\\/g, '/').replace(/^C:/i, 'C:')
-        } else {
-          // Unix路径或已格式化的Windows路径
-          normalizedUrl = 'file://' + normalizedUrl
-        }
-      } else if (
-        normalizedUrl.startsWith('localhost') ||
-        /^\d+\.\d+\.\d+\.\d+/.test(normalizedUrl)
-      ) {
-        // 对于localhost和IP地址，优先使用http
-        normalizedUrl = 'http://' + normalizedUrl
-      } else {
-        // 普通域名使用https
-        normalizedUrl = 'https://' + normalizedUrl
-      }
-    }
+    const normalizedUrl = normalizeUrlInput(urlString, settings.allowLocalFileAccess)
 
     try {
       const url = new URL(normalizedUrl)
@@ -227,33 +200,34 @@ export function EditWebsiteDialog({
       return
     }
 
-    console.log(`🔄 Starting favicon refresh for: ${url}`)
+    const normalizedUrl = normalizeUrlInput(url, settings.allowLocalFileAccess)
+    console.log(`🔄 Starting favicon refresh for: ${normalizedUrl}`)
     setIsRefreshing(true)
 
     try {
-      const response = await window.api.getFavicon(url, { force: true })
+      const response = await window.api.getFavicon(normalizedUrl, { force: true })
 
       if (response) {
-        console.log(`✅ Favicon refresh successful for ${url}: ${response}`)
-        setFaviconUrl(response)
+        console.log(`✅ Favicon refresh successful for ${normalizedUrl}: ${response}`)
+        setFaviconState(response)
       } else {
-        console.warn(`⚠️ Favicon refresh failed for ${url}`)
+        console.warn(`⚠️ Favicon refresh failed for ${normalizedUrl}`)
         console.warn('💡 可能的原因:')
         console.warn('   • 网站没有favicon图标')
         console.warn('   • 网络连接问题')
         console.warn('   • 第三方favicon服务被屏蔽')
         console.warn('   • Electron应用网络限制')
         alert(
-          `无法获取 ${url} 的favicon图标\n\n可能的原因：\n• 网站没有图标\n• 网络连接问题\n• 应用网络限制\n\n请检查网站是否可以正常访问`
+          `无法获取 ${normalizedUrl} 的favicon图标\n\n可能的原因：\n• 网站没有图标\n• 网络连接问题\n• 应用网络限制\n\n请检查网站是否可以正常访问`
         )
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error(`❌ Favicon refresh failed for ${url}:`, errorMessage)
+      console.error(`❌ Favicon refresh failed for ${normalizedUrl}:`, errorMessage)
       alert(`获取图标时发生错误: ${errorMessage}`)
     } finally {
       setIsRefreshing(false)
-      console.log(`🔄 Favicon refresh completed for: ${url}`)
+      console.log(`🔄 Favicon refresh completed for: ${normalizedUrl}`)
     }
   }
 
@@ -312,7 +286,7 @@ export function EditWebsiteDialog({
                 faviconUrl ? `${t('websiteFaviconFrom')}${faviconUrl}` : t('noWebsiteFavicon')
               }
             >
-              <Favicon url={faviconUrl} className="h-5 w-5" />
+              <Favicon url={faviconUrl} className="h-5 w-5" fetchMode="display-only" />
               <span className="text-sm truncate max-w-[200px] text-foreground">
                 {faviconUrl || t('noFavicon')}
               </span>

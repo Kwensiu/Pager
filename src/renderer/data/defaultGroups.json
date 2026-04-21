@@ -138,14 +138,6 @@
           "updatedAt": 1768581265808
         },
         {
-          "name": "Blog",
-          "url": "https://kwensiu.github.io/blog/",
-          "order": 300,
-          "id": "website-1768415650541",
-          "createdAt": 1768415650541,
-          "updatedAt": 1768581265808
-        },
-        {
           "name": "Squoosh",
           "url": "https://squoosh.app/",
           "order": 400,

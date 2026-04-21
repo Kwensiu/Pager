@@ -44,6 +44,13 @@ interface WebViewContainerProps {
   fingerprintMode?: 'basic' | 'balanced' | 'advanced'
 }
 
+interface FaviconUpdatedEventDetail {
+  websiteId?: string
+  url?: string
+  origin?: string
+  faviconUrl?: string | null
+}
+
 export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps>(
   (
     {
@@ -808,6 +815,42 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       setWebviewElement(element)
     }, [])
 
+    const refreshWebsiteFavicon = useCallback(
+      async (options: { force?: boolean } = {}): Promise<void> => {
+        const targetUrl = currentUrlRef.current || url
+        if (!targetUrl || !window.api?.getFavicon) {
+          return
+        }
+
+try {
+    const faviconUrl = await window.api.getFavicon(targetUrl, { force: options.force === true })
+
+    if (faviconUrl && websiteId && window.api?.store?.updateWebsite) {
+      await window.api.store.updateWebsite(websiteId, { favicon: faviconUrl })
+    }
+
+    const detail: FaviconUpdatedEventDetail = {
+      websiteId,
+      url: targetUrl,
+      faviconUrl
+    }
+
+    try {
+      detail.origin = new URL(targetUrl).origin
+    } catch {
+      // ignore invalid URL
+    }
+
+    window.dispatchEvent(
+      new CustomEvent<FaviconUpdatedEventDetail>('pager:favicon-updated', { detail })
+    )
+  } catch (error) {
+    console.warn('Failed to refresh favicon on page reload:', error)
+  }
+      },
+      [url, websiteId]
+    )
+
     useEffect(() => {
       if (!webviewElement) {
         return
@@ -824,6 +867,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         currentUrlRef.current = nextUrl
         setCurrentUrl(nextUrl)
         onNavigateRef.current?.(nextUrl)
+        void refreshWebsiteFavicon()
       }
 
       const handleDidNavigateInPage = (event: Event): void => {
@@ -836,6 +880,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
 
         currentUrlRef.current = nextUrl
         setCurrentUrl(nextUrl)
+        void refreshWebsiteFavicon()
 
         const currentWebsiteId = websiteIdRef.current
         if (currentWebsiteId && window.api?.enhanced?.session) {
@@ -866,7 +911,7 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
         webviewElement.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
         webviewElement.removeEventListener('page-title-updated', handlePageTitleUpdated)
       }
-    }, [webviewElement])
+    }, [webviewElement, refreshWebsiteFavicon])
 
     // 处理后退 - 直接使用 webview API
     const handleGoBack = useCallback(() => {
@@ -896,7 +941,9 @@ export const WebViewContainer = forwardRef<HTMLDivElement, WebViewContainerProps
       } else if (onRefresh) {
         onRefresh()
       }
-    }, [onRefresh])
+
+      void refreshWebsiteFavicon({ force: true })
+    }, [onRefresh, refreshWebsiteFavicon])
 
     // 处理复制URL - 直接使用 webview API
     const handleCopyUrl = useCallback(async (): Promise<void> => {
