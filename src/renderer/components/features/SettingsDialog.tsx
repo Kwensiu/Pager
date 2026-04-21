@@ -538,13 +538,13 @@ const SettingsDialog: React.FC<SettingsDialogProps> = () => {
       handleSettingChange('proxyRules', '')
       return
     }
-  
+
     // 简单格式检查
     if (!isValidProxyFormat(localProxyRules)) {
       setProxyTestResult({ success: false, error: '代理格式无效' })
       return
     }
-  
+
     if (localProxyRules !== settings.proxyRules) {
       handleSettingChange('proxyRules', localProxyRules)
     }

@@ -34,10 +34,13 @@ export function registerStoreHandlers(_mainWindow: BrowserWindow): void {
     return storeService.addPrimaryGroup(group)
   })
 
-  ipcMain.handle('store:update-primary-group', async (_, groupId: string, updates: Partial<PrimaryGroup>) => {
-    const storeService = await getStoreService()
-    return storeService.updatePrimaryGroup(groupId, updates)
-  })
+  ipcMain.handle(
+    'store:update-primary-group',
+    async (_, groupId: string, updates: Partial<PrimaryGroup>) => {
+      const storeService = await getStoreService()
+      return storeService.updatePrimaryGroup(groupId, updates)
+    }
+  )
 
   ipcMain.handle('store:delete-primary-group', async (_, groupId: string) => {
     const storeService = await getStoreService()
@@ -45,15 +48,21 @@ export function registerStoreHandlers(_mainWindow: BrowserWindow): void {
   })
 
   // 次要分组相关
-  ipcMain.handle('store:add-secondary-group', async (_, primaryGroupId: string, secondaryGroup: SecondaryGroup) => {
-    const storeService = await getStoreService()
-    return storeService.addSecondaryGroup(primaryGroupId, secondaryGroup)
-  })
+  ipcMain.handle(
+    'store:add-secondary-group',
+    async (_, primaryGroupId: string, secondaryGroup: SecondaryGroup) => {
+      const storeService = await getStoreService()
+      return storeService.addSecondaryGroup(primaryGroupId, secondaryGroup)
+    }
+  )
 
-  ipcMain.handle('store:update-secondary-group', async (_, secondaryGroupId: string, updates: Partial<SecondaryGroup>) => {
-    const storeService = await getStoreService()
-    return storeService.updateSecondaryGroup(secondaryGroupId, updates)
-  })
+  ipcMain.handle(
+    'store:update-secondary-group',
+    async (_, secondaryGroupId: string, updates: Partial<SecondaryGroup>) => {
+      const storeService = await getStoreService()
+      return storeService.updateSecondaryGroup(secondaryGroupId, updates)
+    }
+  )
 
   ipcMain.handle('store:delete-secondary-group', async (_, secondaryGroupId: string) => {
     const storeService = await getStoreService()
@@ -61,20 +70,29 @@ export function registerStoreHandlers(_mainWindow: BrowserWindow): void {
   })
 
   // 网站相关
-  ipcMain.handle('store:add-website-to-primary', async (_, primaryGroupId: string, website: Website) => {
-    const storeService = await getStoreService()
-    return storeService.addWebsiteToPrimaryGroup(primaryGroupId, website)
-  })
+  ipcMain.handle(
+    'store:add-website-to-primary',
+    async (_, primaryGroupId: string, website: Website) => {
+      const storeService = await getStoreService()
+      return storeService.addWebsiteToPrimaryGroup(primaryGroupId, website)
+    }
+  )
 
-  ipcMain.handle('store:add-website-to-secondary', async (_, secondaryGroupId: string, website: Website) => {
-    const storeService = await getStoreService()
-    return storeService.addWebsiteToSecondaryGroup(secondaryGroupId, website)
-  })
+  ipcMain.handle(
+    'store:add-website-to-secondary',
+    async (_, secondaryGroupId: string, website: Website) => {
+      const storeService = await getStoreService()
+      return storeService.addWebsiteToSecondaryGroup(secondaryGroupId, website)
+    }
+  )
 
-  ipcMain.handle('store:update-website', async (_, websiteId: string, updates: Partial<Website>) => {
-    const storeService = await getStoreService()
-    return storeService.updateWebsite(websiteId, updates)
-  })
+  ipcMain.handle(
+    'store:update-website',
+    async (_, websiteId: string, updates: Partial<Website>) => {
+      const storeService = await getStoreService()
+      return storeService.updateWebsite(websiteId, updates)
+    }
+  )
 
   ipcMain.handle('store:delete-website', async (_, websiteId: string) => {
     const storeService = await getStoreService()
@@ -82,15 +100,21 @@ export function registerStoreHandlers(_mainWindow: BrowserWindow): void {
   })
 
   // 排序相关
-  ipcMain.handle('store:update-secondary-group-order', async (_, primaryGroupId: string, secondaryGroupIds: string[]) => {
-    const storeService = await getStoreService()
-    await storeService.updateSecondaryGroupOrder(primaryGroupId, secondaryGroupIds)
-  })
+  ipcMain.handle(
+    'store:update-secondary-group-order',
+    async (_, primaryGroupId: string, secondaryGroupIds: string[]) => {
+      const storeService = await getStoreService()
+      await storeService.updateSecondaryGroupOrder(primaryGroupId, secondaryGroupIds)
+    }
+  )
 
-  ipcMain.handle('store:update-website-order', async (_, secondaryGroupId: string, websiteIds: string[]) => {
-    const storeService = await getStoreService()
-    await storeService.updateWebsiteOrder(secondaryGroupId, websiteIds)
-  })
+  ipcMain.handle(
+    'store:update-website-order',
+    async (_, secondaryGroupId: string, websiteIds: string[]) => {
+      const storeService = await getStoreService()
+      await storeService.updateWebsiteOrder(secondaryGroupId, websiteIds)
+    }
+  )
 
   ipcMain.handle('store:batch-update-website-orders', async (_, updates: WebsiteOrderUpdate[]) => {
     const storeService = await getStoreService()
