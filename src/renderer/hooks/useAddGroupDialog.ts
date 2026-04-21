@@ -21,16 +21,23 @@ export const useAddGroupDialog = ({
     groupData: Omit<PrimaryGroup | SecondaryGroup, 'id' | 'createdAt' | 'updatedAt' | 'order'>
   ): void => {
     if (dialogMode === 'secondary' && selectedGroupId) {
+      const targetPrimaryGroup = primaryGroups.find((pg) => pg.id === selectedGroupId)
+      const existingSecondaryGroups = targetPrimaryGroup?.secondaryGroups || []
+      const maxSecondaryOrder =
+        existingSecondaryGroups.length > 0
+          ? Math.max(...existingSecondaryGroups.map((group) => group.order ?? 0))
+          : -100
+
       // 添加二级分组到指定的一级分组
       const newSecondaryGroup: SecondaryGroup = {
         ...groupData,
         id: `secondary-${Date.now()}`,
         primaryGroupId: selectedGroupId,
         websites: [],
-        order: 0,
+        order: maxSecondaryOrder + 100,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        expanded: false
+        expanded: groupData.expanded ?? true
       }
 
       // 更新primaryGroups
@@ -47,12 +54,17 @@ export const useAddGroupDialog = ({
       // 使用onGroupsUpdate函数更新状态和存储
       onGroupsUpdate(updatedPrimaryGroups)
     } else if (dialogMode === 'primary') {
+      const maxPrimaryOrder =
+        primaryGroups.length > 0
+          ? Math.max(...primaryGroups.map((group) => group.order ?? 0))
+          : -100
+
       // 添加一级分组
       const newPrimaryGroup: PrimaryGroup = {
         ...groupData,
         id: `primary-${Date.now()}`,
         secondaryGroups: [],
-        order: 0,
+        order: maxPrimaryOrder + 100,
         createdAt: Date.now(),
         updatedAt: Date.now()
       }

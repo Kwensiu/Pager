@@ -13,22 +13,16 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface SidebarLayoutProps {
   children: (currentWebsite: Website | null) => React.ReactNode
-  activeWebsiteId?: string | null
-  onWebsiteClick?: (website: Website) => void
 }
 
 // 内部组件，在 SidebarProvider 内部使用
 interface SidebarLayoutInnerProps {
   children: (currentWebsite: Website | null) => React.ReactNode
-  activeWebsiteId?: string | null
-  onWebsiteClick?: (website: Website) => void
   collapsedSidebarMode: 'all' | 'expanded'
 }
 
 const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
   children,
-  activeWebsiteId,
-  onWebsiteClick,
   collapsedSidebarMode
 }) => {
   // AddOptionsDialog 状态
@@ -111,7 +105,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
     setResetDataDialogOpen,
     setClearSoftwareDataDialogOpen,
     setClearCacheDialogOpen
-  } = useSidebarLogic({ activeWebsiteId, onWebsiteClick })
+  } = useSidebarLogic({})
 
   // 监听关闭设置页面的事件
   useEffect(() => {
@@ -277,7 +271,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
           handleEditSecondaryGroup={handleEditSecondaryGroup}
           handleDeleteSecondaryGroup={handleDeleteSecondaryGroup}
           contextMenuSecondaryGroup={contextMenuSecondaryGroup}
-          activeWebsiteId={activeWebsiteId}
+          activeWebsiteId={currentWebsite?.id || null}
           onGroupsUpdate={updatePrimaryGroups}
           onOpenAddOptionsDialog={(primaryGroupId) => {
             setAddOptionsPrimaryGroupId(primaryGroupId)
@@ -355,9 +349,7 @@ const SidebarLayoutInner: React.FC<SidebarLayoutInnerProps> = ({
 }
 
 export default function SidebarLayout({
-  children,
-  activeWebsiteId = null,
-  onWebsiteClick
+  children
 }: SidebarLayoutProps): React.ReactElement {
   // 使用 useSettings hook 管理设置
   const { settings } = useSettings()
@@ -365,11 +357,7 @@ export default function SidebarLayout({
 
   return (
     <SidebarProvider>
-      <SidebarLayoutInner
-        activeWebsiteId={activeWebsiteId}
-        onWebsiteClick={onWebsiteClick}
-        collapsedSidebarMode={collapsedSidebarMode || 'all'}
-      >
+      <SidebarLayoutInner collapsedSidebarMode={collapsedSidebarMode || 'all'}>
         {children}
       </SidebarLayoutInner>
     </SidebarProvider>

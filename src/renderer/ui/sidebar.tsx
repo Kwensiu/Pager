@@ -18,6 +18,21 @@ const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
+const readSettingsFromStorage = (): Record<string, unknown> => {
+  const rawSettings = localStorage.getItem('settings')
+  if (!rawSettings) {
+    return {}
+  }
+
+  try {
+    const parsedSettings = JSON.parse(rawSettings)
+    return parsedSettings && typeof parsedSettings === 'object' ? parsedSettings : {}
+  } catch (error) {
+    console.error('Failed to parse settings from localStorage:', error)
+    return {}
+  }
+}
+
 const SidebarProvider = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<'div'> & {
@@ -44,13 +59,11 @@ const SidebarProvider = React.forwardRef<
     // 从 localStorage 读取初始状态
     const getInitialOpenState = (): boolean => {
       // 优先从 localStorage 读取
-      const savedSettings = localStorage.getItem('settings')
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings)
-        if (parsed.sidebarOpen !== undefined) {
-          return parsed.sidebarOpen
-        }
+      const settings = readSettingsFromStorage()
+      if (typeof settings.sidebarOpen === 'boolean') {
+        return settings.sidebarOpen
       }
+
       // 回退到 cookie
       const cookieMatch = document.cookie.match(new RegExp(`(^| )${SIDEBAR_COOKIE_NAME}=([^;]+)`))
       if (cookieMatch) {
@@ -71,11 +84,7 @@ const SidebarProvider = React.forwardRef<
         }
 
         // 保存到 localStorage
-        const savedSettings = localStorage.getItem('settings')
-        let settings = {}
-        if (savedSettings) {
-          settings = JSON.parse(savedSettings)
-        }
+        const settings = readSettingsFromStorage()
         const updatedSettings = {
           ...settings,
           sidebarOpen: openState
@@ -251,7 +260,7 @@ Sidebar.displayName = 'Sidebar'
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
+>(({ className, onClick, children, ...props }, ref) => {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -267,7 +276,7 @@ const SidebarTrigger = React.forwardRef<
       }}
       {...props}
     >
-      <PanelLeft />
+      {children ?? <PanelLeft />}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )

@@ -196,7 +196,7 @@ const SidebarContainer: React.FC<SidebarContainerProps> = ({
     <div className={`flex h-screen w-full ${isAlwaysOnTop ? 'border-4 border-blue-400/30' : ''}`}>
       <Sidebar
         collapsible="icon"
-        className="h-full border-r border-border [&_[data-sidebar=rail]]:!hidden will-change-[width] contain-[layout]"
+        className="h-full border-r border-border will-change-[width] contain-[layout]"
         role="navigation"
         aria-label="网站导航侧边栏"
       >

@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import SidebarLayout from '@/components/layout/SidebarLayout'
 import Dashboard from '@/pages/Dashboard'
-import { Website } from '@/types/website'
 import { I18nProviderWrapper } from './core/i18n/I18nProvider'
 
 function App(): JSX.Element {
-  const [activeWebsiteId, setActiveWebsiteId] = useState<string | null>(null)
-
   // 极简主题应用
   useEffect(() => {
     const applyTheme = (): void => {
@@ -53,13 +50,9 @@ function App(): JSX.Element {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  const handleWebsiteClick = (website: Website): void => {
-    setActiveWebsiteId(website.id)
-  }
-
   return (
     <I18nProviderWrapper>
-      <SidebarLayout activeWebsiteId={activeWebsiteId} onWebsiteClick={handleWebsiteClick}>
+      <SidebarLayout>
         {(currentWebsite) => <Dashboard currentWebsite={currentWebsite} />}
       </SidebarLayout>
     </I18nProviderWrapper>

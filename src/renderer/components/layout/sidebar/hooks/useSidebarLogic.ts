@@ -18,6 +18,33 @@ const markAsInitialized = (): void => {
   localStorage.setItem('hasInitialized', 'true')
 }
 
+const collectWebsiteIdsFromSecondaryGroup = (secondaryGroup: SecondaryGroup): string[] =>
+  secondaryGroup.websites.map((website) => website.id)
+
+const collectWebsiteIdsFromPrimaryGroup = (primaryGroup: PrimaryGroup): string[] => [
+  ...(primaryGroup.websites || []).map((website) => website.id),
+  ...primaryGroup.secondaryGroups.flatMap(collectWebsiteIdsFromSecondaryGroup)
+]
+
+const collectWebsiteIdsFromPrimaryGroups = (groups: PrimaryGroup[]): string[] =>
+  groups.flatMap(collectWebsiteIdsFromPrimaryGroup)
+
+const dispatchWebsiteDeletedEvents = (websiteIds: string[]): void => {
+  const uniqueWebsiteIds = Array.from(new Set(websiteIds))
+  uniqueWebsiteIds.forEach((websiteId) => {
+    window.dispatchEvent(
+      new CustomEvent('pager:website-deleted', {
+        detail: { websiteId }
+      })
+    )
+  })
+}
+
+const getDeletedWebsiteIds = (previousIds: string[], nextIds: string[]): string[] => {
+  const nextIdSet = new Set(nextIds)
+  return previousIds.filter((websiteId) => !nextIdSet.has(websiteId))
+}
+
 export interface UseSidebarLogicProps {
   activeWebsiteId?: string | null
   onWebsiteClick?: (website: Website) => void
@@ -383,7 +410,6 @@ export function useSidebarLogic({
           ...sg,
           websites: sg.websites?.filter((w) => w.id !== websiteIdToDelete) || []
         }))
-        .filter((sg) => sg.websites && sg.websites.length > 0)
 
       return {
         ...pg,
@@ -399,11 +425,7 @@ export function useSidebarLogic({
       setCurrentWebsite(null)
     }
 
-    window.dispatchEvent(
-      new CustomEvent('pager:website-deleted', {
-        detail: { websiteId: websiteIdToDelete }
-      })
-    )
+    dispatchWebsiteDeletedEvents([websiteIdToDelete])
 
     setContextMenuWebsite(null)
     dialogManagement.closeConfirmDeleteWebsite()
@@ -515,11 +537,13 @@ export function useSidebarLogic({
   }
 
   const confirmClearData = (): void => {
+    const deletedWebsiteIds = collectWebsiteIdsFromPrimaryGroups(primaryGroups)
     storageService.clearPrimaryGroups()
     localStorage.removeItem('hasInitialized')
     setPrimaryGroups([])
     setActivePrimaryGroup(null)
     setCurrentWebsite(null)
+    dispatchWebsiteDeletedEvents(deletedWebsiteIds)
     dialogManagement.closeClearDataDialog()
   }
 
@@ -532,14 +556,18 @@ export function useSidebarLogic({
   }
 
   const confirmResetToDefaults = async (): Promise<void> => {
+    const previousWebsiteIds = collectWebsiteIdsFromPrimaryGroups(primaryGroups)
     await storageService.clearPrimaryGroups()
     localStorage.removeItem('hasInitialized')
     const defaultGroups = getDefaultGroups()
+    const nextWebsiteIds = collectWebsiteIdsFromPrimaryGroups(defaultGroups)
+    const deletedWebsiteIds = getDeletedWebsiteIds(previousWebsiteIds, nextWebsiteIds)
     await storageService.setPrimaryGroups(defaultGroups)
     markAsInitialized()
     setPrimaryGroups([...defaultGroups])
     setActivePrimaryGroup(defaultGroups[0] || null)
     setCurrentWebsite(null)
+    dispatchWebsiteDeletedEvents(deletedWebsiteIds)
     dialogManagement.closeResetDataDialog()
   }
 
@@ -558,17 +586,27 @@ export function useSidebarLogic({
   }
 
   const confirmDeleteSecondaryGroup = (): void => {
-    if (!dialogManagement.secondaryGroupConfirmDelete.secondaryGroupId) return
+    const secondaryGroupId = dialogManagement.secondaryGroupConfirmDelete.secondaryGroupId
+    if (!secondaryGroupId) return
+
+    const deletedWebsiteIds = primaryGroups.flatMap((pg) => {
+      const targetSecondaryGroup = pg.secondaryGroups.find((sg) => sg.id === secondaryGroupId)
+      return targetSecondaryGroup ? collectWebsiteIdsFromSecondaryGroup(targetSecondaryGroup) : []
+    })
 
     const updatedGroups = primaryGroups.map((pg) => ({
       ...pg,
-      secondaryGroups: pg.secondaryGroups.filter(
-        (sg) => sg.id !== dialogManagement.secondaryGroupConfirmDelete.secondaryGroupId
-      )
+      secondaryGroups: pg.secondaryGroups.filter((sg) => sg.id !== secondaryGroupId)
     }))
 
     setPrimaryGroups(updatedGroups)
     storageService.setPrimaryGroups(updatedGroups)
+
+    if (currentWebsite && deletedWebsiteIds.includes(currentWebsite.id)) {
+      setCurrentWebsite(null)
+    }
+
+    dispatchWebsiteDeletedEvents(deletedWebsiteIds)
     dialogManagement.closeConfirmDeleteSecondaryGroup()
   }
 
@@ -602,6 +640,10 @@ export function useSidebarLogic({
     if (!dialogManagement.primaryGroupConfirmDelete.primaryGroupId) return
 
     const groupId = dialogManagement.primaryGroupConfirmDelete.primaryGroupId
+    const targetPrimaryGroup = primaryGroups.find((group) => group.id === groupId)
+    const deletedWebsiteIds = targetPrimaryGroup
+      ? collectWebsiteIdsFromPrimaryGroup(targetPrimaryGroup)
+      : []
 
     // 如果删除的是当前激活的分类，需要切换到其他分类
     if (activePrimaryGroup?.id === groupId) {
@@ -617,6 +659,12 @@ export function useSidebarLogic({
     const updatedPrimaryGroups = primaryGroups.filter((g) => g.id !== groupId)
     setPrimaryGroups(updatedPrimaryGroups)
     storageService.setPrimaryGroups(updatedPrimaryGroups)
+
+    if (currentWebsite && deletedWebsiteIds.includes(currentWebsite.id)) {
+      setCurrentWebsite(null)
+    }
+
+    dispatchWebsiteDeletedEvents(deletedWebsiteIds)
 
     dialogManagement.closeConfirmDeletePrimaryGroup()
   }

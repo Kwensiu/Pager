@@ -77,6 +77,7 @@ export function EditWebsiteDialog({
   const [showScriptManagerManage, setShowScriptManagerManage] = useState(false)
   const [selectedScripts, setSelectedScripts] = useState<UserScript[]>([])
   const faviconUrlRef = useRef('')
+  const allowLocalFileAccess = settings.allowLocalFileAccess ?? false
 
   // 开发模式日志开关
   const isDev = process.env.NODE_ENV === 'development'
@@ -151,7 +152,7 @@ export function EditWebsiteDialog({
         selectedScripts: selectedScripts.map((s) => s.name)
       })
 
-    const normalizedUrl = normalizeUrlInput(url, settings.allowLocalFileAccess)
+    const normalizedUrl = normalizeUrlInput(url, allowLocalFileAccess)
 
     const updatedWebsite = {
       ...website,
@@ -180,12 +181,12 @@ export function EditWebsiteDialog({
 
   // 验证URL是否有效
   const isValidUrl = (urlString: string): boolean => {
-    const normalizedUrl = normalizeUrlInput(urlString, settings.allowLocalFileAccess)
+    const normalizedUrl = normalizeUrlInput(urlString, allowLocalFileAccess)
 
     try {
       const url = new URL(normalizedUrl)
       // 根据设置决定是否允许file协议
-      if (url.protocol === 'file:' && !settings.allowLocalFileAccess) {
+      if (url.protocol === 'file:' && !allowLocalFileAccess) {
         return false
       }
       return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'file:'
@@ -200,7 +201,7 @@ export function EditWebsiteDialog({
       return
     }
 
-    const normalizedUrl = normalizeUrlInput(url, settings.allowLocalFileAccess)
+    const normalizedUrl = normalizeUrlInput(url, allowLocalFileAccess)
     console.log(`🔄 Starting favicon refresh for: ${normalizedUrl}`)
     setIsRefreshing(true)
 

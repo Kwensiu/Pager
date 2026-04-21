@@ -246,7 +246,8 @@ export const SortableSecondaryGroup = React.memo(
       prevProps.secondaryGroup.expanded !== nextProps.secondaryGroup.expanded ||
       prevProps.active !== nextProps.active ||
       prevProps.disabled !== nextProps.disabled ||
-      prevProps.isCollapsed !== nextProps.isCollapsed
+      prevProps.isCollapsed !== nextProps.isCollapsed ||
+      prevProps.activeWebsiteId !== nextProps.activeWebsiteId
     ) {
       return false
     }
