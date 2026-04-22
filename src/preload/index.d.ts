@@ -353,6 +353,10 @@ declare global {
         // 设置相关
         getSettings: () => Promise<Settings>
         updateSettings: (updates: Partial<Settings>) => Promise<void>
+        bridgeLegacyRendererState: (payload: {
+          hasInitialized?: boolean
+          settings?: { theme?: string; sidebarOpen?: boolean }
+        }) => Promise<{ accepted: boolean }>
 
         // 清除数据相关
         clearAll: () => Promise<void>

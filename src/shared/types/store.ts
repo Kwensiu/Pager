@@ -118,6 +118,10 @@ export interface Settings {
   autoCloseSettingsOnWebsiteClick?: boolean // 点击网站时自动关闭设置页面
   // 清除数据标志
   clearDataOnNextStart?: boolean // 下次启动时清除所有数据
+  // 兼容桥接历史字段
+  sidebarOpen?: boolean // 侧边栏展开状态（历史 localStorage 键）
+  legacyHasInitialized?: boolean // 首次初始化标记（历史 localStorage 键）
+  legacyBridgeCompletedAt?: number // 历史 localStorage 桥接完成时间
 }
 
 export interface ExtensionSettings {
