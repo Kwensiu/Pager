@@ -1,5 +1,7 @@
-import { app, BrowserWindow, session } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, dialog, session } from 'electron'
+import { join, resolve } from 'path'
+import fs from 'fs/promises'
+import fsSync from 'fs'
 import { globalProxyService } from './services/proxyService'
 import { windowManager } from './services/windowManager'
 import { registerIpcHandlers } from './ipc/handlers'
@@ -9,10 +11,14 @@ import { ExtensionManager } from './extensions/extensionManager'
 import { sessionIsolationService } from './services/sessionIsolation'
 import { extensionIsolationManager } from './services/extensionIsolation'
 import { extensionPermissionManager } from './services/extensionPermissionManager'
-import { memoryOptimizerService, crashHandler } from './services'
+import { memoryOptimizerService } from './services/memoryOptimizer'
+import { crashHandler } from './services/crashHandler'
 import { autoLaunchService } from './services/autoLaunch'
+import { storeMigrationService } from './services/storeMigration'
 
 let mainWindow: BrowserWindow | null = null
+const WINDOWS_STABLE_USER_DATA_DIR = 'com.pager.ks'
+const LEGACY_USER_DATA_DIR_NAME = 'UserData'
 
 // 动态导入storeService以避免循环依赖
 const getStoreService = async (): Promise<typeof import('./services/store').storeService> => {
@@ -20,14 +26,69 @@ const getStoreService = async (): Promise<typeof import('./services/store').stor
   return storeService
 }
 
-// 设置自定义用户数据路径，基于安装目录
-if (process.platform === 'win32') {
-  const exePath = app.getPath('exe')
-  const appDir = join(exePath, '..')
-  app.setPath('userData', join(appDir, 'UserData'))
+function configureStableUserDataPath(): void {
+  if (process.platform !== 'win32') return
+
+  // Keep user data in roaming AppData instead of installation directory.
+  const stableUserDataPath = join(app.getPath('appData'), WINDOWS_STABLE_USER_DATA_DIR)
+  app.setPath('userData', stableUserDataPath)
 }
 
+async function migrateLegacyWindowsUserData(): Promise<void> {
+  if (process.platform !== 'win32') return
+
+  const currentUserDataPath = resolve(app.getPath('userData'))
+  const legacyUserDataPath = resolve(join(app.getPath('exe'), '..', LEGACY_USER_DATA_DIR_NAME))
+
+  if (currentUserDataPath.toLowerCase() === legacyUserDataPath.toLowerCase()) return
+  if (!fsSync.existsSync(legacyUserDataPath)) return
+
+  const currentStorePath = join(currentUserDataPath, 'pager-store.json')
+  if (fsSync.existsSync(currentStorePath)) return
+
+  try {
+    if (fsSync.existsSync(currentUserDataPath)) {
+      const currentEntries = await fs.readdir(currentUserDataPath)
+      if (currentEntries.length > 0) {
+        // Current path already has data, do not overwrite.
+        return
+      }
+    } else {
+      await fs.mkdir(currentUserDataPath, { recursive: true })
+    }
+
+    await fs.cp(legacyUserDataPath, currentUserDataPath, {
+      recursive: true,
+      force: false,
+      errorOnExist: true
+    })
+
+    await fs.writeFile(
+      join(currentUserDataPath, 'legacy-userdata-migrated.json'),
+      JSON.stringify(
+        {
+          migratedAt: new Date().toISOString(),
+          from: legacyUserDataPath,
+          to: currentUserDataPath
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    )
+    console.log('[UserDataMigration] Migrated legacy UserData to stable AppData path')
+  } catch (error) {
+    console.error('[UserDataMigration] Migration failed, falling back to legacy path:', error)
+    // Fallback for this run to avoid making existing data inaccessible.
+    app.setPath('userData', legacyUserDataPath)
+  }
+}
+
+configureStableUserDataPath()
+
 app.whenReady().then(async () => {
+  await migrateLegacyWindowsUserData()
+
   // 禁用软件光栅化器
   app.commandLine.appendSwitch('disable-software-rasterizer')
   // 忽略证书错误
@@ -67,6 +128,17 @@ app.whenReady().then(async () => {
   // 创建窗口
   mainWindow = await createWindow()
   await registerIpcHandlers(mainWindow)
+  try {
+    await storeMigrationService.start()
+  } catch (error) {
+    console.error('Store migration bootstrap failed:', error)
+    dialog.showErrorBox(
+      'Store Migration Failed',
+      'Data migration failed and the app cannot continue safely. Please reset app data and retry.'
+    )
+    app.exit(1)
+    return
+  }
 
   // 初始化快捷键服务
   try {
