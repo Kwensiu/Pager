@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](https://github.com/Kwensiu/Pager/compare/v0.3.0...v0.3.1) (2026-04-22)
+
+
+### Features
+
+* **favicon:** improve detection and sync across UI components ([20827f6](https://github.com/Kwensiu/Pager/commit/20827f6dac251740ccefd947337d7e19f619931f))
+* **store-migration:** add sidebar bridge migration and schema handling ([a1997a7](https://github.com/Kwensiu/Pager/commit/a1997a79ccb7664ae4becac6ce6f449459b75817))
+
+
+### Bug Fixes
+
+* **sidebar:** stabilize highlight and deletion sync flows ([3bdcd10](https://github.com/Kwensiu/Pager/commit/3bdcd10c1bb8a3574e46117b8596129d52b32e66))
+* **win-installer:** preserve user data on update and stabilize userData path ([3415f7e](https://github.com/Kwensiu/Pager/commit/3415f7e72fd66c3c5f9df34d1b4ab9519b1b6a65))
+
 ## [0.3.0](https://github.com/Kwensiu/Pager/compare/pager-v0.2.4...pager-v0.3.0) (2026-04-21)
 
 
