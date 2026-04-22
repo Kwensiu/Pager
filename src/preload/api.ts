@@ -313,6 +313,10 @@ export const api = {
     getSettings: () => ipcRenderer.invoke('store:get-settings'),
     updateSettings: (updates: Partial<Settings>) =>
       ipcRenderer.invoke('store:update-settings', updates),
+    bridgeLegacyRendererState: (payload: {
+      hasInitialized?: boolean
+      settings?: { theme?: string; sidebarOpen?: boolean }
+    }) => ipcRenderer.invoke('store:bridge-legacy-renderer-state', payload),
 
     // 清除数据相关
     clearAll: () => ipcRenderer.invoke('store:clear-all'),

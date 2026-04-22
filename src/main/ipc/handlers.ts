@@ -19,9 +19,14 @@ import { globalProxyService } from '../services/proxyService'
 const extensionManager = ExtensionManager.getInstance()
 
 // 动态导入storeService以避免循环依赖
-export const getStoreService = async (): Promise<
-  typeof import('../services/store').storeService
-> => {
+export const getStoreService = async (
+  options?: { bypassMigrationGuard?: boolean }
+): Promise<typeof import('../services/store').storeService> => {
+  if (!options?.bypassMigrationGuard) {
+    const { storeMigrationService } = await import('../services/storeMigration')
+    await storeMigrationService.waitUntilReady()
+  }
+
   const { storeService } = await import('../services/store')
   return storeService
 }
@@ -1920,6 +1925,10 @@ export async function registerIpcHandlers(mainWindow: Electron.BrowserWindow): P
   })
 
   // ===== Store 相关 IPC 处理器 =====
+  ipcMain.handle('store:bridge-legacy-renderer-state', async (_, payload) => {
+    const { storeMigrationService } = await import('../services/storeMigration')
+    return storeMigrationService.submitBridge(payload)
+  })
 
   // 获取所有主要分组
   ipcMain.handle('store:get-primary-groups', async () => {

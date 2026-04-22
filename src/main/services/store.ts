@@ -17,6 +17,7 @@ interface StoreSchema {
   windowState: WindowState
   settings: Settings
   shortcuts: Shortcut[]
+  storeSchemaVersion: number
 }
 
 // 定义 Store 的类型接口
@@ -128,7 +129,8 @@ async function getStore(): Promise<ElectronStore> {
           // 调试模式
           showDebugOptions: false
         },
-        shortcuts: [] // 快捷键配置
+        shortcuts: [], // 快捷键配置
+        storeSchemaVersion: 1
       }
     })
     // 打印存储路径以便调试
@@ -176,6 +178,7 @@ export const storeService = {
       secondaryGroups: group.secondaryGroups ?? [],
       websites: group.websites ?? [],
       order: group.order,
+      createdAt: group.createdAt ?? Date.now(),
       updatedAt: group.updatedAt ?? Date.now()
     }
 
@@ -523,6 +526,12 @@ export const storeService = {
     s.set('windowState', mergedState)
   },
 
+  // 直接覆盖窗口状态（用于迁移回滚）
+  async setWindowStateExact(state: WindowState) {
+    const s = await getStore()
+    s.set('windowState', state)
+  },
+
   // ===== 设置相关 =====
 
   // 获取设置
@@ -536,6 +545,23 @@ export const storeService = {
     const settings = await this.getSettings()
     const s = await getStore()
     s.set('settings', { ...settings, ...updates })
+  },
+
+  // 直接覆盖设置（用于迁移回滚）
+  async setSettings(settings: Settings) {
+    const s = await getStore()
+    s.set('settings', settings)
+  },
+
+  // ===== Schema 版本相关 =====
+  async getStoreSchemaVersion() {
+    const s = await getStore()
+    return s.get('storeSchemaVersion', 1)
+  },
+
+  async setStoreSchemaVersion(version: number) {
+    const s = await getStore()
+    s.set('storeSchemaVersion', version)
   },
 
   // ===== 快捷键相关 =====

@@ -4,6 +4,36 @@ import Dashboard from '@/pages/Dashboard'
 import { I18nProviderWrapper } from './core/i18n/I18nProvider'
 
 function App(): JSX.Element {
+  useEffect(() => {
+    const bridgeLegacyState = async (): Promise<void> => {
+      try {
+        const rawSettings = localStorage.getItem('settings')
+        let parsedSettings: Record<string, unknown> = {}
+        if (rawSettings) {
+          parsedSettings = JSON.parse(rawSettings)
+        }
+
+        await window.api.store.bridgeLegacyRendererState({
+          hasInitialized: localStorage.getItem('hasInitialized') === 'true',
+          settings: {
+            theme:
+              typeof parsedSettings.theme === 'string'
+                ? (parsedSettings.theme as string)
+                : undefined,
+            sidebarOpen:
+              typeof parsedSettings.sidebarOpen === 'boolean'
+                ? (parsedSettings.sidebarOpen as boolean)
+                : undefined
+          }
+        })
+      } catch (error) {
+        console.error('[App] Failed to bridge legacy renderer state:', error)
+      }
+    }
+
+    void bridgeLegacyState()
+  }, [])
+
   // 极简主题应用
   useEffect(() => {
     const applyTheme = (): void => {
